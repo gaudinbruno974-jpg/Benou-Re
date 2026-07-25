@@ -103,7 +103,8 @@ export default function SessionEmargementScreen({
     setIsExporting(true);
     setDriveStatus({ type: 'idle', message: '' });
     const numero = session.sessionNumber || session.chrono || session.id;
-    const sessionDate = session.date ? new Date(session.date) : null;
+    const dateSource = session.date || session.dateReprise || '';
+    const sessionDate = dateSource ? new Date(dateSource) : null;
     const dateStr =
       sessionDate && !Number.isNaN(sessionDate.getTime())
         ? sessionDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
