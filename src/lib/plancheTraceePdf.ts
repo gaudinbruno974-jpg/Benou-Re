@@ -177,19 +177,38 @@ export function renderPlanche(
   const presentVisitors = (session.visitorIds || [])
     .map((id) => visitors.find((v) => v.id === id))
     .filter((v): v is Visitor => !!v);
-  const roleOf = (v: Visitor): string | undefined => {
+  // Office effectivement occupé par l'invité pendant la tenue : rôle attribué
+  // pour la session, sinon la fonction figurant sur la feuille de présence.
+  const officeOf = (v: Visitor): string | undefined => {
     const r = session.visitorRoles?.[v.id];
-    return r && r !== 'Simple Visiteur' ? r : undefined;
+    if (r && r !== 'Simple Visiteur' && r !== 'Visiteur') return r;
+    const f = (v.function || '').trim();
+    if (f && f !== 'Simple Visiteur' && f !== 'Visiteur') return f;
+    return undefined;
   };
   const placementOf = (v: Visitor): string | undefined => {
-    const r = roleOf(v);
-    return r ? OFFICE_PLACEMENT[r] : undefined;
+    const office = officeOf(v);
+    return office ? OFFICE_PLACEMENT[office] : undefined;
+  };
+  // Phrase de placement adaptée à la colonne, en réutilisant la logique demandée.
+  const placementSentence = (v: Visitor, placement: string, office: string): string => {
+    const who = `le F∴/S∴ ${visitorFullName(v)} (${v.lodge})`;
+    switch (placement) {
+      case 'Colonne du Midi':
+        return `Au Midi, a pris place ${who} en qualité de ${office}.`;
+      case 'Colonne du Nord':
+        return `Au Nord, a pris place ${who} en qualité de ${office}.`;
+      case 'Occident':
+        return `À l’Occident, à la porte d’entrée à l’intérieur, a pris place ${who} en qualité de ${office}.`;
+      default:
+        return `À l’${placement}, a pris place ${who} en qualité de ${office}.`;
+    }
   };
 
   const dignitairesOrient = presentVisitors.filter((v) => placementOf(v) === 'Orient');
   if (dignitairesOrient.length > 0) {
     const liste = dignitairesOrient
-      .map((v) => `${visitorFullName(v)} (${roleOf(v)} – ${v.lodge})`)
+      .map((v) => `${visitorFullName(v)} (${officeOf(v)} – ${v.lodge})`)
       .join(', ');
     paragraph(`A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : ${liste}.`, {
       size: 10, gap: 6,
@@ -200,7 +219,7 @@ export function renderPlanche(
   const orateurMember = members.find(
     (m) => (m.function || '').trim() === 'Orateur' && (session.presentIds || []).includes(m.id),
   );
-  const orateurVisitor = presentVisitors.find((v) => roleOf(v) === 'Orateur');
+  const orateurVisitor = presentVisitors.find((v) => officeOf(v) === 'Orateur');
   const orateurName = session.plancheOrateurName
     || (orateurMember ? memberFullName(orateurMember) : undefined)
     || (orateurVisitor ? visitorFullName(orateurVisitor) : undefined);
@@ -211,16 +230,17 @@ export function renderPlanche(
     { size: 10, gap: 6 },
   );
 
-  // Placement des invités selon leur fonction (hors Orient déjà cité).
+  // Placement des invités (hors Orient déjà cité) :
+  // - avec une fonction → phrase de placement selon la colonne de l'office ;
+  // - sans fonction → placement sur les Colonnes selon la feuille de présence.
   presentVisitors.forEach((v) => {
+    const office = officeOf(v);
     const placement = placementOf(v);
-    const role = roleOf(v);
+    if (office === 'Orateur') return; // déjà traité par le poste d'Orateur
     if (placement && placement !== 'Orient') {
-      paragraph(`Au ${placement}, a pris place le F∴/S∴ ${visitorFullName(v)} (${v.lodge}) en qualité de ${role}.`, {
-        size: 10, gap: 3,
-      });
-    } else if (!placement) {
-      paragraph(`Le F∴/S∴ ${visitorFullName(v)} (${v.lodge}) a pris place sur les colonnes, selon la feuille de présence.`, {
+      paragraph(placementSentence(v, placement, office as string), { size: 10, gap: 3 });
+    } else if (!office) {
+      paragraph(`Le F∴/S∴ ${visitorFullName(v)} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.`, {
         size: 10, gap: 3,
       });
     }
