@@ -60,15 +60,58 @@ const degreToOrdinalLong = (degre: Degre): string => {
   }
 };
 
-// Date maçonnique (simplifiée)
+// Calendrier égyptien du R∴A∴P∴M∴M∴
+// - 12 mois de 30 jours répartis en 3 saisons (SCHA, PRE, SCHEMON)
+// - 1er THOT = 19 juillet ; les 5 jours épagomènes tombent du 14 au 18 juillet
+// - An de la Lumière d'Égypte = année civile + 1292 (nouvel an au 19 juillet)
+const EG_MONTHS: Array<{ name: string; season: string }> = [
+  { name: "THOT", season: "SCHA" },
+  { name: "PAOPHI", season: "SCHA" },
+  { name: "ATHYR", season: "SCHA" },
+  { name: "KHAOIAK", season: "SCHA" },
+  { name: "TYBI", season: "PRE" },
+  { name: "MEKHEIN", season: "PRE" },
+  { name: "PHAMENOTH", season: "PRE" },
+  { name: "PHARMOUTHI", season: "PRE" },
+  { name: "PAKHOUS", season: "SCHEMON" },
+  { name: "PSYRIE", season: "SCHEMON" },
+  { name: "EPIPHI", season: "SCHEMON" },
+  { name: "MESORI", season: "SCHEMON" },
+];
+const EG_EPAGOMENES = ["OSIRIS", "HORUS", "SETH", "ISIS", "NEPHTHYS"];
+
 const getMasonicDate = (date: Date): string => {
-  const months = ["THOT", "PHAOPHI", "ATHYR", "KOIAK", "TYBI", "MECHIR", 
-                  "PHAMENOTH", "PHARMOUTHI", "PACHONS", "PAYNI", "EPIPHI", "MECHORE"];
-  const day = date.getDate();
-  const month = months[date.getMonth()];
-  const year = date.getFullYear() + 1292;
-  const dayStr = day === 1 ? "1er" : `${day}ème`;
-  return `Le ${dayStr} jour du mois de ${month} de la saison SCHA De l’an ${year} de la Lumière d’Egypte`;
+  if (isNaN(date.getTime())) return "Date inconnue";
+  // Normaliser à midi (heure locale) pour éviter les décalages horaires.
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12);
+  const civilYear = d.getFullYear();
+  // Nouvel an égyptien = 1er THOT = 19 juillet (mois 6 en base 0).
+  const newYear = new Date(civilYear, 6, 19, 12);
+  let start: Date;
+  let egYear: number;
+  if (d.getTime() >= newYear.getTime()) {
+    start = newYear;
+    egYear = civilYear + 1292;
+  } else {
+    start = new Date(civilYear - 1, 6, 19, 12);
+    egYear = civilYear - 1 + 1292;
+  }
+  const offset = Math.floor((d.getTime() - start.getTime()) / 86400000);
+  const suffixe = "de la Lumière d’Égypte";
+
+  // Jours épagomènes : offsets 360 à 364 (14 au 18 juillet).
+  if (offset >= 360) {
+    const idx = Math.min(offset - 360, EG_EPAGOMENES.length - 1);
+    const ord = idx + 1;
+    const ordStr = ord === 1 ? "1er" : `${ord}ème`;
+    return `Le ${ordStr} jour épagomène (Naissance de ${EG_EPAGOMENES[idx]}) De l’an ${egYear} ${suffixe}`;
+  }
+
+  const monthIndex = Math.floor(offset / 30);
+  const dayInMonth = (offset % 30) + 1;
+  const { name, season } = EG_MONTHS[monthIndex];
+  const dayStr = dayInMonth === 1 ? "1er" : `${dayInMonth}ème`;
+  return `Le ${dayStr} jour du mois de ${name} de la saison ${season} De l’an ${egYear} ${suffixe}`;
 };
 
 const formatDateConvoc = (dateStr: string): string => {
@@ -364,28 +407,32 @@ const generateConvocationPDF = async (
   });
   y += 8;
 
-  // ─── PIED DE PAGE : AGAPES (centré, bleu foncé) ────────────────
-  if (session.suitAgapes) {
-    if (y > 262) { doc.addPage(); y = 20; }
-    doc.setFont(FONT, 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
-    const medaille = session.montantMedaille && session.montantMedaille > 0
-      ? ` La médaille est de ${session.montantMedaille} euros.`
-      : '';
-    const agapeLines = doc.splitTextToSize(
-      `Les Travaux seront suivis d'Agapes au nom de la Fraternité en Salle Humide.${medaille}`,
-      contentWidth
-    );
-    doc.text(agapeLines, centerX, y, { align: 'center' });
-    y += agapeLines.length * 5 + 3;
-    const annonce = doc.splitTextToSize(
-      "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
-      contentWidth
-    );
-    doc.text(annonce, centerX, y, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
+  // ─── PIED DE PAGE : AGAPES (centré, bleu foncé, fixé en bas) ────
+  const pageHeight = doc.internal.pageSize.getHeight();
+  doc.setFont(FONT, 'normal');
+  doc.setFontSize(10);
+  const medaille = session.montantMedaille && session.montantMedaille > 0
+    ? ` La médaille est de ${session.montantMedaille} euros.`
+    : '';
+  const agapeLines = doc.splitTextToSize(
+    `Les Travaux seront suivis d'Agapes au nom de la Fraternité en Salle Humide.${medaille}`,
+    contentWidth
+  );
+  const annonce = doc.splitTextToSize(
+    "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
+    contentWidth
+  );
+  const footerHeight = (agapeLines.length + annonce.length) * 5 + 3;
+  // Positionner le pied de page en bas ; descendre sous le contenu s'il déborde.
+  let footerY = Math.max(y + 4, pageHeight - margin - footerHeight);
+  if (footerY + footerHeight > pageHeight - 10) {
+    doc.addPage();
+    footerY = pageHeight - margin - footerHeight;
   }
+  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
+  doc.text(agapeLines, centerX, footerY, { align: 'center' });
+  doc.text(annonce, centerX, footerY + agapeLines.length * 5 + 3, { align: 'center' });
+  doc.setTextColor(0, 0, 0);
 
   return doc.output("blob");
 };
