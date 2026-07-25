@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { authenticateGoogleDrive, hasGoogleDriveToken, disconnectGoogleDrive, loadLogoDataUrl } from '../lib/googleDrive';
 import logoGLDBUrl from '../assets/GLDB.png';
 import logoBenouReUrl from '../assets/Benou-Re.png';
+import { DEJAVU_SANS_NORMAL_BASE64, DEJAVU_SANS_BOLD_BASE64 } from '../lib/convocationFont';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES (réutilisés)
@@ -178,11 +179,20 @@ const generateConvocationPDF = async (
 ): Promise<Blob> => {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
+
+  // Police Unicode intégrée : la police standard de jsPDF ne rend pas les
+  // symboles maçonniques « ∴ ». DejaVu Sans (sous-ensemblée) les affiche.
+  const FONT = 'DejaVuSans';
+  doc.addFileToVFS('DejaVuSans.ttf', DEJAVU_SANS_NORMAL_BASE64);
+  doc.addFont('DejaVuSans.ttf', FONT, 'normal');
+  doc.addFileToVFS('DejaVuSans-Bold.ttf', DEJAVU_SANS_BOLD_BASE64);
+  doc.addFont('DejaVuSans-Bold.ttf', FONT, 'bold');
+
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
   const contentWidth = pageWidth - 2 * margin;
   const centerX = pageWidth / 2;
-  const BRONZE: [number, number, number] = [139, 90, 43];
+  const NAVY: [number, number, number] = [12, 35, 92];
   const VIOLET: [number, number, number] = [112, 26, 117];
   let y = 12;
 
@@ -213,21 +223,21 @@ const generateConvocationPDF = async (
   placeLogo(logoGLDB, margin);
   placeLogo(logoBenou, pageWidth - margin - LOGO_BOX);
 
-  // ─── EN-TÊTE TEXTE (centré entre les logos) ────────────────────
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(17);
-  doc.setTextColor(BRONZE[0], BRONZE[1], BRONZE[2]);
+  // ─── EN-TÊTE TEXTE (centré entre les logos, bleu foncé) ────────
+  doc.setFont(FONT, 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
   doc.text('GRANDE LOGE DE BOURBON', centerX, y + 8, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
+  doc.setFont(FONT, 'normal');
+  doc.setFontSize(7.5);
   const subtitle = doc.splitTextToSize(
     'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
     contentWidth - 2 * LOGO_BOX - 8
   );
   doc.text(subtitle, centerX, y + 14, { align: 'center' });
 
-  // Le contenu suivant démarre sous les logos.
-  y += LOGO_BOX + 6;
+  // Le contenu suivant démarre sous les logos (en-têtes bien aérés).
+  y += LOGO_BOX + 12;
 
   // ─── RITES HISTORIQUES (5 colonnes, nom puis lieu/année) ───────
   const rites: Array<{ name: string; place: string }> = [
@@ -242,19 +252,19 @@ const generateConvocationPDF = async (
   let maxNameLines = 1;
   rites.forEach((rite, i) => {
     const colCenter = margin + colWidth * i + colWidth / 2;
-    doc.setFont('helvetica', 'bold');
+    doc.setFont(FONT, 'bold');
     doc.setFontSize(7.5);
     const nameLines = doc.splitTextToSize(rite.name, colWidth - 2);
     maxNameLines = Math.max(maxNameLines, nameLines.length);
     doc.text(nameLines, colCenter, y, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
+    doc.setFont(FONT, 'normal');
     doc.setFontSize(7);
     doc.text(rite.place, colCenter, y + nameLines.length * 3 + 1, { align: 'center' });
   });
-  y += maxNameLines * 3 + 6;
+  y += maxNameLines * 3 + 12;
 
   // ─── FILIATIONS (3 lignes centrées) ────────────────────────────
-  doc.setFont('helvetica', 'italic');
+  doc.setFont(FONT, 'normal');
   doc.setFontSize(8);
   doc.setTextColor(80, 80, 80);
   const filiations = [
@@ -264,23 +274,23 @@ const generateConvocationPDF = async (
   ];
   filiations.forEach((f) => {
     doc.text(f, centerX, y, { align: 'center' });
-    y += 4;
+    y += 4.5;
   });
-  y += 3;
+  y += 8;
 
-  // ─── LOCALISATION DE LA LOGE (2 lignes centrées, sans trait) ───
-  doc.setFont('helvetica', 'bold');
+  // ─── LOCALISATION DE LA LOGE (2 lignes centrées, bleu foncé) ───
+  doc.setFont(FONT, 'bold');
   doc.setFontSize(15);
-  doc.setTextColor(BRONZE[0], BRONZE[1], BRONZE[2]);
+  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
   doc.text('R∴ L∴ Bénou Ré N°5', centerX, y, { align: 'center' });
-  y += 6;
+  y += 7;
   doc.setFontSize(11);
   doc.text('O∴ de Saint Pierre – Île de la Réunion', centerX, y, { align: 'center' });
-  y += 12;
+  y += 16;
 
   // ─── CADRE ORDRE DU JOUR ────────────────────────────────────────
   const dateFormatted = formatDateConvoc(session.dateReprise);
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(FONT, 'bold');
   doc.setFontSize(11);
   doc.setTextColor(0, 0, 0);
   const boxTitle = doc.splitTextToSize(
@@ -292,43 +302,45 @@ const generateConvocationPDF = async (
   doc.setLineWidth(0.4);
   doc.rect(margin, y, contentWidth, boxHeight);
   doc.text(boxTitle, centerX, y + 6, { align: 'center' });
-  y += boxHeight + 10;
+  y += boxHeight + 12;
 
   // ─── INVITATION (lignes centrées) ──────────────────────────────
-  doc.setFont('helvetica', 'normal');
+  doc.setFont(FONT, 'normal');
   doc.setFontSize(11);
   doc.setTextColor(0, 0, 0);
   doc.text('A la Gloire Du Grand Architecte De l\'Univers,', centerX, y, { align: 'center' });
   y += 6;
   doc.text('Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,', centerX, y, { align: 'center' });
-  y += 8;
+  y += 9;
   const degreLong = degreToOrdinalLong(session.degreTravail);
   const typeTenue = session.typeTenue || 'Ordinaire';
   const lieu = session.lieuReunion || 'Temple Thérèse Eliseman à Saint-Pierre';
+  // Phrase d'invitation en violet.
+  doc.setTextColor(VIOLET[0], VIOLET[1], VIOLET[2]);
   const invitation = doc.splitTextToSize(
     `La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux de sa ${chrono}° TENUE ${typeTenue.toUpperCase()} au ${degreLong} qui se déroulera au ${lieu} le :`,
     contentWidth
   );
   doc.text(invitation, centerX, y, { align: 'center' });
-  y += invitation.length * 5 + 4;
+  y += invitation.length * 5 + 6;
 
-  // ─── DATE ÉGYPTIENNE (violet) ──────────────────────────────────
+  // ─── DATE ÉGYPTIENNE (bleu foncé) ──────────────────────────────
   const masonicDate = getMasonicDate(new Date(session.dateReprise));
-  doc.setFont('helvetica', 'bold');
+  doc.setFont(FONT, 'bold');
   doc.setFontSize(11);
-  doc.setTextColor(VIOLET[0], VIOLET[1], VIOLET[2]);
+  doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
   const masonicLines = doc.splitTextToSize(masonicDate, contentWidth);
   doc.text(masonicLines, centerX, y, { align: 'center' });
-  y += masonicLines.length * 5 + 8;
+  y += masonicLines.length * 5 + 12;
   doc.setTextColor(0, 0, 0);
 
   // ─── ORDRE DU JOUR : LISTE NUMÉROTÉE 1 À N ─────────────────────
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFont(FONT, 'bold');
+  doc.setFontSize(12);
   doc.text("L'ordre du jour appellera :", margin, y);
-  y += 7;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  y += 8;
+  doc.setFont(FONT, 'normal');
+  doc.setFontSize(11);
 
   const rawItems = [
     session.travail1,
@@ -347,16 +359,17 @@ const generateConvocationPDF = async (
     const lines = doc.splitTextToSize(item, contentWidth - indent);
     doc.text(numberLabel, margin, y);
     doc.text(lines, margin + indent, y);
-    y += lines.length * 5 + 2;
+    y += lines.length * 5.5 + 2.5;
     if (y > 270) { doc.addPage(); y = 20; }
   });
-  y += 6;
+  y += 8;
 
-  // ─── PIED DE PAGE : AGAPES ─────────────────────────────────────
+  // ─── PIED DE PAGE : AGAPES (centré, bleu foncé) ────────────────
   if (session.suitAgapes) {
     if (y > 262) { doc.addPage(); y = 20; }
-    doc.setFont('helvetica', 'italic');
+    doc.setFont(FONT, 'normal');
     doc.setFontSize(10);
+    doc.setTextColor(NAVY[0], NAVY[1], NAVY[2]);
     const medaille = session.montantMedaille && session.montantMedaille > 0
       ? ` La médaille est de ${session.montantMedaille} euros.`
       : '';
@@ -366,12 +379,12 @@ const generateConvocationPDF = async (
     );
     doc.text(agapeLines, centerX, y, { align: 'center' });
     y += agapeLines.length * 5 + 3;
-    doc.setFont('helvetica', 'normal');
     const annonce = doc.splitTextToSize(
-      "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 0693 470 700",
+      "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
       contentWidth
     );
     doc.text(annonce, centerX, y, { align: 'center' });
+    doc.setTextColor(0, 0, 0);
   }
 
   return doc.output("blob");
