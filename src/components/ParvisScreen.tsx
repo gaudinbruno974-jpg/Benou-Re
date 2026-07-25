@@ -10,8 +10,7 @@ import {
   LogOut,
   Sparkles,
   HelpCircle,
-  MapPin,
-  FileText
+  MapPin
 } from 'lucide-react';
 import { Member, Session } from '../types';
 import DashboardStats from './DashboardStats';
@@ -46,10 +45,6 @@ export default function ParvisScreen({
     functionTrim.includes('Vénérable Maître') || 
     functionTrim.includes('Secrétaire');
 
-  const isPlancheTraceeUser = isAdmin ||
-    functionTrim.includes('Vénérable Maître') ||
-    functionTrim.includes('Secrétaire');
-
   const menuItems = [
     {
       id: 'membres',
@@ -74,14 +69,6 @@ export default function ParvisScreen({
       icon: ShieldAlert,
       color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5',
       visible: isVisitorsUser
-    },
-    {
-      id: 'planche_tracee',
-      title: 'Planche Tracée',
-      subtitle: 'Comptes rendus officiels',
-      icon: FileText,
-      color: 'text-amber-500 border-amber-500/20 bg-amber-500/5',
-      visible: isPlancheTraceeUser
     },
     {
       id: 'architecture',
