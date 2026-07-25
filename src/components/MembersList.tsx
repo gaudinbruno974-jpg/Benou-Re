@@ -720,7 +720,7 @@ export default function MembersList({
           <div className="space-y-6">
             {/* Search and Filters Bar */}
             <div className="bg-[#122428] border border-amber-500/15 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center">
-              <div className="relative w-full md:flex-grow">
+              <div className="relative w-full md:grow">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-[#C5A059]">
                   <Search className="h-4 w-4" />
                 </span>
@@ -739,7 +739,7 @@ export default function MembersList({
                   <button
                     key={tab}
                     onClick={() => setGradeFilter(tab)}
-                    className={`flex-grow md:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
+                    className={`grow md:flex-none px-3.5 py-1.5 rounded-lg text-xs font-bold transition ${
                       gradeFilter === tab
                         ? 'bg-[#0C7A7A] text-white border border-amber-500/10'
                         : 'text-[#87A0A0] hover:text-white'

@@ -83,10 +83,16 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
   const activeMembersCount = activeMembers.length || members.length || 1;
 
   // Sort sessions chronological ascending
-  const sortedSessions = [...sessions].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const getTimestamp = (session: Session) => {
+    const dateValue = session.date || session.dateReprise || '';
+    const dateObj = new Date(dateValue);
+    return isNaN(dateObj.getTime()) ? 0 : dateObj.getTime();
+  };
+  const sortedSessions = [...sessions].sort((a, b) => getTimestamp(a) - getTimestamp(b));
 
   const attendanceData = sortedSessions.map((session) => {
-    const dateObj = new Date(session.date);
+    const dateValue = session.date || session.dateReprise || '';
+    const dateObj = new Date(dateValue);
     const formattedDate = isNaN(dateObj.getTime()) 
       ? 'Non daté' 
       : dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
@@ -103,8 +109,8 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
       shortTitle: (session.title || 'Tenue').replace(/du \d{2}\/\d{2}\/\d{4}/, '').trim(),
       date: formattedDate,
       fullDate: isNaN(dateObj.getTime()) ? '' : dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' }),
-      degree: session.degree,
-      type: session.type,
+      degree: session.degree || session.degreTravail || 'Apprenti',
+      type: session.type || session.typeTenue || 'Ordinaire',
       presentCount,
       excusedCount,
       visitorCount,
@@ -449,7 +455,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
             </div>
 
             {/* Attendance SVG chart */}
-            <div className="relative flex-grow h-44 w-full">
+            <div className="relative grow h-44 w-full">
               {attendancePoints.length === 0 ? (
                 <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-500 font-mono">
                   Aucun historique de tenue disponible
@@ -617,7 +623,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
             </div>
 
             {/* Attendance by grade bars */}
-            <div className="bg-[#081619]/40 border border-amber-500/10 rounded-xl p-4 flex-grow flex flex-col justify-center gap-3 shadow-md">
+            <div className="bg-[#081619]/40 border border-amber-500/10 rounded-xl p-4 grow flex flex-col justify-center gap-3 shadow-md">
               <span className="text-[10px] text-amber-400 font-mono uppercase tracking-wider block mb-1">Assiduité par Grade</span>
               
               {attendanceByGrade.map((item) => (
@@ -673,7 +679,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
             </div>
 
             {/* Dues SVG chart */}
-            <div className="relative flex-grow h-44 w-full">
+            <div className="relative grow h-44 w-full">
               <svg viewBox={`0 0 ${svgW} ${svgH}`} width="100%" height="100%" className="overflow-visible">
                 {/* Expected dues curve (dashed target path or background progress guide) */}
                 {duesExpectedPath && (
@@ -874,7 +880,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
             </div>
 
             {/* Dues categories breakdown */}
-            <div className="bg-[#081619]/40 border border-amber-500/10 rounded-xl p-4 flex-grow flex flex-col justify-center gap-3.5 shadow-md">
+            <div className="bg-[#081619]/40 border border-amber-500/10 rounded-xl p-4 grow flex flex-col justify-center gap-3.5 shadow-md">
               <span className="text-[10px] text-amber-400 font-mono uppercase tracking-wider block mb-1">Détails par Type de Dues</span>
               
               {/* Lodge dues */}
@@ -970,7 +976,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
               </div>
 
               {/* Interactive SVG of the Temple */}
-              <div className="relative flex-grow flex items-center justify-center border border-[#122428] rounded-xl p-4 bg-[#081619]/20 overflow-hidden min-h-[300px]">
+              <div className="relative grow flex items-center justify-center border border-[#122428] rounded-xl p-4 bg-[#081619]/20 overflow-hidden min-h-[300px]">
                 {/* Masonic Checkered Pavement Background inside center */}
                 <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
                      style={{ 
@@ -1082,7 +1088,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
             <div className="bg-[#081619]/40 border border-amber-500/10 rounded-xl p-5 flex flex-col justify-between shadow-md min-h-[400px]">
               {selectedVisualMember ? (
                 isEditingMember ? (
-                  <div className="space-y-4 flex-grow flex flex-col justify-between overflow-y-auto max-h-[550px] pr-1">
+                  <div className="space-y-4 grow flex flex-col justify-between overflow-y-auto max-h-[550px] pr-1">
                     <div className="space-y-4">
                       <div className="border-b border-amber-500/15 pb-2">
                         <span className="text-[9px] text-amber-500 font-mono tracking-widest uppercase block">ADMINISTRATION DU VM</span>
@@ -1235,7 +1241,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
                     <div className="flex gap-2 mt-4 pt-3 border-t border-amber-500/10">
                       <button
                         onClick={handleSaveMemberEdit}
-                        className="flex-grow py-2.5 bg-emerald-700 hover:bg-emerald-600 border border-emerald-500/20 text-white rounded-xl text-xs font-bold transition uppercase tracking-widest"
+                        className="grow py-2.5 bg-emerald-700 hover:bg-emerald-600 border border-emerald-500/20 text-white rounded-xl text-xs font-bold transition uppercase tracking-widest"
                       >
                         Enregistrer
                       </button>
@@ -1248,7 +1254,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4 flex-grow flex flex-col justify-between">
+                  <div className="space-y-4 grow flex flex-col justify-between">
                     <div className="space-y-4">
                       {/* Header with Photo/Initials */}
                       <div className="flex items-center gap-4 border-b border-amber-500/10 pb-4">
@@ -1403,7 +1409,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
                       {isVM && (
                         <button 
                           onClick={() => { setIsEditingMember(true); setEditFormData(selectedVisualMember); }}
-                          className="flex-grow py-2 bg-[#0C7A7A] hover:bg-[#0A6868] border border-teal-500/10 text-white rounded-xl text-xs font-bold transition uppercase tracking-widest"
+                          className="grow py-2 bg-[#0C7A7A] hover:bg-[#0A6868] border border-teal-500/10 text-white rounded-xl text-xs font-bold transition uppercase tracking-widest"
                         >
                           Modifier
                         </button>
@@ -1418,7 +1424,7 @@ export default function DashboardStats({ members, sessions, currentUser, onUpdat
                   </div>
                 )
               ) : (
-                <div className="flex-grow flex flex-col justify-center items-center text-center p-6 space-y-3">
+                <div className="grow flex flex-col justify-center items-center text-center p-6 space-y-3">
                   <div className="h-16 w-16 rounded-full bg-[#122428] border border-amber-500/15 flex items-center justify-center">
                     <UserCheck className="h-8 w-8 text-amber-500/60" />
                   </div>

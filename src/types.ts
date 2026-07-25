@@ -33,6 +33,10 @@ export interface Session {
   title: string;
   description: string;
   location: string;
+  dateReprise?: string;
+  lieuReunion?: string;
+  typeTenue?: string;
+  degreTravail?: 'Apprenti' | 'Compagnon' | 'Maitre';
   presentIds: string[];
   excusedIds: string[];
   visitorIds: string[];
@@ -61,6 +65,9 @@ export interface Session {
   plancheVMSigned?: boolean;
   sacPropositions?: string;
   visitorRoles?: Record<string, string>; // mapping visitorId -> position/role held during session
+  driveFolderId?: string;
+  driveFolderUrl?: string;
+  chrono?: number;
 }
 
 export interface Visitor {

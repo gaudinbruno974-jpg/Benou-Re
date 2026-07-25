@@ -199,7 +199,7 @@ export default function ParvisScreen({
                     <div className={`h-12 w-12 rounded-xl border flex items-center justify-center mr-4 group-hover:scale-105 transition shrink-0 ${item.color}`}>
                       <IconComp className="h-6 w-6" />
                     </div>
-                    <div className="space-y-0.5 flex-grow min-w-0">
+                    <div className="space-y-0.5 grow min-w-0">
                       <h3 className="font-sans text-base font-bold text-white tracking-wide group-hover:text-amber-300 transition truncate">
                         {item.title}
                       </h3>

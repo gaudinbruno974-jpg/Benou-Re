@@ -1,10 +1,18 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
-import firebaseConfig from '../firebase-applet-config.json';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBmjvNZNZX5ZGcR4QAC3rlrTNJiHnFBeGI",
+  authDomain: "benou-re-loge.firebaseapp.com",
+  projectId: "benou-re-loge",
+  storageBucket: "benou-re-loge.firebasestorage.app",
+  messagingSenderId: "184228725535",
+  appId: "1:184228725535:web:397104a16f16932108a62a"
+};
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, (firebaseConfig as any).firestoreDatabaseId); /* CRITICAL: The app will break without this line */
+export const db = getFirestore(app);
 export const auth = getAuth();
 
 export enum OperationType {

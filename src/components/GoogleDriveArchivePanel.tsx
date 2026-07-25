@@ -30,6 +30,7 @@ interface GoogleDriveArchivePanelProps {
   session: Session;
   members: Member[];
   visitors: Visitor[];
+  onUpdateSession: (updatedSession: Session) => void;
 }
 
 type ArchiveStatus = 'idle' | 'authenticating' | 'creating_folder' | 'uploading_ordre' | 'uploading_emargement' | 'uploading_planche' | 'success' | 'error';
@@ -37,7 +38,8 @@ type ArchiveStatus = 'idle' | 'authenticating' | 'creating_folder' | 'uploading_
 export default function GoogleDriveArchivePanel({ 
   session, 
   members, 
-  visitors 
+  visitors,
+  onUpdateSession
 }: GoogleDriveArchivePanelProps) {
   const [status, setStatus] = useState<ArchiveStatus>('idle');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -91,9 +93,25 @@ export default function GoogleDriveArchivePanel({
       setStatus('authenticating');
       const { token } = await authenticateGoogleDrive();
 
-      // 2. Find or Create Folder
+      // 2. Reuse existing folder ID if available, otherwise find or create the folder
       setStatus('creating_folder');
-      const createdFolderId = await findOrCreateFolder(token, folderName, DRIVE_PARENT_FOLDER_ID);
+      let createdFolderId = session.driveFolderId || '';
+      let createdFolderUrl = session.driveFolderUrl || '';
+      if (!createdFolderId) {
+        createdFolderId = await findOrCreateFolder(token, folderName, DRIVE_PARENT_FOLDER_ID);
+        createdFolderUrl = `https://drive.google.com/drive/folders/${createdFolderId}`;
+        onUpdateSession({
+          ...session,
+          driveFolderId: createdFolderId,
+          driveFolderUrl: createdFolderUrl,
+        });
+      } else if (!createdFolderUrl) {
+        createdFolderUrl = `https://drive.google.com/drive/folders/${createdFolderId}`;
+        onUpdateSession({
+          ...session,
+          driveFolderUrl: createdFolderUrl,
+        });
+      }
       setFolderId(createdFolderId);
 
       // 3. Generate and Upload Ordre du jour
@@ -151,6 +169,12 @@ export default function GoogleDriveArchivePanel({
           {folderName}
         </div>
       </div>
+      {status === 'idle' && errorMsg && (
+        <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl p-3 text-xs text-rose-400">
+          <p className="font-semibold uppercase tracking-widest text-rose-300 font-mono">Erreur Drive</p>
+          <p className="mt-1 leading-relaxed">{errorMsg}</p>
+        </div>
+      )}
 
       {/* Current progress / interactive states */}
       {status === 'idle' && isConnected && (
@@ -220,7 +244,13 @@ export default function GoogleDriveArchivePanel({
             <p className="font-bold uppercase tracking-wider font-mono">Erreur d'archivage</p>
             <p className="leading-relaxed">{errorMsg}</p>
             <button 
-              onClick={() => setStatus('idle')}
+              onClick={() => {
+                if (isConnected) {
+                  handleStartArchiving();
+                } else {
+                  handleConnect();
+                }
+              }}
               className="text-xs underline font-bold text-white hover:text-amber-400 mt-1 block"
             >
               Réessayer
@@ -244,7 +274,7 @@ export default function GoogleDriveArchivePanel({
               href={`https://drive.google.com/drive/folders/${folderId || DRIVE_PARENT_FOLDER_ID}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-grow inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition font-sans uppercase tracking-wider"
+              className="grow inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 transition font-sans uppercase tracking-wider"
             >
               <ExternalLink className="h-3.5 w-3.5" />
               Ouvrir le dossier Drive
@@ -275,7 +305,7 @@ export default function GoogleDriveArchivePanel({
             <button
               type="button"
               onClick={handleStartArchiving}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-500 text-white text-xs font-extrabold hover:brightness-110 transition font-mono uppercase tracking-wider shadow-md cursor-pointer"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-linear-to-r from-amber-600 to-amber-500 text-white text-xs font-extrabold hover:brightness-110 transition font-mono uppercase tracking-wider shadow-md cursor-pointer"
             >
               <CloudUpload className="h-4 w-4" />
               Archiver sur Google Drive

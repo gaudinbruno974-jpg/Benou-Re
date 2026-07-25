@@ -37,6 +37,8 @@ import VisitorsList from './components/VisitorsList';
 import LibraryViewer from './components/LibraryViewer';
 import TreasuryScreen from './components/TreasuryScreen';
 import PlancheTraceeScreen from './components/PlancheTraceeScreen';
+import SessionPresenceScreen from './components/SessionPresenceScreen';
+import SessionEmargementScreen from './components/SessionEmargementScreen';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState<Member | null>(null);
@@ -47,6 +49,7 @@ export default function App() {
   const [sessions, setSessions] = useState<Session[]>(initialSessions);
   const [visitors, setVisitors] = useState<Visitor[]>(initialVisitors);
   const [driveFiles] = useState<DriveFile[]>(initialDriveFiles);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
   // Seed Firestore on startup if empty
   useEffect(() => {
@@ -74,8 +77,12 @@ export default function App() {
 
     // Real-time subscription to sessions (always active)
     const unsubSessions = subscribeToCollection<Session>('sessions', (updatedSessions) => {
+      const getTimestamp = (session: Session) => {
+        const dateValue = new Date(session.date || session.dateReprise || '');
+        return isNaN(dateValue.getTime()) ? 0 : dateValue.getTime();
+      };
       const sorted = [...updatedSessions].sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        (a, b) => getTimestamp(b) - getTimestamp(a)
       );
       setSessions(sorted);
     });
@@ -153,6 +160,21 @@ export default function App() {
     await deleteVisitorFromFirestore(id);
   };
 
+  const openPlancheTracee = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setCurrentView('planche_tracee');
+  };
+
+  const openPresence = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setCurrentView('presence');
+  };
+
+  const openEmargement = (sessionId: string) => {
+    setSelectedSessionId(sessionId);
+    setCurrentView('emargement');
+  };
+
   const handleLoginSuccess = (user: Member) => {
     setCurrentUser(user);
     setCurrentView('parvis');
@@ -215,7 +237,35 @@ export default function App() {
           onAddSession={handleAddSession}
           onUpdateSession={handleUpdateSession}
           onDeleteSession={handleDeleteSession}
+          onOpenPlancheTracee={openPlancheTracee}
+          onOpenPresence={openPresence}
+          onOpenEmargement={openEmargement}
           onBack={() => setCurrentView('parvis')}
+        />
+      );
+    case 'presence':
+      return (
+        <SessionPresenceScreen
+          currentUser={currentUser}
+          sessions={sessions}
+          members={members}
+          visitors={visitors}
+          selectedSessionId={selectedSessionId}
+          onUpdateSession={handleUpdateSession}
+          onBack={() => setCurrentView('parvis')}
+        />
+      );
+    case 'emargement':
+      return (
+        <SessionEmargementScreen
+          currentUser={currentUser}
+          sessions={sessions}
+          members={members}
+          visitors={visitors}
+          selectedSessionId={selectedSessionId}
+          onUpdateSession={handleUpdateSession}
+          onBack={() => setCurrentView('parvis')}
+          onNavigate={setCurrentView}
         />
       );
     case 'visiteurs':
@@ -273,6 +323,7 @@ export default function App() {
           sessions={sessions}
           members={members}
           visitors={visitors}
+          selectedSessionId={selectedSessionId}
           onUpdateSession={handleUpdateSession}
           onBack={() => setCurrentView('parvis')}
         />

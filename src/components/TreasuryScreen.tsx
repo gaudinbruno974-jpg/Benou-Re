@@ -270,7 +270,7 @@ export default function TreasuryScreen({
                           {session.title}
                         </h4>
                         <p className="text-xs text-[#87A0A0]">
-                          Tenue de grade : {session.degree} • {new Date(session.date).toLocaleDateString('fr-FR')}
+                          Tenue de grade : {session.degree || session.degreTravail || 'Apprenti'} • {new Date(session.date || session.dateReprise || '').toLocaleDateString('fr-FR')}
                         </p>
                       </div>
 

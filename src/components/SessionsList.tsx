@@ -1,2563 +1,1165 @@
-import React, { useState } from 'react';
-import { 
-  ArrowLeft, 
-  Calendar, 
-  MapPin, 
-  Clock, 
-  Plus, 
-  Utensils, 
-  Users, 
-  CheckCircle, 
-  CheckCircle2,
-  Check,
-  AlertCircle,
-  FileText,
-  Mail,
-  Edit2,
-  Trash2,
-  PlusCircle,
-  UserCheck,
-  Award,
-  Coins
-} from 'lucide-react';
-import { Session, Member, Visitor } from '../types';
-import SignaturePad from './SignaturePad';
-import GoogleDriveArchivePanel from './GoogleDriveArchivePanel';
-import { getSessionChronoFromFirestore, incrementSessionChronoInFirestore } from '../lib/firebaseSync';
+import React, { useState, useEffect } from "react";
+import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, Timestamp, query, orderBy, getDoc, setDoc } from "firebase/firestore";
+import { db } from "../firebase";
+import {
+  ArrowLeft, Plus, Trash2, Edit, Calendar, Users, X, CheckCircle,
+  Clock, MapPin, BookOpen, ChevronDown, ToggleLeft, ToggleRight,
+  Lock, FileText, FolderOpen, CloudUpload, Loader2, LogOut, ExternalLink, UserCheck
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { authenticateGoogleDrive, hasGoogleDriveToken, disconnectGoogleDrive } from '../lib/googleDrive';
 
-const visitorPositions = [
-  "Simple Visiteur",
-  "À l'Orient",
-  "Colonne du Nord",
-  "Colonne du Midi",
-  "Vénérable Maître",
-  "Premier Surveillant",
-  "Second Surveillant",
-  "Secrétaire",
-  "Orateur",
-  "Trésorier",
-  "Hospitalier",
-  "Expert",
-  "Maître des Cérémonies",
-  "Couvreur",
-  "Maitre de la Colonne d'Harmonie",
-  "Maître des Banquets"
-];
+// ═══════════════════════════════════════════════════════════════════
+// TYPES (réutilisés)
+// ═══════════════════════════════════════════════════════════════════
+type Degre = "Apprenti" | "Compagnon" | "Maître";
 
+interface Session {
+  id: string;
+  typeTenue: "Ordinaire" | "Extraordinaire" | "Banquet" | "Tenue blanche" | "Tenue noire";
+  degreTravail: Degre;
+  dateReprise: string;
+  heureSuspension: string;
+  lieuReunion: string;
+  travail1: string;
+  travail2: string;
+  travail3: string;
+  travail4: string;
+  ordresJour: string[];
+  ligneCloture: string;
+  suitAgapes: boolean;
+  heureAgape?: string;
+  typeRepas?: "Agape avec médaille" | "Agape partage" | "Agape offerte";
+  montantMedaille?: number;
+  status: "Planifiée" | "En cours" | "Terminée" | "Annulée";
+  driveFolderId?: string;
+  driveFolderUrl?: string;
+  chrono?: number;
+  createdAt: Timestamp;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// UTILITAIRES
+// ═══════════════════════════════════════════════════════════════════
+const degreToOrdinal = (degre: Degre): string => {
+  switch (degre) {
+    case "Apprenti": return "1er";
+    case "Compagnon": return "2ème";
+    case "Maître": return "3ème";
+  }
+};
+
+const degreToOrdinalLong = (degre: Degre): string => {
+  switch (degre) {
+    case "Apprenti": return "1er DEGRE";
+    case "Compagnon": return "2eme DEGRE";
+    case "Maître": return "3eme DEGRE";
+  }
+};
+
+// Date maçonnique (simplifiée)
+const getMasonicDate = (date: Date): string => {
+  const months = ["THOT", "PHAOPHI", "ATHYR", "KOIAK", "TYBI", "MECHIR", 
+                  "PHAMENOTH", "PHARMOUTHI", "PACHONS", "PAYNI", "EPIPHI", "MECHORE"];
+  const day = date.getDate();
+  const month = months[date.getMonth()];
+  const year = date.getFullYear() + 1292;
+  const dayStr = day === 1 ? "1er" : `${day}ème`;
+  return `Le ${dayStr} jour du mois de ${month} de la saison SCHA De l’an ${year} de la Lumière d’Egypte`;
+};
+
+const formatDateConvoc = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).toUpperCase();
+};
+
+const formatDateFolder = (dateStr: string): string => {
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// GÉNÉRATION DES TRAVAUX FIXES
+// ═══════════════════════════════════════════════════════════════════
+const genererTravauxFixes = (degre: Degre, dateReprise: string): {
+  travail1: string;
+  travail2: string;
+  travail3: string;
+  travail4: string;
+} => {
+  const ordinal = degreToOrdinal(degre);
+  const heureOuverture = dateReprise
+    ? new Date(dateReprise).toLocaleTimeString("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).replace(":", "h")
+    : "xxhxx";
+
+  return {
+    travail1: `${heureOuverture} Ouverture des Travaux au ${ordinal} Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ Bruno GAU∴`,
+    travail2: "Appel des FF∴ et SS∴ de la loge",
+    travail3: `Lecture de la planche tracée de nos derniers travaux au ${ordinal} Degré symbolique.`,
+    travail4: "Lecture de la correspondance et des affaires diverses.",
+  };
+};
+
+const genererLigneCloture = (
+  degre: Degre,
+  ordresCount: number,
+  heureSuspension: string
+): string => {
+  const ordinal = degreToOrdinal(degre);
+  const num = 4 + ordresCount + 1;
+  const h = heureSuspension || "xxhxx";
+  return `${num}. Clôture des Travaux au ${ordinal} Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ Bruno GAU∴`;
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// GOOGLE DRIVE API — Création de dossier et upload
+// ═══════════════════════════════════════════════════════════════════
+const DRIVE_PARENT_FOLDER_ID = "11Qp8SXLFG0Spfks-G6OAQ66EHMGjEOgy";
+
+const createDriveFolder = async (folderName: string, accessToken: string): Promise<{ id: string; url: string }> => {
+  const metadata = {
+    name: folderName,
+    mimeType: "application/vnd.google-apps.folder",
+    parents: [DRIVE_PARENT_FOLDER_ID],
+  };
+
+  const res = await fetch("https://www.googleapis.com/drive/v3/files", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(metadata),
+  });
+
+  if (!res.ok) throw new Error("Erreur création dossier Drive");
+  const data = await res.json();
+  return {
+    id: data.id,
+    url: `https://drive.google.com/drive/folders/${data.id}`,
+  };
+};
+
+const uploadFileToDrive = async (folderId: string, fileName: string, blob: Blob, accessToken: string): Promise<void> => {
+  const formData = new FormData();
+  formData.append("metadata", new Blob([JSON.stringify({
+    name: fileName,
+    parents: [folderId],
+  })], { type: "application/json" }));
+  formData.append("file", blob);
+
+  const res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}` },
+    body: formData,
+  });
+  if (!res.ok) throw new Error("Erreur upload du fichier");
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// GÉNÉRATION PDF CONVOCATION (AVEC LOGOS)
+// ═══════════════════════════════════════════════════════════════════
+const loadImageAsBase64 = async (url: string): Promise<string> => {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+};
+
+const generateConvocationPDF = async (
+  session: Session,
+  chrono: number
+): Promise<Blob> => {
+  const { jsPDF } = await import("jspdf");
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 15;
+  let y = 10;
+
+  // Charger les logos
+  const logoGLDB = await loadImageAsBase64('/assets/GLDB.png');
+  const logoBenou = await loadImageAsBase64('/assets/Benou Re.png');
+
+  // ─── LOGOS ────────────────────────────
+  doc.addImage(logoGLDB, 'PNG', margin, y, 30, 30);
+  doc.addImage(logoBenou, 'PNG', pageWidth - margin - 30, y, 30, 30);
+
+  y += 8;
+
+  // ─── EN-TÊTE TEXTE ────────────────────
+  doc.setFontSize(14);
+  doc.setTextColor(139, 90, 43); // bronze
+  doc.text('GRANDE LOGE DE BOURBON', pageWidth / 2, y, { align: 'center' });
+  y += 6;
+  doc.setFontSize(10);
+  doc.text('FRANCS-MACONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM', pageWidth / 2, y, { align: 'center' });
+  y += 6;
+
+  // ─── RITES ────────────────────────────
+  doc.setFontSize(8);
+  doc.setTextColor(0);
+  const rites = [
+    'Rite Primitif, Paris 1721',
+    'Rite Primitif des Philadelphes, Narbonne 1779',
+    'Rite de Memphis, Montauban 1815',
+    'Rite de Misraïm, Venise 1788',
+    'Rite Ancien et Primitif, Manchester 1876'
+  ];
+  const xRites = [margin, margin + 35, margin + 70, margin + 105, margin + 140];
+  rites.forEach((r, i) => {
+    doc.text(r, xRites[i], y + 2);
+  });
+  y += 10;
+
+  // ─── FILIATIONS ──────────────────────
+  doc.setFontSize(7);
+  doc.setTextColor(80, 80, 80);
+  doc.text('Filiation directe Robert Ambelain   Filiation Directe Gérard Kloppel   Filiation Directe Joseph Tsang Mang Kin', pageWidth / 2, y, { align: 'center' });
+  y += 8;
+
+  // ─── TITRE PRINCIPAL ──────────────────
+  doc.setFontSize(16);
+  doc.setTextColor(139, 90, 43);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`R∴L∴ Bénou Ré N°5 O∴ de Saint Pierre – Île de la Réunion`, pageWidth / 2, y, { align: 'center' });
+  y += 12;
+
+  // ─── CADRE ORDRE DU JOUR ─────────────
+  doc.setDrawColor(0);
+  doc.setLineWidth(0.5);
+  doc.rect(margin + 20, y - 5, pageWidth - 2 * margin - 40, 20);
+  doc.setFontSize(12);
+  doc.setTextColor(0);
+  doc.setFont('helvetica', 'bold');
+  const dateFormatted = formatDateConvoc(session.dateReprise);
+  doc.text(`ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted} E∴V∴`, pageWidth / 2, y + 10, { align: 'center' });
+  y += 25;
+
+  // ─── INVITATION ──────────────────────
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  doc.setTextColor(0);
+  doc.text('A la Gloire Du Grand Architecte De l\'Univers,', margin + 10, y);
+  y += 6;
+  doc.text('Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,', margin + 10, y);
+  y += 8;
+  const degreLong = session.degreTravail === 'Apprenti' ? '1er DEGRE' : session.degreTravail === 'Compagnon' ? '2eme DEGRE' : '3eme DEGRE';
+  doc.text(`La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux`, margin + 10, y);
+  y += 6;
+  doc.text(`de sa ${chrono}° TENUE REGULIERE au ${degreLong} qui se déroulera au ${session.lieuReunion} le :`, margin + 10, y);
+  y += 10;
+
+  // ─── DATE ÉGYPTIENNE ─────────────────
+  const masonicDate = getMasonicDate(new Date(session.dateReprise));
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 70, 200);
+  doc.text(masonicDate, pageWidth / 2, y, { align: 'center' });
+  y += 12;
+  doc.setTextColor(0);
+
+  // ─── ORDRE DU JOUR LISTE ─────────────
+  doc.setFont('helvetica', 'bold');
+  doc.text("L'ordre du jour appellera :", margin + 10, y);
+  y += 8;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+
+  // Construire la liste complète
+  const ordres = [
+    session.travail1,
+    session.travail2,
+    session.travail3,
+    session.travail4,
+    ...session.ordresJour.filter(o => o.trim() !== ''),
+    session.ligneCloture,
+  ];
+  ordres.forEach((ordre, idx) => {
+    const lines = doc.splitTextToSize(ordre, pageWidth - 2 * margin - 20);
+    doc.text(lines, margin + 10, y);
+    y += lines.length * 5 + 2;
+    if (y > 270) { doc.addPage(); y = 20; }
+  });
+  y += 5;
+
+  // ─── AGAPES ──────────────────────────
+  if (session.suitAgapes) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.text('Les Travaux seront suivis d\'Agapes au nom de la Fraternité en Salle Humide.', margin + 10, y);
+    y += 6;
+    if (session.montantMedaille && session.montantMedaille > 0) {
+      doc.text(`La médaille est de ${session.montantMedaille.toFixed(2)} euros.`, margin + 10, y);
+      y += 6;
+    }
+    doc.setFont('helvetica', 'normal');
+    doc.text('Merci aux SS∴ et FF∴ Invités de s\'annoncer afin d\'ajuster au mieux les Agapes.', margin + 10, y);
+    y += 6;
+    doc.text('Tél : 06 93 470 700', margin + 10, y);
+  }
+
+  return doc.output("blob");
+};
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPOSANT PRINCIPAL
+// ═══════════════════════════════════════════════════════════════════
 interface SessionsListProps {
-  currentUser: Member;
+  currentUser: any;
   sessions: Session[];
-  members: Member[];
-  visitors: Visitor[];
+  members: any[];
+  visitors: any[];
   onAddSession: (session: Session) => void;
   onUpdateSession: (session: Session) => void;
-  onDeleteSession: (id: string) => void;
+  onDeleteSession: (sessionId: string) => void;
+  onOpenPlancheTracee: (sessionId: string) => void;
+  onOpenPresence: (sessionId: string) => void;
+  onOpenEmargement: (sessionId: string) => void;
   onBack: () => void;
 }
 
-export default function SessionsList({
-  currentUser,
-  sessions,
-  members,
-  visitors,
-  onAddSession,
-  onUpdateSession,
-  onDeleteSession,
-  onBack
-}: SessionsListProps) {
-  const [selectedSession, setSelectedSession] = useState<Session | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [showSignatureForId, setShowSignatureForId] = useState<string | null>(null);
-  const [showMemberAppel, setShowMemberAppel] = useState(false);
-  const [showVisitorSelector, setShowVisitorSelector] = useState(false);
-  const [tempRoles, setTempRoles] = useState<Record<string, string>>({});
-  const [pdfTypeToShow, setPdfTypeToShow] = useState<'convocation' | 'invitation' | 'presence' | null>(null);
-  const [isShowingEmargement, setIsShowingEmargement] = useState(false);
-  const [localTronc, setLocalTronc] = useState<number>(0);
-  const [deleteConfirmationId, setDeleteConfirmationId] = useState<string | null>(null);
-  const [validateConfirmationSession, setValidateConfirmationSession] = useState<Session | null>(null);
-  const [cameDirectlyFromList, setCameDirectlyFromList] = useState(false);
+export default function SessionsList({ onBack, onOpenPlancheTracee, onOpenPresence, onOpenEmargement }: SessionsListProps) {
+  const [sessions, setSessions] = useState<Session[]>([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [googleToken, setGoogleToken] = useState<string>("");
+  const [googleEmail, setGoogleEmail] = useState<string | null>(null);
+  const [isConnected, setIsConnected] = useState<boolean>(false);
+  const [driveError, setDriveError] = useState<string | null>(null);
 
-  // Email sending states
-  const [editorTab, setEditorTab] = useState<'config' | 'email'>('config');
-  const [selectedEmailMembers, setSelectedEmailMembers] = useState<string[]>([]);
-  const [selectedEmailVisitors, setSelectedEmailVisitors] = useState<string[]>([]);
-  const [emailSubject, setEmailSubject] = useState('');
-  const [emailBody, setEmailBody] = useState('');
-  const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [emailSentSuccess, setEmailSentSuccess] = useState(false);
-
-  // PDF customizer states
-  const [sessionNumber, setSessionNumber] = useState('2°');
-  const [deityName, setDeityName] = useState('NEPHTHYS');
-  const [egyptianYear, setEgyptianYear] = useState('3318');
-  const [vmName, setVmName] = useState('Bruno GAU∴');
-  const [customLines, setCustomLines] = useState<string[]>([
-    'Lecture d’un morceau d’architecture de la S ∴ Aure COS ∴ « La Divine Proportion : l’architecture de la juste mesure »',
-    'Lecture d’un morceau d’architecture du V∴M∴ Bruno GAU∴ « Le Temps Nilotique »',
-    '',
-    '',
-    '',
-    ''
-  ]);
-  const [agapeText, setAgapeText] = useState('Les Travaux seront suivis d’Agapes en Salle Humide. La médaille est de 15 euros.');
-  const [contactText, setContactText] = useState('Merci aux SS∴ et FF∴ Invités de s’annoncer afin d’ajuster au mieux la Tenue et les Agapes. Tél : 06 93 470 700');
-  const [formattedHeaderDate, setFormattedHeaderDate] = useState('');
-  const [openingTime, setOpeningTime] = useState('10h00');
-  const [invitationMainLine, setInvitationMainLine] = useState('');
-
-  // Logo Customizer states
-  const [customLeftLogo, setCustomLeftLogo] = useState(localStorage.getItem('logo_left') || '');
-  const [customRightLogo, setCustomRightLogo] = useState(localStorage.getItem('logo_right') || '');
-  const [leftLogoError, setLeftLogoError] = useState(false);
-  const [rightLogoError, setRightLogoError] = useState(false);
-
-  const getFormattedHeaderDate = (isoDate: string) => {
-    if (!isoDate) return '';
-    try {
-      const dateObj = new Date(isoDate);
-      return dateObj.toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }).toUpperCase() + ' E∴V∴';
-    } catch (e) {
-      return '';
-    }
-  };
-
-  const getSessionStartHour = (isoDate: string) => {
-    if (!isoDate) return '10h00';
-    try {
-      const dateObj = new Date(isoDate);
-      const hours = String(dateObj.getHours()).padStart(2, '0');
-      const minutes = String(dateObj.getMinutes()).padStart(2, '0');
-      return `${hours}h${minutes}`;
-    } catch (e) {
-      return '10h00';
-    }
-  };
-
-  React.useEffect(() => {
-    if (selectedSession) {
-      setFormattedHeaderDate(getFormattedHeaderDate(selectedSession.date));
-      setOpeningTime(getSessionStartHour(selectedSession.date));
-      
-      const num = selectedSession.sessionNumber || '2°';
-      setSessionNumber(num);
-      setDeityName(selectedSession.deityName || 'NEPHTHYS');
-      setEgyptianYear(selectedSession.egyptianYear || '3318');
-      setVmName(selectedSession.vmName || 'Bruno GAU∴');
-      
-      let initLines = selectedSession.customLines || [];
-      // Pad to ensure exactly 6 items
-      while (initLines.length < 6) {
-        initLines.push('');
+  // Vérifier si un token est déjà en cache
+  useEffect(() => {
+    const checkToken = async () => {
+      const tokenExists = hasGoogleDriveToken();
+      setIsConnected(tokenExists);
+      if (tokenExists) {
+        setGoogleEmail("Utilisateur Google");
       }
-      if (!selectedSession.customLines) {
-        initLines = [
-          'Lecture d’un morceau d’architecture de la S ∴ Aure COS ∴ « La Divine Proportion : l’architecture de la juste mesure »',
-          'Lecture d’un morceau d’architecture du V∴M∴ Bruno GAU∴ « Le Temps Nilotique »',
-          '',
-          '',
-          '',
-          ''
-        ];
-      }
-      setCustomLines([...initLines]);
-      
-      setAgapeText(selectedSession.agapeText || 'Les Travaux seront suivis d’Agapes au nom de la Fraternité en Salle Humide. La médaille est de 15 euros.');
-      setContactText(selectedSession.contactText || 'Merci aux SS∴ et FF∴ Invités de s’annoncer afin d’ajuster au mieux les Agapes. Tél : 06 93 470 700');
-      
-      const degreeFr = selectedSession.degree === 'Apprenti' ? '1er DEGRE' : selectedSession.degree === 'Compagnon' ? '2e DEGRE' : '3e DEGRE';
-      setInvitationMainLine(`${num} TENUE REGULIERE au ${degreeFr} qui se déroulera au ${selectedSession.location || 'Temple Thérèse Eliseman à Saint-Pierre'} :`);
-      
-      setLeftLogoError(false);
-      setRightLogoError(false);
-      setLocalTronc(selectedSession.troncAmount || 0);
-    }
-  }, [selectedSession]);
-
-  // Dynamically update invitationMainLine if sessionNumber changes
-  React.useEffect(() => {
-    if (selectedSession) {
-      const degreeFr = selectedSession.degree === 'Apprenti' ? '1er DEGRE' : selectedSession.degree === 'Compagnon' ? '2e DEGRE' : '3e DEGRE';
-      setInvitationMainLine(`${sessionNumber} TENUE REGULIERE au ${degreeFr} qui se déroulera au ${selectedSession.location || 'Temple Thérèse Eliseman à Saint-Pierre'} :`);
-    }
-  }, [sessionNumber]);
-
-  // Reset email states when PDF preview is toggled
-  React.useEffect(() => {
-    setEditorTab('config');
-    setSelectedEmailMembers([]);
-    setSelectedEmailVisitors([]);
-    setEmailSentSuccess(false);
-    setIsSendingEmail(false);
-    setEmailSubject('');
-    setEmailBody('');
-  }, [pdfTypeToShow]);
-
-  const handleSelectAllByDegree = () => {
-    if (!selectedSession) return;
-    const targetDegree = selectedSession.degree;
-    
-    // Select active members whose grade matches or exceeds the required degree of the tenue
-    const allowedMembers = members.filter(m => {
-      if (m.status !== 'Actif') return false;
-      
-      if (targetDegree === 'Apprenti') {
-        return true;
-      } else if (targetDegree === 'Compagnon') {
-        return m.grade === 'Compagnon' || m.grade === 'Maitre';
-      } else if (targetDegree === 'Maitre') {
-        return m.grade === 'Maitre';
-      }
-      return false;
-    });
-    
-    setSelectedEmailMembers(allowedMembers.map(m => m.id));
-  };
-
-  const handleSendInvitationByEmail = () => {
-    if (selectedEmailMembers.length === 0 && selectedEmailVisitors.length === 0) return;
-    setIsSendingEmail(true);
-    
-    setTimeout(() => {
-      setIsSendingEmail(false);
-      setEmailSentSuccess(true);
-    }, 2000);
-  };
-
-  const [saveSuccess, setSaveSuccess] = useState(false);
-
-  const handleSavePdfConfig = () => {
-    if (!selectedSession) return;
-    const updated: Session = {
-      ...selectedSession,
-      sessionNumber,
-      deityName,
-      egyptianYear,
-      vmName,
-      customLines,
-      agapeText,
-      contactText
     };
-    onUpdateSession(updated);
-    setSelectedSession(updated);
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
-  };
+    checkToken();
+  }, []);
 
-  // Form states
-  const [formData, setFormData] = useState<Partial<Session>>({});
-
-  const isEditingExisting = sessions.some(s => s.id === formData.id);
-
-  const functionTrim = (currentUser.function || '').trim();
-  const isAdmin = currentUser.isAdmin || false;
-  const isSecOrVM = isAdmin || functionTrim.includes('Vénérable Maître') || functionTrim.includes('Secrétaire');
-
-  // Filter sessions visible to user grade
-  const visibleSessions = sessions.filter(session => {
-    if (isSecOrVM) return true;
-    if (currentUser.grade === 'Maitre') return true;
-    if (currentUser.grade === 'Compagnon') {
-      return session.degree === 'Apprenti' || session.degree === 'Compagnon';
+  const handleConnectDrive = async () => {
+    try {
+      setDriveError(null);
+      const result = await authenticateGoogleDrive();
+      setGoogleToken(result.token);
+      setGoogleEmail(result.email);
+      setIsConnected(true);
+    } catch (err: any) {
+      console.error("Erreur connexion Drive:", err);
+      const message = err?.message || "Impossible de se connecter à Google Drive. Vérifiez les autorisations.";
+      setDriveError(message);
+      setIsConnected(false);
     }
-    return session.degree === 'Apprenti'; // Standard Apprenti only sees Apprenti sessions
-  });
-
-  const handleOpenDetail = (session: Session) => {
-    setSelectedSession(session);
-    setIsEditing(false);
   };
 
-  const handleStartCreate = async () => {
-    const today = new Date();
-    today.setDate(today.getDate() + 7);
-    const dateStr = today.toISOString().split('T')[0] + 'T16:30:00';
+  const handleDisconnectDrive = () => {
+    disconnectGoogleDrive();
+    setGoogleToken("");
+    setGoogleEmail(null);
+    setIsConnected(false);
+  };
 
-    // Get current session count from firebase and add 1
-    const currentChrono = await getSessionChronoFromFirestore();
-    const nextChrono = currentChrono + 1;
-    const chronoStr = `${nextChrono}°`;
+  const initialForm: Partial<Session> = {
+    typeTenue: "Ordinaire",
+    degreTravail: "Apprenti",
+    dateReprise: "",
+    heureSuspension: "",
+    lieuReunion: "Temple Thérèse Eliseman à Saint-Pierre",
+    travail1: "",
+    travail2: "",
+    travail3: "",
+    travail4: "",
+    ordresJour: [""],
+    ligneCloture: "",
+    suitAgapes: false,
+    heureAgape: "",
+    typeRepas: undefined,
+    montantMedaille: undefined,
+    status: "Planifiée",
+  };
 
-    setFormData({
-      id: 's_' + Date.now(),
-      date: dateStr,
-      degree: 'Apprenti',
-      type: 'Ordinaire',
-      title: 'Tenue Ordinaire du ' + today.toLocaleDateString('fr-FR') + ' au degré d\'Apprenti',
-      description: 'Reprise des travaux au premier degré',
-      location: 'Temple Thérèse Eliseman à Saint-Pierre',
-      presentIds: [],
-      excusedIds: [],
-      visitorIds: [],
-      troncAmount: 0,
-      signatures: {},
-      closingTime: '18:30',
-      agenda1: '16:30 Reprise des travaux au degré d\'Apprenti Rite Ancien et Primitif de Memphis-Misraïm',
-      agenda2: 'Lecture de la planche thématique',
-      agenda3: 'Circulation du tronc de la Veuve et du sac aux propositions',
-      agenda4: '18:30 Suspension des travaux au degré d\'Apprenti Rite Ancien et Primitif de Memphis-Misraïm',
-      hasAgape: true,
-      agapeTime: '20:00',
-      agapeType: 'Agape partage',
-      agapePrice: 0,
-      sessionNumber: chronoStr,
-      customLines: [
-        'Lecture d’un morceau d’architecture de la S ∴ Aure COS ∴ « La Divine Proportion : l’architecture de la juste mesure »',
-        'Lecture d’un morceau d’architecture du V∴M∴ Bruno GAU∴ « Le Temps Nilotique »',
-        '',
-        '',
-        '',
-        ''
-      ]
+  const [formData, setFormData] = useState<Partial<Session>>({ ...initialForm });
+
+  // ─── Chargement ─────────────────────────────────────────────────
+  useEffect(() => {
+    loadSessions();
+  }, []);
+
+  const loadSessions = async () => {
+    const q = query(collection(db, "sessions"), orderBy("dateReprise", "desc"));
+    const snap = await getDocs(q);
+    const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Session));
+    setSessions(data);
+  };
+
+  // ─── Récupère et incrémente le chrono ───────────────────────────
+  const getAndIncrementChrono = async (): Promise<number> => {
+    const chronoRef = doc(db, "config", "settings");
+    const chronoSnap = await getDoc(chronoRef);
+
+    let currentChrono = 1;
+    if (chronoSnap.exists()) {
+      currentChrono = chronoSnap.data().regularSessionChrono || 1;
+    }
+
+    await setDoc(chronoRef, { regularSessionChrono: currentChrono + 1 }, { merge: true });
+
+    return currentChrono;
+  };
+
+  // ─── Regénère les textes auto ───────────────────────────────────
+  const regenereTextesAuto = (
+    prev: Partial<Session>,
+    degre: Degre,
+    dateReprise: string,
+    heureSuspension: string
+  ): Partial<Session> => {
+    const fixes = genererTravauxFixes(degre, dateReprise);
+    const ordres = prev.ordresJour || [""];
+    const count = ordres.filter((o: string) => o.trim()).length;
+    const cloture = genererLigneCloture(degre, count, heureSuspension);
+
+    return {
+      ...prev,
+      travail1: fixes.travail1,
+      travail2: fixes.travail2,
+      travail3: fixes.travail3,
+      travail4: fixes.travail4,
+      ligneCloture: cloture,
+    };
+  };
+
+  // ─── Handlers ───────────────────────────────────────────────────
+  const handleChange = (field: keyof Session, value: any) => {
+    setFormData((prev) => {
+      let next = { ...prev, [field]: value };
+
+      if (field === "degreTravail" || field === "dateReprise") {
+        next = regenereTextesAuto(
+          next,
+          (next.degreTravail as Degre) || "Apprenti",
+          next.dateReprise || "",
+          next.heureSuspension || ""
+        );
+      }
+
+      if (field === "heureSuspension") {
+        const ordres = next.ordresJour || [""];
+        const count = ordres.filter((o: string) => o.trim()).length;
+        next.ligneCloture = genererLigneCloture(
+          (next.degreTravail as Degre) || "Apprenti",
+          count,
+          value
+        );
+      }
+
+      if (field === "suitAgapes" && value === false) {
+        next.heureAgape = "";
+        next.typeRepas = undefined;
+        next.montantMedaille = undefined;
+      }
+
+      if (field === "typeRepas" && value !== "Agape avec médaille") {
+        next.montantMedaille = undefined;
+      }
+
+      return next;
     });
-    setSelectedSession(null);
-    setIsEditing(true);
   };
 
-  const handleStartEdit = (session: Session) => {
-    const updatedSession = { ...session };
-    if (!updatedSession.customLines || updatedSession.customLines.length === 0) {
-      updatedSession.customLines = [
-        'Lecture d’un morceau d’architecture de la S ∴ Aure COS ∴ « La Divine Proportion : l’architecture de la juste mesure »',
-        'Lecture d’un morceau d’architecture du V∴M∴ Bruno GAU∴ « Le Temps Nilotique »',
-        '',
-        '',
-        '',
-        ''
-      ];
-    }
-    setFormData(updatedSession);
-    setIsEditing(true);
+  const handleOrdreJourChange = (index: number, value: string) => {
+    setFormData((prev) => {
+      const newOrdres = [...(prev.ordresJour || [""])];
+      newOrdres[index] = value;
+      const count = newOrdres.filter((o: string) => o.trim()).length;
+      const cloture = genererLigneCloture(
+        (prev.degreTravail as Degre) || "Apprenti",
+        count,
+        prev.heureSuspension || ""
+      );
+      return { ...prev, ordresJour: newOrdres, ligneCloture: cloture };
+    });
   };
 
-  const handleSaveForm = async (e: React.FormEvent) => {
+  const ajouterLigneOrdre = () => {
+    setFormData((prev) => {
+      const newOrdres = [...(prev.ordresJour || [""]), ""];
+      const count = newOrdres.filter((o: string) => o.trim()).length;
+      const cloture = genererLigneCloture(
+        (prev.degreTravail as Degre) || "Apprenti",
+        count,
+        prev.heureSuspension || ""
+      );
+      return { ...prev, ordresJour: newOrdres, ligneCloture: cloture };
+    });
+  };
+
+  const supprimerLigneOrdre = (index: number) => {
+    setFormData((prev) => {
+      const newOrdres = (prev.ordresJour || [""]).filter((_, i) => i !== index);
+      if (newOrdres.length === 0) newOrdres.push("");
+      const count = newOrdres.filter((o: string) => o.trim()).length;
+      const cloture = genererLigneCloture(
+        (prev.degreTravail as Degre) || "Apprenti",
+        count,
+        prev.heureSuspension || ""
+      );
+      return { ...prev, ordresJour: newOrdres, ligneCloture: cloture };
+    });
+  };
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SUBMIT PRINCIPAL — Création + Drive + PDF
+  // ═══════════════════════════════════════════════════════════════════
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title) return;
+    if (!formData.dateReprise || !formData.typeTenue) return;
+    setIsSubmitting(true);
 
-    // Build dynamic titles and automatic lines
-    const sDate = new Date(formData.date || '');
-    const dateShortStr = sDate.toLocaleDateString('fr-FR');
-    const timeStr = sDate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h');
-    const degreePrep = formData.degree === 'Apprenti' ? "d'" : "de ";
-    
-    const autoTitle = `Tenue ${formData.type} du ${dateShortStr} au degré ${degreePrep}${formData.degree}`;
-    const autoLine1 = `${formData.date?.split('T')[1].substring(0, 5)} Reprise des travaux au degré ${degreePrep}${formData.degree} Rite Ancien et Primitif de Memphis-Misraïm`;
-    const autoLine4 = `${formData.closingTime} Suspension des travaux au degré ${degreePrep}${formData.degree} Rite Ancien et Primitif de Memphis-Misraïm`;
+    try {
+      const degre = (formData.degreTravail as Degre) || "Apprenti";
 
-    const finalSession = {
-      ...formData,
-      title: autoTitle,
-      agenda1: autoLine1,
-      agenda4: autoLine4
-    } as Session;
+      // 1. Récupère le chrono
+      const chrono = await getAndIncrementChrono();
 
-    const isNew = !sessions.some(s => s.id === finalSession.id);
-    if (isNew) {
-      onAddSession(finalSession);
-    } else {
-      onUpdateSession(finalSession);
-    }
+      // 2. Authentification Google Drive si besoin
+      let token = googleToken;
+      if (!token) {
+        try {
+          const auth = await authenticateGoogleDrive();
+          token = auth.token;
+          setGoogleToken(token);
+          setGoogleEmail(auth.email);
+          setIsConnected(true);
+        } catch (err) {
+          console.warn("Connexion Google Drive échouée, le dossier ne sera pas créé.");
+        }
+      }
 
-    setIsEditing(false);
-    setSelectedSession(finalSession);
-  };
+      let driveFolderId = "";
+      let driveFolderUrl = "";
 
-  const handleToggleMyAttendance = (session: Session, isPresent: boolean) => {
-    const pIds = [...session.presentIds];
-    const eIds = [...session.excusedIds];
+      if (token) {
+        try {
+          const folderName = `Tenue ${chrono} ${formatDateFolder(formData.dateReprise)}`;
+          const folder = await createDriveFolder(folderName, token);
+          driveFolderId = folder.id;
+          driveFolderUrl = folder.url;
+        } catch (err) {
+          console.warn("Erreur création dossier Drive:", err);
+        }
+      }
 
-    if (isPresent) {
-      if (!pIds.includes(currentUser.id)) pIds.push(currentUser.id);
-      const idx = eIds.indexOf(currentUser.id);
-      if (idx > -1) eIds.splice(idx, 1);
-    } else {
-      if (!eIds.includes(currentUser.id)) eIds.push(currentUser.id);
-      const idx = pIds.indexOf(currentUser.id);
-      if (idx > -1) pIds.splice(idx, 1);
-      
-      // Clear signature if excused
-      const sigs = { ...session.signatures };
-      delete sigs[currentUser.id];
-      session.signatures = sigs;
-    }
+      // 3. Préparer les données
+      const fixes = genererTravauxFixes(degre, formData.dateReprise);
+      const ordres = formData.ordresJour || [""];
+      const count = ordres.filter((o: string) => o.trim()).length;
+      const cloture = genererLigneCloture(degre, count, formData.heureSuspension || "");
 
-    onUpdateSession({
-      ...session,
-      presentIds: pIds,
-      excusedIds: eIds
-    });
-  };
-
-  const handleDelete = (id: string) => {
-    setDeleteConfirmationId(id);
-  };
-
-  const confirmDelete = () => {
-    if (deleteConfirmationId) {
-      onDeleteSession(deleteConfirmationId);
-      setDeleteConfirmationId(null);
-      setSelectedSession(null);
-      setIsEditing(false);
-    }
-  };
-
-  const confirmValidation = async () => {
-    if (validateConfirmationSession) {
-      const updated: Session = {
-        ...validateConfirmationSession,
-        isValidated: true,
-        plancheValidated: true
+      const payload: any = {
+        typeTenue: formData.typeTenue,
+        degreTravail: degre,
+        dateReprise: formData.dateReprise,
+        heureSuspension: formData.heureSuspension || "",
+        lieuReunion: formData.lieuReunion || "",
+        travail1: fixes.travail1,
+        travail2: fixes.travail2,
+        travail3: fixes.travail3,
+        travail4: fixes.travail4,
+        ordresJour: ordres,
+        ligneCloture: cloture,
+        suitAgapes: formData.suitAgapes || false,
+        status: formData.status || "Planifiée",
+        chrono,
+        driveFolderId,
+        driveFolderUrl,
+        createdAt: Timestamp.now(),
       };
-      await incrementSessionChronoInFirestore();
-      onUpdateSession(updated);
-      setSelectedSession(updated);
-      setValidateConfirmationSession(null);
+
+      if (formData.suitAgapes) {
+        payload.heureAgape = formData.heureAgape || "";
+        payload.typeRepas = formData.typeRepas;
+        if (formData.typeRepas === "Agape avec médaille") {
+          payload.montantMedaille = formData.montantMedaille || 0;
+        }
+      }
+
+      // 4. Sauvegarde Firestore
+      let docRef;
+      if (editingId) {
+        await updateDoc(doc(db, "sessions", editingId), payload);
+        docRef = { id: editingId };
+      } else {
+        docRef = await addDoc(collection(db, "sessions"), payload);
+      }
+
+      // 5. Génération et upload du PDF (si token disponible)
+      if (token && driveFolderId) {
+        try {
+          const sessionData = { ...payload, id: editingId || docRef.id } as Session;
+          const pdfBlob = await generateConvocationPDF(sessionData, chrono);
+          await uploadFileToDrive(driveFolderId, `Convocation_Tenue_${chrono}.pdf`, pdfBlob, token);
+        } catch (err) {
+          console.warn("Erreur upload PDF:", err);
+        }
+      }
+
+      setShowForm(false);
+      setEditingId(null);
+      setFormData({ ...initialForm });
+      loadSessions();
+    } catch (err) {
+      console.error("Erreur lors de la planification:", err);
+      alert("Une erreur est survenue. Vérifiez la console.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleSaveSignature = (base64: string) => {
-    if (!selectedSession || !showSignatureForId) return;
-
-    const updatedSigs = {
-      ...selectedSession.signatures,
-      [showSignatureForId]: base64
-    };
-
-    const updatedSession = {
-      ...selectedSession,
-      signatures: updatedSigs
-    };
-
-    onUpdateSession(updatedSession);
-    setSelectedSession(updatedSession);
-    setShowSignatureForId(null);
-  };
-
-  const handleToggleMemberAppel = (memberId: string) => {
-    if (!selectedSession) return;
-    const pIds = [...selectedSession.presentIds];
-    const eIds = [...selectedSession.excusedIds];
-
-    const isPresent = pIds.includes(memberId);
-    if (isPresent) {
-      // Remove from presents
-      const idx = pIds.indexOf(memberId);
-      pIds.splice(idx, 1);
-      // Remove signature as well
-      const sigs = { ...selectedSession.signatures };
-      delete sigs[memberId];
-      selectedSession.signatures = sigs;
-    } else {
-      // Add to presents, remove from excused
-      pIds.push(memberId);
-      const idx = eIds.indexOf(memberId);
-      if (idx > -1) eIds.splice(idx, 1);
+  const handleDelete = async (id: string) => {
+    if (confirm("Supprimer cette tenue ?")) {
+      await deleteDoc(doc(db, "sessions", id));
+      loadSessions();
     }
-
-    const updated = {
-      ...selectedSession,
-      presentIds: pIds,
-      excusedIds: eIds
-    };
-    onUpdateSession(updated);
-    setSelectedSession(updated);
   };
 
-  const handleAddVisitorToSession = (visitorId: string, role: string) => {
-    if (!selectedSession) return;
-    const vIds = [...selectedSession.visitorIds];
-    if (!vIds.includes(visitorId)) {
-      vIds.push(visitorId);
-    }
-    const roles = { ...(selectedSession.visitorRoles || {}) };
-    roles[visitorId] = role;
-
-    const updated: Session = {
-      ...selectedSession,
-      visitorIds: vIds,
-      visitorRoles: roles
-    };
-    onUpdateSession(updated);
-    setSelectedSession(updated);
-    setShowVisitorSelector(false);
-  };
-
-  const handleUpdateVisitorRole = (visitorId: string, role: string) => {
-    if (!selectedSession) return;
-    const roles = { ...(selectedSession.visitorRoles || {}) };
-    roles[visitorId] = role;
-    const updated: Session = {
-      ...selectedSession,
-      visitorRoles: roles
-    };
-    onUpdateSession(updated);
-    setSelectedSession(updated);
-  };
-
-  const handleRemoveVisitorFromSession = (visitorId: string) => {
-    if (!selectedSession) return;
-    const vIds = selectedSession.visitorIds.filter(id => id !== visitorId);
-    const sigs = { ...selectedSession.signatures };
-    delete sigs[visitorId];
-
-    const updated = {
-      ...selectedSession,
-      visitorIds: vIds,
-      signatures: sigs
-    };
-    onUpdateSession(updated);
-    setSelectedSession(updated);
-  };
-
-  // Helper date conversions
-  const formatDateFrench = (iso: string) => {
-    return new Date(iso).toLocaleDateString('fr-FR', {
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
+  const handleEdit = (session: Session) => {
+    setFormData({
+      typeTenue: session.typeTenue,
+      degreTravail: session.degreTravail,
+      dateReprise: session.dateReprise,
+      heureSuspension: session.heureSuspension || "",
+      lieuReunion: session.lieuReunion || "",
+      travail1: session.travail1,
+      travail2: session.travail2,
+      travail3: session.travail3,
+      travail4: session.travail4,
+      ordresJour: session.ordresJour || [""],
+      ligneCloture: session.ligneCloture || "",
+      suitAgapes: session.suitAgapes || false,
+      heureAgape: session.heureAgape || "",
+      typeRepas: session.typeRepas,
+      montantMedaille: session.montantMedaille,
+      status: session.status,
     });
+    setEditingId(session.id);
+    setShowForm(true);
   };
 
-  const formatTime = (iso: string) => {
-    return new Date(iso).toLocaleTimeString('fr-FR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
+  // ─── Rendu ──────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#081619] text-[#E8E8E8] pb-12 animate-fade-in select-none">
-      {/* Signature drawing overlay */}
-      {showSignatureForId && (
-        <SignaturePad
-          onSave={handleSaveSignature}
-          onCancel={() => setShowSignatureForId(null)}
-          title={`ÉMARGEMENT DE ${
-            members.find(m => m.id === showSignatureForId)?.firstName?.toUpperCase() ||
-            visitors.find(v => v.id === showSignatureForId)?.firstName?.toUpperCase() ||
-            'PARTICIPANT'
-          } ${
-            members.find(m => m.id === showSignatureForId)?.lastName?.toUpperCase() ||
-            visitors.find(v => v.id === showSignatureForId)?.lastName?.toUpperCase() ||
-            ''
-          }`}
-        />
-      )}
-
-      {/* PDF PRINT PREVIEW OVERLAY */}
-      {pdfTypeToShow && selectedSession && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white print:backdrop-blur-none">
-          <div className={`w-full ${pdfTypeToShow === 'presence' ? 'max-w-2xl bg-white text-black p-6 md:p-8 rounded-2xl shadow-2xl relative my-8' : 'max-w-7xl bg-[#0c1a1d] border border-amber-500/20 text-[#E8E8E8] rounded-2xl shadow-2xl flex flex-col overflow-hidden h-[95vh] relative print:h-auto print:border-none print:bg-white print:text-black'}`}>
-            
-            {/* Top Bar for Convocation / Invitation editor */}
-            {pdfTypeToShow !== 'presence' && (
-              <div className="flex justify-between items-center bg-[#122428] border-b border-amber-500/20 px-6 py-4 shrink-0 print:hidden">
-                <div className="flex items-center gap-3">
-                  <div className="h-8 w-8 rounded-full border border-amber-500/30 flex items-center justify-center bg-[#081619]">
-                    <span className="text-amber-500 text-xs font-mono">✦</span>
-                  </div>
-                  <div>
-                    <h3 className="font-sans text-sm font-bold uppercase tracking-wider text-white">
-                      Éditeur de {pdfTypeToShow === 'convocation' ? 'Convocation' : 'Invitation'} Officielle
-                    </h3>
-                    <p className="text-[10px] text-[#87A0A0] font-mono uppercase tracking-widest">Ajustez les textes puis lancez l'impression</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => window.print()}
-                    className="px-5 py-2 rounded-xl bg-[#0C7A7A] text-white hover:bg-[#0A6868] text-xs font-bold transition flex items-center gap-2 shadow border border-amber-500/20"
-                  >
-                    <FileText className="h-3.5 w-3.5 text-[#C5A059]" />
-                    IMPRIMER LE DOCUMENT
-                  </button>
-                  <button
-                    onClick={() => {
-                      setPdfTypeToShow(null);
-                      if (cameDirectlyFromList) {
-                        setSelectedSession(null);
-                        setCameDirectlyFromList(false);
-                      }
-                    }}
-                    className="px-4 py-2 rounded-xl bg-[#081619] border border-gray-700 hover:bg-[#122428] text-xs font-bold transition"
-                  >
-                    FERMER
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Content Container */}
-            {pdfTypeToShow === 'presence' ? (
-              // Presence preview has no editor side-bar, just print preview like before but beautifully styled
-              <div className="flex flex-col gap-6 relative">
-                <button
-                  onClick={() => {
-                    setPdfTypeToShow(null);
-                    if (cameDirectlyFromList) {
-                      setSelectedSession(null);
-                      setCameDirectlyFromList(false);
-                    }
-                  }}
-                  className="absolute top-0 right-0 text-gray-400 hover:text-gray-600 font-bold text-xl print:hidden"
-                >
-                  ✕
-                </button>
-                <div className="flex justify-between items-center border-b pb-4 print:hidden">
-                  <span className="text-xs font-mono text-amber-600 uppercase tracking-widest">Feuille de présence (Émargement de tenue)</span>
-                  <button
-                    onClick={() => window.print()}
-                    className="px-5 py-2 rounded-xl bg-[#0C7A7A] text-white hover:bg-[#0A6868] text-sm font-bold transition flex items-center gap-2 shadow"
-                  >
-                    <FileText className="h-4 w-4" />
-                    IMPRIMER
-                  </button>
-                </div>
-                
-                <div className="print-document font-serif p-4 md:p-8 bg-white border border-gray-100 flex flex-col gap-6 text-sm leading-relaxed text-black" id="printable-pdf-view">
-                  {/* Header block with logos */}
-                  <div className="flex items-center justify-between border-b border-black pb-4 mb-4">
-                    <img src="/assets/.aistudio/logo_rapmm_1721295744888.png" alt="RAPMM" className="h-16 w-16 object-contain" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} referrerPolicy="no-referrer" />
-                    <div className="text-center font-serif flex-grow px-4">
-                      <span className="text-[9px] uppercase italic tracking-wider text-gray-500 block">A La Gloire Du Sublime Architecte des Mondes</span>
-                      <h1 className="text-sm font-bold uppercase text-blue-900 leading-tight">Ordre Initiatique Ancien et Primitif de Memphis Misraïm</h1>
-                      <h2 className="text-xs font-bold uppercase tracking-wider text-gray-800">Respectable Loge Bénou Ré (Orient de Saint-Pierre)</h2>
-                      <span className="text-[9px] italic text-gray-600">Ex Cineribus, Ad Lucem Perpetuam</span>
-                    </div>
-                    <img src="/assets/.aistudio/logo_benou_re_1721295744888.png" alt="Bénou Ré" className="h-16 w-16 object-contain" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} referrerPolicy="no-referrer" />
-                  </div>
-
-                  <div className="space-y-5">
-                    <div className="text-center py-1.5 border-y border-gray-200 my-1">
-                      <h3 className="text-base font-bold text-gray-900 uppercase tracking-wider">FEUILLE D'ÉMARGEMENT ET DE PRÉSENCE</h3>
-                      <p className="text-[11px] text-gray-600">{selectedSession.title}</p>
-                    </div>
-
-                    {/* Summary grid */}
-                    <div className="grid grid-cols-2 gap-4 border p-3 rounded-xl bg-gray-50 text-xs text-black">
-                      <div>
-                        <strong>Date :</strong> {formatDateFrench(selectedSession.date)}<br />
-                        <strong>Lieu :</strong> {selectedSession.location}
-                      </div>
-                      <div className="text-right">
-                        <strong>Degré :</strong> {selectedSession.degree}<br />
-                        <strong>Type :</strong> {selectedSession.type}
-                      </div>
-                    </div>
-
-                    {/* Present table */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-gray-800 border-b pb-1 uppercase tracking-wider">MEMBRES DE L'ATELIER PRÉSENTS</h4>
-                      <table className="w-full border-collapse border border-gray-300 text-xs text-left">
-                        <thead>
-                          <tr className="bg-gray-100 text-black">
-                            <th className="border border-gray-300 p-2">Nom & Prénom</th>
-                            <th className="border border-gray-300 p-2">Office / Fonction</th>
-                            <th className="border border-gray-300 p-2 w-40">Signature Émargement</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {members.filter(m => selectedSession.presentIds.includes(m.id)).map(m => (
-                            <tr key={m.id} className="text-black">
-                              <td className="border border-gray-300 p-2 font-semibold">{m.firstName} {m.lastName}</td>
-                              <td className="border border-gray-300 p-2 text-gray-600">{m.function !== 'Aucun' ? m.function : 'Membre'}</td>
-                              <td className="border border-gray-300 p-1 h-12 relative">
-                                {selectedSession.signatures[m.id] ? (
-                                  <img src={selectedSession.signatures[m.id]} alt="sig" className="max-h-full mx-auto object-contain max-w-[120px]" referrerPolicy="no-referrer" />
-                                ) : (
-                                  <span className="text-gray-400 italic text-[10px] flex justify-center items-center h-full">Néant</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    {/* Visitors table */}
-                    {selectedSession.visitorIds.length > 0 && (
-                      <div className="space-y-3">
-                        <h4 className="text-xs font-bold text-gray-800 border-b pb-1 uppercase tracking-wider">VISITEURS PRÉSENTS</h4>
-                        <table className="w-full border-collapse border border-gray-300 text-xs text-left">
-                          <thead>
-                            <tr className="bg-gray-100 text-black">
-                              <th className="border border-gray-300 p-2">Nom & Prénom</th>
-                              <th className="border border-gray-300 p-2">Loge & Orient</th>
-                              <th className="border border-gray-300 p-2">Office / Fonction</th>
-                              <th className="border border-gray-300 p-2 w-40">Signature Émargement</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {visitors.filter(v => selectedSession.visitorIds.includes(v.id)).map(v => (
-                              <tr key={v.id} className="text-black">
-                                <td className="border border-gray-300 p-2 font-semibold">{v.firstName} {v.lastName}</td>
-                                <td className="border border-gray-300 p-2 text-gray-600">{v.lodge} ({v.orient})</td>
-                                <td className="border border-gray-300 p-2 text-gray-600">{(selectedSession.visitorRoles?.[v.id]) || v.function || 'Visiteur'}</td>
-                                <td className="border border-gray-300 p-1 h-12 relative">
-                                  {selectedSession.signatures[v.id] ? (
-                                    <img src={selectedSession.signatures[v.id]} alt="sig" className="max-h-full mx-auto object-contain max-w-[120px]" referrerPolicy="no-referrer" />
-                                  ) : (
-                                    <span className="text-gray-400 italic text-[10px] flex justify-center items-center h-full">Néant</span>
-                                  )}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {/* Finance / Tronc info */}
-                    <div className="flex justify-between items-center bg-gray-100 border p-3 rounded-xl text-xs font-bold mt-4 text-black">
-                      <span>TOTAL COMPTABILISÉ PRÉSENTS : {selectedSession.presentIds.length + selectedSession.visitorIds.length}</span>
-                      <span className="text-red-800">TRONC DE LA VEUVE : {selectedSession.troncAmount.toFixed(2)} €</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end gap-2 border-t pt-4 print:hidden">
-                  <button
-                    onClick={() => {
-                      setPdfTypeToShow(null);
-                      if (cameDirectlyFromList) {
-                        setSelectedSession(null);
-                        setCameDirectlyFromList(false);
-                      }
-                    }}
-                    className="px-5 py-2 rounded-xl border border-gray-300 hover:bg-gray-50 text-sm font-semibold transition"
-                  >
-                    FERMER L'APERÇU
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // Convocation & Invitation split view
-              <div className="grid grid-cols-1 lg:grid-cols-12 flex-grow overflow-hidden print:block">
-                
-                {/* LEFT PANEL: CONFIGURATION CONTROLS OR EMAIL SENDING */}
-                <div className="lg:col-span-5 border-r border-[#1e2e38] p-5 overflow-y-auto bg-[#122428]/40 print:hidden flex flex-col justify-between">
-                  <div>
-                    {/* TABS BAR */}
-                    <div className="flex border-b border-amber-500/20 mb-4 pb-2 gap-2">
-                      <button
-                        onClick={() => setEditorTab('config')}
-                        className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition ${
-                          editorTab === 'config'
-                            ? 'bg-[#0c1a1d] border border-amber-500/30 text-amber-500'
-                            : 'text-[#87A0A0] hover:text-white bg-transparent border border-transparent'
-                        }`}
-                      >
-                        Configuration Lettre
-                      </button>
-                      <button
-                        onClick={() => {
-                          setEditorTab('email');
-                          // Dynamic email template initialization
-                          const dateStr = new Date(selectedSession.date).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric'
-                          });
-                          setEmailSubject(`[Bénou Ré N°5] Invitation : Tenue du ${dateStr}`);
-                          
-                          const degreeFr = selectedSession.degree === 'Apprenti' ? '1er DEGRE' : selectedSession.degree === 'Compagnon' ? '2e DEGRE' : '3e DEGRE';
-                          setEmailBody(
-                            `Très Chère Sœur, Très Cher Frère,\n\n` +
-                            `Vous êtes invité(e) à participer aux travaux de notre Respectable Loge Bénou Ré\n\n` +
-                            `- Tenue : ${sessionNumber} TENUE REGULIERE au ${degreeFr}\n` +
-                            `- Date : ${dateStr} à ${openingTime}\n` +
-                            `- Lieu : ${selectedSession.location || 'Temple Thérèse Eliseman à Saint-Pierre'}\n\n` +
-                            `Vous trouverez en pièce jointe à ce courriel l’ordre du jour.\n` +
-                            `Agapes :  ${agapeText}\n` +
-                            `Contact : ${contactText}\n\n` +
-                            `Dans l’attente de partager ce moment avec vous, recevez nos salutations fraternelles.\n` +
-                            `Le Secrétariat de la R∴ L∴ Bénou Ré N°5`
-                          );
-                        }}
-                        className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition ${
-                          editorTab === 'email'
-                            ? 'bg-[#0c1a1d] border border-amber-500/30 text-amber-500'
-                            : 'text-[#87A0A0] hover:text-white bg-transparent border border-transparent'
-                        }`}
-                      >
-                        Envoi par E-mail
-                      </button>
-                    </div>
-
-                    {editorTab === 'config' ? (
-                      /* CONFIGURATION PANEL */
-                      <div className="space-y-4">
-                        <div className="border-b border-amber-500/10 pb-2">
-                          <span className="text-xs font-mono text-amber-500 uppercase tracking-widest font-bold">1. En-tête & Lieu</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block">N° de Tenue</label>
-                            <input
-                              type="text"
-                              value={sessionNumber}
-                              onChange={(e) => setSessionNumber(e.target.value)}
-                              className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block">Heure d'ouverture</label>
-                            <input
-                              type="text"
-                              value={openingTime}
-                              onChange={(e) => setOpeningTime(e.target.value)}
-                              className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block">Date de Tenue (Texte de l'En-tête)</label>
-                          <input
-                            type="text"
-                            value={formattedHeaderDate}
-                            onChange={(e) => setFormattedHeaderDate(e.target.value)}
-                            className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
-                          />
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block">Formule principale d'invitation</label>
-                          <textarea
-                            value={invitationMainLine}
-                            onChange={(e) => setInvitationMainLine(e.target.value)}
-                            rows={2}
-                            className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none resize-none"
-                          />
-                        </div>
-
-                        <div className="border-b border-amber-500/10 pb-2 pt-2">
-                          <span className="text-xs font-mono text-amber-500 uppercase tracking-widest font-bold">2. Calendrier Égyptien & VM</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block">Nom de Divinité</label>
-                            <input
-                              type="text"
-                              value={deityName}
-                              onChange={(e) => setDeityName(e.target.value)}
-                              className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block">An de la Lumière</label>
-                            <input
-                              type="text"
-                              value={egyptianYear}
-                              onChange={(e) => setEgyptianYear(e.target.value)}
-                              className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block">Vénérable Maître (Signature/Fermeture)</label>
-                          <input
-                            type="text"
-                            value={vmName}
-                            onChange={(e) => setVmName(e.target.value)}
-                            className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
-                          />
-                        </div>
-
-                        <div className="border-b border-amber-500/10 pb-2 pt-2">
-                          <span className="text-xs font-mono text-amber-500 uppercase tracking-widest font-bold">3. Ordre du Jour (Feuille de Saisie)</span>
-                        </div>
-
-                        <div className="space-y-3">
-                          {/* Ligne 1 - Fixe/Auto */}
-                          <div className="bg-[#081619] border border-amber-500/5 rounded-lg p-2.5 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-amber-500/80 font-mono font-bold">LIGNE 1 — AUTOMATIQUE</span>
-                              <span className="text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded font-mono">Lecture seule</span>
-                            </div>
-                            <p className="text-xs text-gray-400 font-serif leading-snug">
-                              1. <span className="text-amber-300 font-semibold">{openingTime}</span> Ouverture des Travaux au {selectedSession.degree === 'Apprenti' ? "1er Degré" : selectedSession.degree === 'Compagnon' ? "2ème Degré" : "3ème Degré"} symbolique par le V∴M∴ <span className="text-amber-300 font-semibold">{vmName}</span>
-                            </p>
-                          </div>
-
-                          {/* Ligne 2 - Fixe */}
-                          <div className="bg-[#081619] border border-amber-500/5 rounded-lg p-2.5 space-y-1 opacity-75">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-gray-500 font-mono font-bold">LIGNE 2 — TEMPLATE FIXE</span>
-                              <span className="text-[9px] bg-gray-500/10 text-gray-400 px-1.5 py-0.5 rounded font-mono">Lecture seule</span>
-                            </div>
-                            <p className="text-xs text-gray-400 font-serif leading-snug">
-                              2. Appel des FF et SS ∴ de la loge.
-                            </p>
-                          </div>
-
-                          {/* Ligne 3 - Fixe */}
-                          <div className="bg-[#081619] border border-amber-500/5 rounded-lg p-2.5 space-y-1 opacity-75">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-gray-500 font-mono font-bold">LIGNE 3 — TEMPLATE FIXE</span>
-                              <span className="text-[9px] bg-gray-500/10 text-gray-400 px-1.5 py-0.5 rounded font-mono">Lecture seule</span>
-                            </div>
-                            <p className="text-xs text-gray-400 font-serif leading-snug">
-                              3. Lecture de la planche tracée de nos derniers travaux au {selectedSession.degree === 'Apprenti' ? "1er Degré" : selectedSession.degree === 'Compagnon' ? "2ème Degré" : "3ème Degré"} symbolique.
-                            </p>
-                          </div>
-
-                          {/* Ligne 4 - Fixe */}
-                          <div className="bg-[#081619] border border-amber-500/5 rounded-lg p-2.5 space-y-1 opacity-75">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-gray-500 font-mono font-bold">LIGNE 4 — TEMPLATE FIXE</span>
-                              <span className="text-[9px] bg-gray-500/10 text-gray-400 px-1.5 py-0.5 rounded font-mono">Lecture seule</span>
-                            </div>
-                            <p className="text-xs text-gray-400 font-serif leading-snug">
-                              4. Lecture de la correspondance et des affaires diverses.
-                            </p>
-                          </div>
-
-                          {/* Lignes 5 à 10 - Saisie Libre */}
-                          <div className="space-y-2 pt-2 border-t border-amber-500/5">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] text-teal-400 font-mono font-bold uppercase tracking-wider">LIGNES 5 À 10 — SAISIE MANUELLE (4-5 lignes demandées)</span>
-                              <span className="text-[9px] bg-teal-400/10 text-teal-300 px-1.5 py-0.5 rounded font-mono">Saisie libre</span>
-                            </div>
-                            
-                            {customLines.map((line, idx) => (
-                              <div key={idx} className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-teal-400/80 font-mono w-5 shrink-0 text-right">{idx + 5}.</span>
-                                <input
-                                  type="text"
-                                  placeholder={`Ordre du jour optionnel (ex: Morceau d'architecture...)`}
-                                  value={line}
-                                  onChange={(e) => {
-                                    const newLines = [...customLines];
-                                    newLines[idx] = e.target.value;
-                                    setCustomLines(newLines);
-                                  }}
-                                  className="flex-grow bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none transition"
-                                />
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* Ligne de clôture */}
-                          <div className="bg-[#081619] border border-amber-500/5 rounded-lg p-2.5 space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] text-amber-500/80 font-mono font-bold">LIGNE FINALE — AUTOMATIQUE</span>
-                              <span className="text-[9px] bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded font-mono">Lecture seule</span>
-                            </div>
-                            <p className="text-xs text-gray-400 font-serif leading-snug">
-                              {5 + customLines.filter(line => line.trim() !== '').length}. Clôture des Travaux au {selectedSession.degree === 'Apprenti' ? "1er Degré" : selectedSession.degree === 'Compagnon' ? "2ème Degré" : "3ème Degré"} symbolique par le V∴M∴ <span className="text-amber-300 font-semibold">{vmName}</span>
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="border-b border-amber-500/10 pb-2 pt-2">
-                          <span className="text-xs font-mono text-amber-500 uppercase tracking-widest font-bold">4. Agapes & Renseignements</span>
-                        </div>
-
-                        <div className="space-y-1.5">
-                          <div className="space-y-0.5">
-                            <label className="text-[10px] text-[#87A0A0] uppercase tracking-wider block">Texte des Agapes</label>
-                            <textarea
-                              value={agapeText}
-                              onChange={(e) => setAgapeText(e.target.value)}
-                              rows={2}
-                              className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-1.5 text-xs text-white focus:border-[#C5A059] focus:outline-none resize-none"
-                            />
-                          </div>
-                          <div className="space-y-0.5">
-                            <label className="text-[10px] text-[#87A0A0] uppercase tracking-wider block">Texte de contact</label>
-                            <textarea
-                              value={contactText}
-                              onChange={(e) => setContactText(e.target.value)}
-                              rows={2}
-                              className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-1.5 text-xs text-white focus:border-[#C5A059] focus:outline-none resize-none"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="border-b border-amber-500/10 pb-2 pt-2">
-                          <span className="text-xs font-mono text-amber-500 uppercase tracking-widest font-bold">5. Logos de l'En-tête</span>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-[#87A0A0] uppercase tracking-wider block font-bold">Logo Gauche</label>
-                            <div className="flex flex-col gap-1.5">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                      const base64 = ev.target?.result as string;
-                                      setCustomLeftLogo(base64);
-                                      localStorage.setItem('logo_left', base64);
-                                      setLeftLogoError(false);
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                                className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg p-1 text-[10px] text-gray-400 focus:outline-none cursor-pointer"
-                              />
-                              {customLeftLogo && (
-                                <button
-                                  onClick={() => {
-                                    setCustomLeftLogo('');
-                                    localStorage.removeItem('logo_left');
-                                  }}
-                                  className="text-[9px] text-red-400 hover:underline block text-left"
-                                >
-                                  Supprimer
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[10px] text-[#87A0A0] uppercase tracking-wider block font-bold">Logo Droit</label>
-                            <div className="flex flex-col gap-1.5">
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => {
-                                  const file = e.target.files?.[0];
-                                  if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = (ev) => {
-                                      const base64 = ev.target?.result as string;
-                                      setCustomRightLogo(base64);
-                                      localStorage.setItem('logo_right', base64);
-                                      setRightLogoError(false);
-                                    };
-                                    reader.readAsDataURL(file);
-                                  }
-                                }}
-                                className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg p-1 text-[10px] text-gray-400 focus:outline-none cursor-pointer"
-                              />
-                              {customRightLogo && (
-                                <button
-                                  onClick={() => {
-                                    setCustomRightLogo('');
-                                    localStorage.removeItem('logo_right');
-                                  }}
-                                  className="text-[9px] text-red-400 hover:underline block text-left"
-                                >
-                                  Supprimer
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="pt-2">
-                          <button
-                            onClick={handleSavePdfConfig}
-                            className={`w-full py-2 px-4 rounded-lg shadow-lg text-xs font-bold tracking-wider uppercase transition flex items-center justify-center gap-1.5 ${
-                              saveSuccess 
-                                ? 'bg-emerald-600 hover:bg-emerald-500 text-white animate-pulse' 
-                                : 'bg-[#C5A059] hover:bg-[#D9B56D] text-[#0A1214]'
-                            }`}
-                          >
-                            <CheckCircle className="w-4 h-4" /> 
-                            {saveSuccess ? '✓ Modifications Enregistrées !' : 'Sauvegarder l\'Ordre du Jour'}
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* EMAIL PANEL */
-                      <div className="space-y-4">
-                        <div className="bg-[#081619]/60 p-3 rounded-xl border border-amber-500/10 text-[11px] text-[#87A0A0] leading-relaxed">
-                          Sélectionnez les destinataires de la loge (membres actifs) et les invités, prévisualisez ou modifiez le message ci-dessous, puis cliquez sur <strong>Envoyer</strong> pour diffuser l'invitation.
-                        </div>
-
-                        {/* Subject */}
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block font-bold">Sujet du Mail</label>
-                          <input
-                            type="text"
-                            value={emailSubject}
-                            onChange={(e) => setEmailSubject(e.target.value)}
-                            className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
-                            placeholder="Sujet de l'invitation..."
-                          />
-                        </div>
-
-                        {/* Message / Body */}
-                        <div className="space-y-1">
-                          <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block font-bold">Corps du Message</label>
-                          <textarea
-                            value={emailBody}
-                            onChange={(e) => setEmailBody(e.target.value)}
-                            rows={8}
-                            className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-lg px-3 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none font-mono"
-                            placeholder="Écrivez le message de l'invitation..."
-                          />
-                        </div>
-
-                        {/* Quick Selection Buttons */}
-                        <div className="space-y-2">
-                          <label className="text-[11px] text-[#87A0A0] uppercase tracking-wider block font-bold">Sélections rapides</label>
-                          <div className="flex flex-wrap gap-1.5">
-                            <button
-                              type="button"
-                              onClick={handleSelectAllByDegree}
-                              className="px-2.5 py-1 rounded bg-[#0C7A7A]/20 border border-[#0C7A7A]/40 text-[#0C7A7A] hover:bg-[#0C7A7A]/30 text-[10px] font-bold transition uppercase tracking-wider"
-                            >
-                              Membres de la Loge (Selon Degré : {selectedSession.degree})
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setSelectedEmailVisitors(visitors.map(v => v.id))}
-                              className="px-2.5 py-1 rounded bg-[#0C7A7A]/20 border border-[#0C7A7A]/40 text-[#0C7A7A] hover:bg-[#0C7A7A]/30 text-[10px] font-bold transition uppercase tracking-wider"
-                            >
-                              Tous les Invités
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedEmailMembers([]);
-                                setSelectedEmailVisitors([]);
-                              }}
-                              className="px-2.5 py-1 rounded bg-red-950/20 border border-red-900/30 text-red-400 hover:bg-red-900/10 text-[10px] font-bold transition uppercase tracking-wider"
-                            >
-                              Tout Décocher
-                            </button>
-                          </div>
-                        </div>
-
-                        {/* Lodge Members list */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-center text-[10px] text-[#87A0A0] uppercase font-bold tracking-wider">
-                            <span>Membres de la Loge ({selectedEmailMembers.length} sélectionnés)</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const allActiveMemberIds = members.filter(m => m.status === 'Actif').map(m => m.id);
-                                setSelectedEmailMembers(
-                                  selectedEmailMembers.length === allActiveMemberIds.length ? [] : allActiveMemberIds
-                                );
-                              }}
-                              className="text-amber-500 hover:underline"
-                            >
-                              {selectedEmailMembers.length === members.filter(m => m.status === 'Actif').length ? "Aucun" : "Tous"}
-                            </button>
-                          </div>
-                          <div className="max-h-40 border border-[#87A0A0]/10 rounded-xl bg-[#081619] overflow-y-auto p-2 space-y-1">
-                            {members.filter(m => m.status === 'Actif').map(member => {
-                              const isChecked = selectedEmailMembers.includes(member.id);
-                              return (
-                                <label
-                                  key={member.id}
-                                  className="flex items-start gap-2.5 p-1.5 rounded hover:bg-teal-950/30 cursor-pointer text-xs transition"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedEmailMembers([...selectedEmailMembers, member.id]);
-                                      } else {
-                                        setSelectedEmailMembers(selectedEmailMembers.filter(id => id !== member.id));
-                                      }
-                                    }}
-                                    className="mt-0.5 rounded border-[#87A0A0]/30 text-[#0C7A7A] focus:ring-[#0C7A7A] bg-[#081619]"
-                                  />
-                                  <div className="flex-1">
-                                    <div className="flex items-center justify-between font-semibold text-white">
-                                      <span>{member.firstName} {member.lastName}</span>
-                                      <span className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded ${
-                                        member.grade === 'Maitre' 
-                                          ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' 
-                                          : member.grade === 'Compagnon'
-                                            ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                                            : 'bg-green-500/10 text-green-400 border border-green-500/20'
-                                      }`}>
-                                        {member.grade}
-                                      </span>
-                                    </div>
-                                    <div className="text-[10px] text-[#87A0A0] truncate">{member.email}</div>
-                                  </div>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Visitors list */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-center text-[10px] text-[#87A0A0] uppercase font-bold tracking-wider">
-                            <span>Invités & Visiteurs ({selectedEmailVisitors.length} sélectionnés)</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const allVisitorIds = visitors.map(v => v.id);
-                                setSelectedEmailVisitors(
-                                  selectedEmailVisitors.length === allVisitorIds.length ? [] : allVisitorIds
-                                );
-                              }}
-                              className="text-amber-500 hover:underline"
-                            >
-                              {selectedEmailVisitors.length === visitors.length ? "Aucun" : "Tous"}
-                            </button>
-                          </div>
-                          <div className="max-h-40 border border-[#87A0A0]/10 rounded-xl bg-[#081619] overflow-y-auto p-2 space-y-1">
-                            {visitors.length === 0 ? (
-                              <div className="text-center py-4 text-xs text-[#87A0A0] italic">Aucun visiteur enregistré</div>
-                            ) : (
-                              visitors.map(visitor => {
-                                const isChecked = selectedEmailVisitors.includes(visitor.id);
-                                return (
-                                  <label
-                                    key={visitor.id}
-                                    className="flex items-start gap-2.5 p-1.5 rounded hover:bg-teal-950/30 cursor-pointer text-xs transition"
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={isChecked}
-                                      onChange={(e) => {
-                                        if (e.target.checked) {
-                                          setSelectedEmailVisitors([...selectedEmailVisitors, visitor.id]);
-                                        } else {
-                                          setSelectedEmailVisitors(selectedEmailVisitors.filter(id => id !== visitor.id));
-                                        }
-                                      }}
-                                      className="mt-0.5 rounded border-[#87A0A0]/30 text-[#0C7A7A] focus:ring-[#0C7A7A] bg-[#081619]"
-                                    />
-                                    <div className="flex-1">
-                                      <div className="flex items-center justify-between font-semibold text-white">
-                                        <span>{visitor.firstName} {visitor.lastName}</span>
-                                        <span className="text-[9px] font-mono text-amber-500 truncate max-w-[120px] text-right" title={visitor.lodge}>
-                                          {visitor.lodge}
-                                        </span>
-                                      </div>
-                                      <div className="text-[10px] text-[#87A0A0] truncate">{visitor.email}</div>
-                                    </div>
-                                  </label>
-                                );
-                              })
-                            )}
-                          </div>
-                        </div>
-
-                        {/* SEND MAIL BUTTON */}
-                        <div className="pt-2">
-                          {emailSentSuccess ? (
-                            <div className="bg-emerald-950/30 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl text-center space-y-1 animate-fade-in">
-                              <p className="text-xs font-bold uppercase tracking-wider">✓ Envoi réussi !</p>
-                              <p className="text-[10px] text-gray-400">
-                                L'invitation a été envoyée avec succès à {selectedEmailMembers.length + selectedEmailVisitors.length} destinataire(s).
-                              </p>
-                              <button
-                                type="button"
-                                onClick={() => setEmailSentSuccess(false)}
-                                className="text-[10px] text-amber-500 hover:underline pt-1 block mx-auto font-bold uppercase tracking-wide"
-                              >
-                                Réinitialiser l'envoi
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={handleSendInvitationByEmail}
-                              disabled={isSendingEmail || (selectedEmailMembers.length === 0 && selectedEmailVisitors.length === 0)}
-                              className={`w-full py-2.5 px-4 rounded-xl shadow-lg text-xs font-bold tracking-wider uppercase transition flex items-center justify-center gap-1.5 ${
-                                isSendingEmail
-                                  ? 'bg-amber-500/50 text-black cursor-not-allowed'
-                                  : selectedEmailMembers.length === 0 && selectedEmailVisitors.length === 0
-                                    ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700/50'
-                                    : 'bg-amber-500 hover:bg-amber-600 text-black'
-                              }`}
-                            >
-                              {isSendingEmail ? (
-                                <>
-                                  <span className="animate-spin mr-1 h-3.5 w-3.5 border-2 border-black border-t-transparent rounded-full" />
-                                  ENVOI EN COURS...
-                                </>
-                              ) : (
-                                <>
-                                  <Mail className="w-4 h-4" />
-                                  Envoyer l'invitation par mail ({selectedEmailMembers.length + selectedEmailVisitors.length})
-                                </>
-                              )}
-                            </button>
-                          )}
-                          {selectedEmailMembers.length === 0 && selectedEmailVisitors.length === 0 && !emailSentSuccess && (
-                            <p className="text-center text-[10px] text-[#87A0A0]/60 mt-1">
-                              Veuillez sélectionner au moins un membre ou un invité pour activer l'envoi.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-4 border-t border-amber-500/10 text-center text-[10px] text-[#87A0A0]">
-                    L'en-tête, le temple, les loges et les grades de travail s'adaptent selon les règles initiatiques de l'atelier.
-                  </div>
-                </div>
-
-                {/* RIGHT PANEL: LIVE HIGH-FIDELITY PDF PREVIEW */}
-                <div className="lg:col-span-7 p-6 overflow-y-auto flex justify-center bg-[#081619]/95 print:bg-white print:p-0 print:overflow-visible print:block w-full">
-                  
-                  {/* The A4-like Document Container */}
-                  <div 
-                    className="print-document bg-white text-black p-8 md:p-12 shadow-2xl rounded-sm border border-gray-200 flex flex-col justify-between font-serif text-[11px] leading-relaxed w-full max-w-[210mm] min-h-[297mm] print:shadow-none print:border-none print:p-0 print:m-0 print:max-w-none print:min-h-0"
-                    id="printable-pdf-view"
-                  >
-                    <div>
-                      {/* 1. Header with Logos and Rites Grid */}
-                      <div className="flex items-start justify-between w-full border-b border-gray-300 pb-2 mb-4">
-                        {/* Left Logo (RAPMM scarab) */}
-                        <div className="w-20 shrink-0 flex items-center justify-center min-h-[64px]">
-                          {customLeftLogo ? (
-                            <img 
-                              src={customLeftLogo} 
-                              alt="Logo Gauche" 
-                              className="max-w-[70px] max-h-[70px] object-contain mx-auto"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : !leftLogoError ? (
-                            <img 
-                              src="/assets/.aistudio/logo_rapmm_1721295744888.png" 
-                              alt="Logo RAPMM" 
-                              className="max-w-[70px] max-h-[70px] object-contain mx-auto"
-                              onError={() => setLeftLogoError(true)}
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            /* GORGEOUS INLINE GOLD MEDALLION SVG FALLBACK */
-                            <svg viewBox="0 0 100 100" className="w-14 h-14 mx-auto text-amber-600 fill-current">
-                              <polygon points="50,15 15,80 85,80" stroke="#d97706" strokeWidth="2.5" fill="none" />
-                              <circle cx="50" cy="55" r="10" stroke="#d97706" strokeWidth="2" fill="none" />
-                              <circle cx="50" cy="55" r="3" fill="#d97706" />
-                              <line x1="50" y1="15" x2="50" y2="35" stroke="#d97706" strokeWidth="2" />
-                            </svg>
-                          )}
-                        </div>
-
-                        {/* Center Text Block */}
-                        <div className="text-center flex-grow flex flex-col items-center px-2">
-                          <h1 className="text-sm font-bold uppercase tracking-wider text-black font-sans">GRANDE LOGE DE BOURBON</h1>
-                          <span className="text-[7.5px] font-sans font-bold tracking-wide text-gray-800 uppercase block leading-tight text-center max-w-sm mb-2">
-                            FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM
-                          </span>
-
-                          {/* 5-Column Rites list */}
-                          <div className="grid grid-cols-5 gap-1.5 text-[6.5px] border-t border-b border-gray-300 py-1.5 w-full text-center font-sans text-gray-700">
-                            <div>
-                              <strong>Rite Primitif,</strong><br/>Paris 1721
-                            </div>
-                            <div className="border-l border-gray-300 pl-1">
-                              <strong>Rite Primitif des Philadelphes,</strong><br/>Narbonne 1779
-                            </div>
-                            <div className="border-l border-gray-300 pl-1">
-                              <strong>Rite de Memphis,</strong><br/>Montauban 1815
-                            </div>
-                            <div className="border-l border-gray-300 pl-1">
-                              <strong>Rite de Misraïm,</strong><br/>Venise 1788
-                            </div>
-                            <div className="border-l border-gray-300 pl-1">
-                              <strong>Rite Ancien et Primitif,</strong><br/>Manchester 1876
-                            </div>
-                          </div>
-
-                          {/* Filiations */}
-                          <div className="text-[6.5px] font-sans italic text-gray-600 mt-1.5 leading-tight">
-                            <p>Filiation directe Robert Ambelain</p>
-                            <p>Filiation Directe Gérard Kloppel</p>
-                            <p>Filiation Directe Joseph Tsang Mang Kin</p>
-                          </div>
-                        </div>
-
-                        {/* Right Logo (Bénou Ré heron) */}
-                        <div className="w-20 shrink-0 flex items-center justify-center min-h-[64px]">
-                          {customRightLogo ? (
-                            <img 
-                              src={customRightLogo} 
-                              alt="Logo Droit" 
-                              className="max-w-[70px] max-h-[70px] object-contain mx-auto"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : !rightLogoError ? (
-                            <img 
-                              src="/assets/.aistudio/logo_benou_re_1721295744888.png" 
-                              alt="Logo Bénou Ré" 
-                              className="max-w-[70px] max-h-[70px] object-contain mx-auto"
-                              onError={() => setRightLogoError(true)}
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            /* GORGEOUS INLINE HERON/PHOENIX SVG FALLBACK */
-                            <svg viewBox="0 0 100 100" className="w-14 h-14 mx-auto text-amber-600 fill-current">
-                              <circle cx="50" cy="50" r="42" stroke="#d97706" strokeWidth="2.5" fill="none" />
-                              <path d="M 50,18 C 42,32 46,50 36,72 C 46,67 54,67 64,72 C 54,50 58,32 50,18 Z" fill="#d97706" opacity="0.85" />
-                              <circle cx="50" cy="32" r="3.5" fill="white" />
-                            </svg>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Blue Separator Line */}
-                      <div className="w-full h-[3px] bg-[#1d4ed8] mb-6"></div>
-
-                      {/* 2. Lodge Details & Title Box */}
-                      <div className="text-center space-y-1 mb-5">
-                        <h2 className="text-base font-bold tracking-wider text-black">R ∴ L∴ Bénou Ré N°5</h2>
-                        <h3 className="text-xs font-semibold text-gray-800">O∴ de Saint Pierre – Île de la Réunion</h3>
-                      </div>
-
-                      {/* Ordre du jour box */}
-                      <div className="border-2 border-black p-4 text-center my-5 max-w-xl mx-auto">
-                        <h4 className="text-xs font-sans font-bold tracking-widest text-black">ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU</h4>
-                        <p className="text-sm font-sans font-extrabold tracking-wider mt-1.5 text-black">
-                          {formattedHeaderDate}
-                        </p>
-                      </div>
-
-                      {/* 3. Invitation Formulas */}
-                      <div className="text-center space-y-1.5 my-6 text-[#701a75] font-serif italic text-xs leading-relaxed max-w-xl mx-auto">
-                        <p>A la Gloire Du Grand Architecte De l’Univers,</p>
-                        <p className="font-bold">Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,</p>
-                        <p>La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux de sa</p>
-                      </div>
-
-                      {/* Invitation Main Custom Line */}
-                      <div className="text-center max-w-xl mx-auto text-xs font-bold text-purple-950 mb-6">
-                        <p>{invitationMainLine}</p>
-                      </div>
-
-                      {/* Egyptian Date */}
-                      <div className="text-center text-[#1d4ed8] font-bold italic text-sm space-y-1 my-6">
-                        <p>Le jour de naissance de {deityName}</p>
-                        <p>De l’an {egyptianYear} de la Lumière d’Egypte</p>
-                      </div>
-
-                      {/* 4. The Agenda Section */}
-                      <div className="max-w-xl mx-auto mt-8 space-y-4 text-left">
-                        <h5 className="font-bold underline text-xs uppercase tracking-wider text-black">L'ordre du jour appellera :</h5>
-
-                        <ul className="space-y-2.5 text-[11px] text-black">
-                          {/* Item 1: Opening */}
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">1.</span>
-                            <span>
-                              <strong>{openingTime}</strong> Ouverture des Travaux au {selectedSession.degree === 'Apprenti' ? '1er Degré' : selectedSession.degree === 'Compagnon' ? '2ème Degré' : '3ème Degré'} symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ {vmName}
-                            </span>
-                          </li>
-
-                          {/* Item 2: Appel */}
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">2.</span>
-                            <span>Appel des FF et SS ∴ de la loge.</span>
-                          </li>
-
-                          {/* Item 3: Planche tracee */}
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">3.</span>
-                            <span>Lecture de la planche tracée de nos derniers travaux au {selectedSession.degree === 'Apprenti' ? '1er Degré' : selectedSession.degree === 'Compagnon' ? '2ème Degré' : '3ème Degré'} symbolique.</span>
-                          </li>
-
-                          {/* Item 4: Correspondence */}
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">4.</span>
-                            <span>Lecture de la correspondance et des affaires diverses.</span>
-                          </li>
-
-                          {/* Items 5+ : Custom Manual Lines */}
-                          {customLines
-                            .filter(line => line.trim() !== '')
-                            .map((line, index) => (
-                              <li key={index} className="flex items-start gap-2 animate-fade-in text-black font-medium">
-                                <span className="font-bold">{index + 5}.</span>
-                                <span>{line}</span>
-                              </li>
-                            ))}
-
-                          {/* Last Item: Cloture */}
-                          <li className="flex items-start gap-2">
-                            <span className="font-bold">
-                              {5 + customLines.filter(line => line.trim() !== '').length}.
-                            </span>
-                            <span>
-                              Clôture des Travaux au {selectedSession.degree === 'Apprenti' ? '1er Degré' : selectedSession.degree === 'Compagnon' ? '2ème Degré' : '3ème Degré'} symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ {vmName}
-                            </span>
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-
-                    {/* 5. Agapes Footer */}
-                    <div className="max-w-xl mx-auto mt-10 pt-4 border-t border-gray-300 text-center text-[10px] text-gray-800 space-y-1.5 leading-relaxed font-sans">
-                      <p className="font-bold text-gray-900">{agapeText}</p>
-                      <p className="text-gray-700">{contactText}</p>
-                    </div>
-
-                  </div>
-                </div>
-
-              </div>
-            )}
-
+    <div className="p-6 max-w-5xl mx-auto">
+      {/* Header */}
+      <div className="flex items-start justify-between mb-8 gap-4">
+        <div className="space-y-3">
+          <button
+            onClick={onBack}
+            className="inline-flex items-center gap-2 text-[#87A0A0] hover:text-[#C5A059] text-xs uppercase tracking-widest font-medium"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour au Parvis
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-[#C5A059] tracking-wider">
+              Planification des Tenues
+            </h1>
+            <p className="text-[#87A0A0] text-sm mt-1">
+              Gérez les tenues de la R.L. Bénou Ré
+            </p>
           </div>
         </div>
-      )}
-
-      {/* Header */}
-      <header className="bg-[#122428] border-b border-amber-500/20 sticky top-0 z-40 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => {
-                if (cameDirectlyFromList) {
-                  setSelectedSession(null);
-                  setIsShowingEmargement(false);
-                  setPdfTypeToShow(null);
-                  setCameDirectlyFromList(false);
-                } else if (isShowingEmargement) {
-                  setIsShowingEmargement(false);
-                } else if (pdfTypeToShow) {
-                  setPdfTypeToShow(null);
-                } else if (selectedSession || isEditing) {
-                  setSelectedSession(null);
-                  setIsEditing(false);
-                  setIsShowingEmargement(false);
-                } else {
-                  onBack();
-                }
-              }}
-              className="p-2 rounded-lg bg-teal-950/40 border border-teal-900/30 text-teal-400 hover:bg-teal-900/20 transition"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-            <h2 className="font-sans text-lg font-bold uppercase tracking-wider text-white">
-              {isShowingEmargement ? "Émargement & Tronc" : (isEditing ? (formData.id && sessions.some(s => s.id === formData.id) ? 'Modifier la tenue' : 'Planifier une tenue') : selectedSession ? 'Détail de la Tenue' : 'Calendrier des Tenues')}
-            </h2>
-          </div>
-
-          {isSecOrVM && !isEditing && !selectedSession && (
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleStartCreate}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#0C7A7A] hover:bg-[#0A6868] text-white text-xs font-bold border border-amber-500/20 transition animate-pulse"
-              >
-                <Plus className="h-4 w-4 text-[#C5A059]" />
-                CRÉER UNE TENUE
+        <div className="flex items-center gap-3">
+          {isConnected ? (
+            <div className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full border border-emerald-500/20">
+              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              Drive connecté
+              <button onClick={handleDisconnectDrive} className="ml-1 text-[#87A0A0] hover:text-white">
+                <LogOut size={14} />
               </button>
             </div>
+          ) : (
+            <button
+              onClick={handleConnectDrive}
+              className="flex items-center gap-1.5 bg-[#0C7A7A] hover:bg-[#0A6565] text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            >
+              <CloudUpload size={14} />
+              Connecter Drive
+            </button>
           )}
         </div>
-      </header>
+      </div>
+      {driveError && (
+        <div className="mb-4 rounded-xl border border-rose-500/20 bg-rose-500/5 p-3 text-sm text-rose-200">
+          <strong className="block text-xs uppercase tracking-widest text-rose-300">Erreur Google Drive</strong>
+          <p className="mt-1 leading-relaxed">{driveError}</p>
+        </div>
+      )}
+      <button
+        onClick={() => {
+          setShowForm(true);
+          setEditingId(null);
+          setFormData({ ...initialForm });
+        }}
+        className="flex items-center gap-2 bg-[#0C7A7A] hover:bg-[#0A6565] text-white px-5 py-2.5 rounded-lg transition-colors font-medium"
+      >
+        <Plus size={18} />
+        Nouvelle tenue
+      </button>
 
-      <main className="max-w-4xl mx-auto px-4 mt-8">
-        {/* VIEW 1: FORM (CREATE / EDIT) */}
-        {isEditing && (
-          <form onSubmit={handleSaveForm} className="bg-[#122428] border border-amber-500/20 rounded-2xl p-6 md:p-8 space-y-6">
-            <h3 className="text-sm font-mono tracking-widest text-amber-500 uppercase border-b border-amber-500/10 pb-2 flex justify-between items-center flex-wrap gap-2">
-              <span>Planification de la {formData.sessionNumber || '3°'} Tenue</span>
-              <span className="text-[10px] text-amber-400 font-bold bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 uppercase font-mono">
-                Prochaine Tenue : {formData.sessionNumber || '3°'}
-              </span>
-            </h3>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Type */}
-              <div className="space-y-1">
-                <label className="text-xs text-[#87A0A0] block">Type de Tenue</label>
-                <select
-                  value={formData.type || 'Ordinaire'}
-                  onChange={e => setFormData({ ...formData, type: e.target.value as any })}
-                  className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                >
-                  <option value="Ordinaire">Ordinaire</option>
-                  <option value="Solennelle">Solennelle</option>
-                  <option value="Instruction">Instruction</option>
-                  <option value="Banquet">Banquet</option>
-                  <option value="Conseil">Conseil</option>
-                </select>
-              </div>
-
-              {/* Degree */}
-              <div className="space-y-1">
-                <label className="text-xs text-[#87A0A0] block">Degré de Travail</label>
-                <select
-                  value={formData.degree || 'Apprenti'}
-                  onChange={e => setFormData({ ...formData, degree: e.target.value as any })}
-                  className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                >
-                  <option value="Apprenti">Apprenti</option>
-                  <option value="Compagnon">Compagnon</option>
-                  <option value="Maitre">Maître</option>
-                </select>
-              </div>
-
-              {/* Date */}
-              <div className="space-y-1">
-                <label className="text-xs text-[#87A0A0] block">Date & Heure de reprise</label>
-                <input
-                  type="datetime-local"
-                  required
-                  value={formData.date || ''}
-                  onChange={e => setFormData({ ...formData, date: e.target.value })}
-                  className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                />
-              </div>
-
-              {/* Closing Time */}
-              <div className="space-y-1">
-                <label className="text-xs text-[#87A0A0] block">Heure de suspension (Clôture)</label>
-                <input
-                  type="text"
-                  placeholder="ex: 18:30"
-                  required
-                  value={formData.closingTime || ''}
-                  onChange={e => setFormData({ ...formData, closingTime: e.target.value })}
-                  className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                />
-              </div>
-
-              {/* Session Number */}
-              <div className="space-y-1">
-                <label className="text-xs text-[#87A0A0] block">Numéro de la Tenue</label>
-                <input
-                  type="text"
-                  placeholder="ex: 3°"
-                  required
-                  value={formData.sessionNumber || '3°'}
-                  onChange={e => setFormData({ ...formData, sessionNumber: e.target.value })}
-                  className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                />
-              </div>
-
-              {/* Location */}
-              <div className="space-y-1 md:col-span-2">
-                <label className="text-xs text-[#87A0A0] block">Lieu de Réunion</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.location || ''}
-                  onChange={e => setFormData({ ...formData, location: e.target.value })}
-                  className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                />
-              </div>
-
-              {/* Agenda 2 - Plan principal 1 */}
-              <div className="space-y-1 md:col-span-2">
-                <label className="text-xs text-[#87A0A0] block">Travail Principal 1 (Ordre du jour Ligne 2)</label>
-                <input
-                  type="text"
-                  value={formData.agenda2 || ''}
-                  onChange={e => setFormData({ ...formData, agenda2: e.target.value })}
-                  className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                />
-              </div>
-
-              {/* Agenda 3 - Plan principal 2 */}
-              <div className="space-y-1 md:col-span-2">
-                <label className="text-xs text-[#87A0A0] block">Travail Principal 2 (Ordre du jour Ligne 3)</label>
-                <input
-                  type="text"
-                  value={formData.agenda3 || ''}
-                  onChange={e => setFormData({ ...formData, agenda3: e.target.value })}
-                  className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                />
-              </div>
-
-              {/* Ordres du jour complémentaires (Lignes 5 à 10) */}
-              <div className="space-y-3 md:col-span-2 border-t border-amber-500/10 pt-4 mt-2">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-mono text-amber-500 uppercase tracking-widest block font-bold">
-                    [ + ] Ordres du jour complémentaires / Textes libres (Lignes 5 à 10)
-                  </label>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[0, 1, 2, 3, 4, 5].map((idx) => {
-                    const currentLines = formData.customLines || [
-                      'Lecture d’un morceau d’architecture de la S ∴ Aure COS ∴ « La Divine Proportion : l’architecture de la juste mesure »',
-                      'Lecture d’un morceau d’architecture du V∴M∴ Bruno GAU∴ « Le Temps Nilotique »',
-                      '',
-                      '',
-                      '',
-                      ''
-                    ];
-                    return (
-                      <div key={idx} className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-[#87A0A0] font-mono w-5 shrink-0 text-right">{idx + 5}.</span>
-                        <input
-                          type="text"
-                          placeholder="ex: Lecture de planche..."
-                          value={currentLines[idx] || ''}
-                          onChange={(e) => {
-                            const newLines = [...currentLines];
-                            newLines[idx] = e.target.value;
-                            setFormData({ ...formData, customLines: newLines });
-                          }}
-                          className="flex-grow bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Tronc Amount setup (for edit only) */}
-              {isEditingExisting && (
-                <div className="space-y-1">
-                  <label className="text-xs text-[#87A0A0] block">Tronc de la Veuve récolté (€)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.troncAmount || 0}
-                    onChange={e => setFormData({ ...formData, troncAmount: Number(e.target.value) })}
-                    className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Agapes Settings */}
-            <div className="border-t border-amber-500/10 pt-6 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-mono text-amber-400 uppercase tracking-widest">
-                  Suivi d'agapes fraternelles ?
-                </h4>
-                <label className="relative inline-flex items-center cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={formData.hasAgape || false}
-                    onChange={e => setFormData({ ...formData, hasAgape: e.target.checked })}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#0C7A7A]"></div>
-                </label>
-              </div>
-
-              {formData.hasAgape && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
-                  <div className="space-y-1">
-                    <label className="text-xs text-[#87A0A0] block">Heure de l'agape</label>
-                    <input
-                      type="text"
-                      placeholder="ex: 20:00"
-                      value={formData.agapeTime || '20:00'}
-                      onChange={e => setFormData({ ...formData, agapeTime: e.target.value })}
-                      className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl p-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs text-[#87A0A0] block">Type de repas</label>
-                    <select
-                      value={formData.agapeType || 'Agape partage'}
-                      onChange={e => setFormData({ ...formData, agapeType: e.target.value as any })}
-                      className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl p-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                    >
-                      <option value="Agape partage">Agape partage</option>
-                      <option value="Agape offerte">Agape offerte</option>
-                      <option value="Agape avec médaille">Agape avec médaille</option>
-                    </select>
-                  </div>
-
-                  {formData.agapeType === 'Agape avec médaille' && (
-                    <div className="space-y-1">
-                      <label className="text-xs text-[#87A0A0] block">Montant participation (€)</label>
-                      <input
-                        type="number"
-                        value={formData.agapePrice || 0}
-                        onChange={e => setFormData({ ...formData, agapePrice: Number(e.target.value) })}
-                        className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl p-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Form Actions */}
-            <div className="flex gap-4 border-t border-amber-500/10 pt-6 justify-end">
+      {/* ═══════════════════════════════════════════════════════════════
+          FORMULAIRE
+          ═══════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="bg-[#122428] border border-[#C5A05930] rounded-xl p-6 mb-8"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold text-[#C5A059]">
+                {editingId ? "Modifier la tenue" : "Planifier une tenue"}
+              </h2>
               <button
-                type="button"
-                onClick={() => { setIsEditing(false); if (formData.id && sessions.some(s => s.id === formData.id)) { setSelectedSession(formData as Session); } }}
-                className="px-6 py-2.5 rounded-xl border border-gray-600 hover:bg-gray-800 text-sm font-semibold transition"
+                onClick={() => setShowForm(false)}
+                className="text-[#87A0A0] hover:text-white transition-colors"
               >
-                ANNULER
-              </button>
-              <button
-                type="submit"
-                className="px-8 py-2.5 rounded-xl bg-[#0C7A7A] hover:bg-[#0A6868] text-white text-sm font-bold border border-amber-500/20 transition hover:shadow-lg"
-              >
-                PLANIFIER
+                <X size={20} />
               </button>
             </div>
-          </form>
-        )}
 
-        {/* VIEW 2: SESSION DETAILS */}
-        {selectedSession && !isEditing && !isShowingEmargement && (
-          <div className="space-y-6">
-            {/* Session Detail Header Card */}
-            <div className="bg-[#122428] border border-amber-500/20 rounded-2xl p-6 relative">
-              <div className="absolute top-4 right-4 flex items-center gap-2">
-                <span className={`px-2.5 py-0.5 rounded text-[10px] font-mono font-bold border tracking-wider ${
-                  selectedSession.degree === 'Apprenti' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-                  selectedSession.degree === 'Compagnon' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                  'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                }`}>
-                  DEG. {selectedSession.degree.toUpperCase()}
-                </span>
-                
-                {isSecOrVM && (
-                  <div className="flex gap-1">
-                    <button
-                      onClick={() => handleStartEdit(selectedSession)}
-                      className="p-1.5 rounded bg-teal-950/40 border border-teal-900/30 text-teal-400 hover:bg-teal-900/20 transition"
-                      title="Modifier la tenue"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(selectedSession.id)}
-                      className="p-1.5 rounded bg-red-950/20 border border-red-900/30 text-red-400 hover:bg-red-900/20 transition"
-                      title="Supprimer la tenue"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <h3 className="font-sans text-xl font-bold uppercase text-[#C5A059] tracking-wider mb-4 pr-24">
-                {selectedSession.title}
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-[#87A0A0] border-t border-[#87A0A0]/10 pt-4">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-[#C5A059]" />
-                  <span>{formatDateFrench(selectedSession.date)}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4 text-[#C5A059]" />
-                  <span>De {formatTime(selectedSession.date)} à {selectedSession.closingTime}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4 text-[#C5A059]" />
-                  <span className="truncate" title={selectedSession.location}>{selectedSession.location}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Tenue Validation Block */}
-            {isSecOrVM && (
-              <div className={`rounded-2xl p-5 border flex flex-col md:flex-row items-center justify-between gap-4 transition ${
-                selectedSession.isValidated
-                  ? 'bg-emerald-950/20 border-emerald-500/25 text-emerald-300'
-                  : 'bg-amber-950/20 border-amber-500/20 text-amber-300'
-              }`}>
-                <div className="space-y-1 text-center md:text-left flex-1">
-                  <div className="flex items-center justify-center md:justify-start gap-2">
-                    <CheckCircle2 className={`h-5 w-5 ${selectedSession.isValidated ? 'text-emerald-400' : 'text-amber-500'}`} />
-                    <h4 className="text-sm font-bold text-white">
-                      {selectedSession.isValidated ? 'Cette tenue est validée' : 'Validation de la tenue requise'}
-                    </h4>
-                  </div>
-                  <p className="text-xs text-[#87A0A0]">
-                    {selectedSession.isValidated
-                      ? 'Cette tenue a été officiellement validée. Le numéro de la tenue a été incrémenté dans le systeme.'
-                      : 'Une fois planifiée, veuillez valider cette tenue. Cela incrémentera automatiquement le numéro de la tenue pour les prochaines planifications.'}
-                  </p>
-                </div>
-
+            <form onSubmit={handleSubmit} className="space-y-5">
+              {/* ── Ligne 1 : Type + Degré ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  {!selectedSession.isValidated ? (
-                    <button
-                      onClick={() => setValidateConfirmationSession(selectedSession)}
-                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black text-xs font-black tracking-wider transition uppercase hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <Check className="h-4 w-4 stroke-[3px]" />
-                      VALIDER LA TENUE
-                    </button>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold font-mono">
-                      ✓ VALIDÉE
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Google Drive Active Archiving Dashboard for Validated Tenue */}
-            {selectedSession.isValidated && (
-              <GoogleDriveArchivePanel 
-                session={selectedSession} 
-                members={members} 
-                visitors={visitors} 
-              />
-            )}
-
-            {/* Admin Document Generator block */}
-            {isSecOrVM && (
-              <div className="bg-[#122428]/40 border border-amber-500/10 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                <div className="space-y-0.5 text-center sm:text-left">
-                  <h4 className="text-sm font-bold text-white">Chambre du Secrétariat (Documents Officiels)</h4>
-                  <p className="text-xs text-[#87A0A0]">Préparez l'invitation, envoyez-la par e-mail ou imprimez la liste d'émargement.</p>
-                </div>
-
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <button
-                    onClick={() => setPdfTypeToShow('invitation')}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-[#0C7A7A] hover:bg-[#0A6868] text-white text-xs font-bold transition border border-amber-500/10 shadow"
-                  >
-                    <Mail className="h-3.5 w-3.5" />
-                    INVITATION / ENVOI DE MAIL
-                  </button>
-                  <button
-                    onClick={() => setPdfTypeToShow('presence')}
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-teal-950/40 border border-teal-900/30 text-teal-400 hover:bg-teal-900/20 text-xs font-bold transition"
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    FEUILLE D'ÉMARGEMENT
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Entry Card for Émargement & Tronc de la Veuve */}
-            <div className="bg-[#122428] border border-amber-500/25 rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 transition hover:border-amber-500/45">
-              <div className="space-y-1 text-center md:text-left flex-1">
-                <div className="flex items-center justify-center md:justify-start gap-2">
-                  <Coins className="h-5 w-5 text-amber-500" />
-                  <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-                    Émargement & Saisie du Tronc de la Veuve
-                  </h4>
-                </div>
-                <p className="text-xs text-[#87A0A0]">
-                  Accédez à la feuille d'émargement séparée pour enregistrer les présences, recueillir les signatures, et saisir le montant du Tronc de la Veuve.
-                </p>
-                
-                {/* Quick summary metrics */}
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-2 text-xs font-mono text-[#87A0A0]">
-                  <span className="bg-black/20 px-2 py-0.5 rounded border border-[#87A0A0]/15">
-                    Membres : <strong className="text-white">{selectedSession.presentIds.length}</strong>
-                  </span>
-                  <span className="bg-black/20 px-2 py-0.5 rounded border border-[#87A0A0]/15">
-                    Visiteurs : <strong className="text-white">{selectedSession.visitorIds.length}</strong>
-                  </span>
-                  <span className="bg-black/20 px-2 py-0.5 rounded border border-[#87A0A0]/15">
-                    Tronc : <strong className="text-amber-400">{selectedSession.troncAmount ? `${selectedSession.troncAmount.toFixed(2)} €` : 'Non saisi'}</strong>
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <button
-                  onClick={() => setIsShowingEmargement(true)}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black text-xs font-black tracking-wider transition uppercase hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <FileText className="h-4 w-4 stroke-[3px]" />
-                  OUVRIR LA FEUILLE
-                </button>
-              </div>
-            </div>
-
-            {/* Ordre du jour (Agenda) */}
-            <div className="bg-[#122428] border border-[#87A0A0]/10 rounded-2xl p-5 space-y-4">
-              <h4 className="text-xs font-mono text-amber-500 uppercase tracking-widest border-b border-[#87A0A0]/10 pb-1">
-                Ordre du jour & Plan des travaux
-              </h4>
-
-              <div className="space-y-3 font-sans text-sm">
-                <div className="flex items-start gap-2 text-gray-400">
-                  <span className="font-mono text-xs w-4">1.</span>
-                  <p className="italic">{selectedSession.agenda1}</p>
-                </div>
-
-                {selectedSession.agenda2 && (
-                  <div className="flex items-start gap-2">
-                    <span className="font-mono text-xs w-4 text-amber-500">2.</span>
-                    <p className="text-white font-medium">{selectedSession.agenda2}</p>
-                  </div>
-                )}
-
-                {selectedSession.agenda3 && (
-                  <div className="flex items-start gap-2">
-                    <span className="font-mono text-xs w-4 text-amber-500">3.</span>
-                    <p className="text-white font-medium">{selectedSession.agenda3}</p>
-                  </div>
-                )}
-
-                {selectedSession.agenda4 && (
-                  <div className="flex items-start gap-2 text-gray-400">
-                    <span className="font-mono text-xs w-4">4.</span>
-                    <p className="italic">{selectedSession.agenda4}</p>
-                  </div>
-                )}
-
-                {/* Travaux complémentaires */}
-                {(selectedSession.customLines || [])
-                  .filter(line => line && line.trim() !== '')
-                  .map((line, index) => (
-                    <div key={index} className="flex items-start gap-2 border-l-2 border-amber-500/30 pl-2 ml-1 animate-fade-in">
-                      <span className="font-mono text-xs w-4 text-amber-500 font-bold">{index + 5}.</span>
-                      <p className="text-[#C5A059] font-medium">{line}</p>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {/* Agapes Info */}
-            <div className="bg-[#122428]/80 border border-[#87A0A0]/10 rounded-2xl p-5 flex items-center gap-4">
-              <div className="h-10 w-10 rounded-xl bg-amber-500/5 border border-amber-500/20 flex items-center justify-center text-amber-400 shrink-0">
-                <Utensils className="h-5 w-5" />
-              </div>
-              <div className="space-y-0.5 flex-grow">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-[#87A0A0] font-mono tracking-widest uppercase">Repas d'agapes fraternelles</span>
-                  {selectedSession.hasAgape && (
-                    <span className="text-xs font-bold text-amber-400">{selectedSession.agapeTime}</span>
-                  )}
-                </div>
-                {!selectedSession.hasAgape ? (
-                  <p className="text-sm text-gray-500 italic">Pas d'agapes planifiées à la fin de cette tenue.</p>
-                ) : (
-                  <div>
-                    <p className="text-sm font-semibold text-white">{selectedSession.agapeType}</p>
-                    {selectedSession.agapeType === 'Agape avec médaille' && selectedSession.agapePrice > 0 && (
-                      <p className="text-xs text-[#C5A059] font-mono mt-0.5">Participation requise : {selectedSession.agapePrice.toFixed(2)} €</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* List of excused members */}
-            <div className="bg-[#122428]/40 border border-[#87A0A0]/10 rounded-2xl p-5 space-y-3 text-sm">
-              <h4 className="text-xs font-mono text-gray-500 uppercase tracking-widest pb-1 border-b border-[#87A0A0]/15">
-                Excusés ({selectedSession.excusedIds.length})
-              </h4>
-
-              {selectedSession.excusedIds.length === 0 ? (
-                <p className="text-xs text-gray-600 italic py-1">Aucun excusé renseigné.</p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {members
-                    .filter(m => selectedSession.excusedIds.includes(m.id))
-                    .map(m => (
-                      <span key={m.id} className="px-3 py-1 rounded-full bg-red-950/20 border border-red-900/30 text-red-400 text-xs font-medium">
-                        {m.firstName} {m.lastName}
-                      </span>
-                    ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 4: ÉMARGEMENT & TRONC DE LA VEUVE (SEPARATE SHEET) */}
-        {selectedSession && !isEditing && isShowingEmargement && (
-          <div className="space-y-6 animate-fade-in">
-            {/* Back & Title */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#122428] border border-amber-500/20 rounded-2xl p-6">
-              <div>
-                <span className="text-[10px] text-[#87A0A0] font-mono tracking-widest uppercase">
-                  Tenue {selectedSession.sessionNumber} du {formatDateFrench(selectedSession.date)}
-                </span>
-                <h3 className="font-sans text-xl font-bold uppercase text-[#C5A059] tracking-wider mt-1">
-                  Émargement & Saisie du Tronc
-                </h3>
-              </div>
-              <button
-                onClick={() => {
-                  setIsShowingEmargement(false);
-                  if (cameDirectlyFromList) {
-                    setSelectedSession(null);
-                    setCameDirectlyFromList(false);
-                  }
-                }}
-                className="px-4 py-2 rounded-xl bg-teal-950 border border-teal-800 text-teal-400 hover:bg-teal-900 text-xs font-bold transition flex items-center justify-center gap-1.5 self-start sm:self-auto"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                {cameDirectlyFromList ? 'REVENIR AU CALENDRIER' : 'REVENIR AU DÉTAIL'}
-              </button>
-            </div>
-
-            {/* Tronc de la Veuve Saisie Card */}
-            <div className="bg-[#122428] border border-amber-500/20 rounded-2xl p-6 space-y-4">
-              <div className="flex items-center gap-2 border-b border-[#87A0A0]/10 pb-2">
-                <Coins className="h-5 w-5 text-amber-500" />
-                <h4 className="text-sm font-bold text-white uppercase tracking-wider">
-                  Saisie du Tronc de la Veuve
-                </h4>
-              </div>
-              
-              <div className="flex flex-col sm:flex-row items-end gap-3 max-w-md">
-                <div className="space-y-1 flex-grow w-full">
-                  <label className="text-xs text-[#87A0A0] block">
-                    Montant du Tronc récolté (€)
-                  </label>
+                  <label className="block text-[#87A0A0] text-sm mb-2">Type de Tenue</label>
                   <div className="relative">
-                    <input
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={localTronc}
-                      onChange={(e) => setLocalTronc(Number(e.target.value))}
-                      className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl pl-4 pr-10 py-2.5 text-sm text-white font-mono focus:border-[#C5A059] focus:outline-none"
-                      placeholder="0.00"
-                    />
-                    <span className="absolute right-4 top-2.5 text-xs text-[#87A0A0] font-mono font-bold">€</span>
+                    <select
+                      value={formData.typeTenue}
+                      onChange={(e) => handleChange("typeTenue", e.target.value)}
+                      className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg px-4 py-2.5 text-white focus:border-[#C5A059] focus:outline-none appearance-none"
+                    >
+                      <option value="Ordinaire">Ordinaire</option>
+                      <option value="Extraordinaire">Extraordinaire</option>
+                      <option value="Banquet">Banquet</option>
+                      <option value="Tenue blanche">Tenue blanche</option>
+                      <option value="Tenue noire">Tenue noire</option>
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#87A0A0] pointer-events-none" />
                   </div>
                 </div>
-                
-                <button
-                  onClick={async () => {
-                    const updated: Session = {
-                      ...selectedSession,
-                      troncAmount: localTronc
-                    };
-                    onUpdateSession(updated);
-                    setSelectedSession(updated);
-                    alert("Montant du Tronc de la Veuve enregistré avec succès !");
-                  }}
-                  className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black text-xs font-black tracking-wider transition uppercase shrink-0"
-                >
-                  Enregistrer
-                </button>
-              </div>
-            </div>
-
-            {/* Members/Visitors Attendance checklists */}
-            {isSecOrVM && showMemberAppel && (
-              <div className="bg-[#122428] border-2 border-amber-500/30 rounded-2xl p-5 space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between border-b border-[#87A0A0]/10 pb-2">
-                  <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <UserCheck className="h-4 w-4 text-amber-500" />
-                    Appel Solennel de la Loge
-                  </h4>
-                  <button onClick={() => setShowMemberAppel(false)} className="text-xs text-amber-500 hover:underline">
-                    Fermer l'appel
-                  </button>
+                <div>
+                  <label className="block text-[#87A0A0] text-sm mb-2">Degré de Travail</label>
+                  <div className="relative">
+                    <select
+                      value={formData.degreTravail}
+                      onChange={(e) => handleChange("degreTravail", e.target.value as Degre)}
+                      className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg px-4 py-2.5 text-white focus:border-[#C5A059] focus:outline-none appearance-none"
+                    >
+                      <option value="Apprenti">Apprenti (1er Degré)</option>
+                      <option value="Compagnon">Compagnon (2ème Degré)</option>
+                      <option value="Maître">Maître (3ème Degré)</option>
+                    </select>
+                    <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#87A0A0] pointer-events-none" />
+                  </div>
                 </div>
+              </div>
 
-                <div className="max-h-60 overflow-y-auto divide-y divide-gray-800 pr-2">
-                  {members.map(member => {
-                    const isChecked = selectedSession.presentIds.includes(member.id);
+              {/* ── Ligne 2 : Date & Heure ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[#87A0A0] text-sm mb-2">Date & Heure de reprise</label>
+                  <input
+                    type="datetime-local"
+                    value={formData.dateReprise}
+                    onChange={(e) => handleChange("dateReprise", e.target.value)}
+                    className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg px-4 py-2.5 text-white focus:border-[#C5A059] focus:outline-none"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-[#87A0A0] text-sm mb-2">Heure de suspension (Clôture)</label>
+                  <input
+                    type="time"
+                    value={formData.heureSuspension}
+                    onChange={(e) => handleChange("heureSuspension", e.target.value)}
+                    className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg px-4 py-2.5 text-white focus:border-[#C5A059] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* ── Lieu ── */}
+              <div>
+                <label className="block text-[#87A0A0] text-sm mb-2">Lieu de Réunion</label>
+                <div className="relative">
+                  <MapPin size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#87A0A0]" />
+                  <input
+                    type="text"
+                    value={formData.lieuReunion}
+                    onChange={(e) => handleChange("lieuReunion", e.target.value)}
+                    className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg pl-10 pr-4 py-2.5 text-white focus:border-[#C5A059] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════
+                  ORDRE DU JOUR — TOUS LES CHAMPS MODIFIABLES
+                  ═══════════════════════════════════════════════════════════ */}
+              <div>
+                <label className="block text-[#C5A059] text-sm font-medium mb-3 tracking-wide">
+                  ORDRE DU JOUR — TRAVAUX FIXES ({degreToOrdinal((formData.degreTravail as Degre) || "Apprenti")} Degré)
+                </label>
+                <div className="space-y-3">
+                  {[1, 2, 3, 4].map((num) => {
+                    const field = `travail${num}` as keyof Session;
+                    const value = (formData[field] as string) || "";
                     return (
-                      <label key={member.id} className="flex items-center justify-between py-2.5 cursor-pointer hover:bg-black/10 px-2 rounded-lg transition">
-                        <div>
-                          <p className="text-sm font-bold text-white uppercase">{member.firstName} {member.lastName}</p>
-                          <p className="text-[10px] text-gray-400">{member.function !== 'Aucun' ? member.function : member.grade}</p>
+                      <div key={num} className="flex items-start gap-3">
+                        <span className="text-[#C5A059] text-xs font-mono mt-2.5 w-6 shrink-0">{num}.</span>
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={value}
+                            onChange={(e) => handleChange(field, e.target.value)}
+                            className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg px-4 py-2.5 text-sm text-white focus:border-[#C5A059] focus:outline-none"
+                            placeholder={`Saisir le travail ${num}`}
+                          />
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => handleToggleMemberAppel(member.id)}
-                          className="rounded text-[#0C7A7A] focus:ring-[#0C7A7A] h-4.5 w-4.5 accent-[#0C7A7A]"
-                        />
-                      </label>
+                      </div>
                     );
                   })}
                 </div>
+                <p className="text-[#87A0A060] text-xs mt-2">
+                  Tous les travaux peuvent être modifiés manuellement.
+                </p>
               </div>
-            )}
 
-            {isSecOrVM && showVisitorSelector && (
-              <div className="bg-[#122428] border-2 border-amber-500/30 rounded-2xl p-5 space-y-4 animate-fade-in">
-                <div className="flex items-center justify-between border-b border-[#87A0A0]/10 pb-2">
-                  <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                    <PlusCircle className="h-4 w-4 text-amber-500" />
-                    Attacher un Visiteur Maçon
-                  </h4>
-                  <button onClick={() => setShowVisitorSelector(false)} className="text-xs text-amber-500 hover:underline">
-                    Fermer
-                  </button>
-                </div>
-
-                <div className="max-h-60 overflow-y-auto pr-2 divide-y divide-gray-800">
-                  {visitors.length === 0 ? (
-                    <p className="text-xs text-gray-500 py-4 text-center">Aucun visiteur dans le répertoire. Créez-les d'abord.</p>
-                  ) : (
-                    visitors.map(visitor => {
-                      const isAdded = selectedSession.visitorIds.includes(visitor.id);
-                      return (
-                        <div key={visitor.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 px-2 gap-2 rounded hover:bg-black/10 transition">
-                          <div>
-                            <p className="text-sm font-bold text-white">{visitor.firstName} {visitor.lastName}</p>
-                            <p className="text-[10px] text-[#87A0A0]">{visitor.lodge} ({visitor.orient}){visitor.function && ` • ${visitor.function}`}</p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={tempRoles[visitor.id] || 'Simple Visiteur'}
-                              onChange={(e) => setTempRoles(prev => ({ ...prev, [visitor.id]: e.target.value }))}
-                              disabled={isAdded}
-                              className="bg-[#081619] border border-[#87A0A0]/20 rounded px-2.5 py-1.5 text-[11px] text-white focus:border-[#C5A059] focus:outline-none"
-                            >
-                              {visitorPositions.map(pos => (
-                                <option key={pos} value={pos}>{pos}</option>
-                              ))}
-                            </select>
-                            <button
-                              type="button"
-                              disabled={isAdded}
-                              onClick={() => handleAddVisitorToSession(visitor.id, tempRoles[visitor.id] || 'Simple Visiteur')}
-                              className={`px-3 py-1.5 rounded text-xs font-bold transition ${isAdded ? 'bg-gray-800 text-gray-500 cursor-not-allowed' : 'bg-teal-950 text-teal-400 border border-teal-800 hover:bg-teal-900 shrink-0'}`}
-                            >
-                              {isAdded ? 'DÉJÀ AJOUTÉ' : 'AJOUTER'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* List of present members with signatures / Émargement */}
-            <div className="bg-[#122428] border border-[#87A0A0]/10 rounded-2xl p-5 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#87A0A0]/10 pb-2">
-                <h4 className="text-xs font-mono text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <UserCheck className="h-4.5 w-4.5" />
-                  Membres Émargés ({selectedSession.presentIds.length})
-                </h4>
-
-                {isSecOrVM && !showMemberAppel && (
+              {/* ═══════════════════════════════════════════════════════════
+                  ORDRES COMPLÉMENTAIRES
+                  ═══════════════════════════════════════════════════════════ */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="block text-[#C5A059] text-sm font-medium tracking-wide">
+                    [ + ] ORDRES DU JOUR COMPLÉMENTAIRES
+                  </label>
                   <button
-                    onClick={() => setShowMemberAppel(true)}
-                    className="text-xs font-bold text-teal-400 hover:text-teal-300 transition flex items-center gap-1"
+                    type="button"
+                    onClick={ajouterLigneOrdre}
+                    className="text-[#0C7A7A] hover:text-[#C5A059] text-xs font-medium flex items-center gap-1 transition-colors"
                   >
-                    📝 APPEL DE LOGE
+                    <Plus size={14} />
+                    Ajouter une ligne
                   </button>
-                )}
-              </div>
-
-              {selectedSession.presentIds.length === 0 ? (
-                <p className="text-xs text-gray-500 italic py-2">Aucun membre n'a encore été coché présent pour cette tenue.</p>
-              ) : (
-                <div className="divide-y divide-gray-800 max-h-80 overflow-y-auto pr-2">
-                  {members
-                    .filter(m => selectedSession.presentIds.includes(m.id))
-                    .map(member => {
-                      const hasSigned = !!selectedSession.signatures[member.id];
-                      const isMe = member.id === currentUser.id;
-
-                      return (
-                        <div key={member.id} className="flex items-center justify-between py-3">
-                          <div>
-                            <p className="text-sm font-bold text-white uppercase">{member.firstName} {member.lastName}</p>
-                            <p className="text-xs text-gray-400">{member.function !== 'Aucun' ? member.function : member.grade}</p>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            {hasSigned ? (
-                              <div className="flex items-center gap-1.5 text-xs text-emerald-400 font-bold bg-emerald-500/5 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                SIGNÉ
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setShowSignatureForId(member.id)}
-                                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition ${isMe ? 'bg-[#0C7A7A] hover:bg-[#0A6868] text-white animate-pulse' : 'bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white'}`}
-                              >
-                                {isMe ? 'SIGNER MA FICHE' : 'ÉMARGER'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
                 </div>
-              )}
-            </div>
-
-            {/* List of present visitors */}
-            <div className="bg-[#122428] border border-[#87A0A0]/10 rounded-2xl p-5 space-y-4">
-              <div className="flex items-center justify-between border-b border-[#87A0A0]/10 pb-2">
-                <h4 className="text-xs font-mono text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <Award className="h-4.5 w-4.5" />
-                  Visiteurs Émargés ({selectedSession.visitorIds.length})
-                </h4>
-
-                {isSecOrVM && !showVisitorSelector && (
-                  <button
-                    onClick={() => setShowVisitorSelector(true)}
-                    className="text-xs font-bold text-teal-400 hover:text-teal-300 transition flex items-center gap-1"
-                  >
-                    🤝 ATTACHER VISITEUR
-                  </button>
-                )}
-              </div>
-
-              {selectedSession.visitorIds.length === 0 ? (
-                <p className="text-xs text-gray-500 italic py-2">Aucun visiteur de loges amies n'est enregistré pour cette tenue.</p>
-              ) : (
-                <div className="divide-y divide-gray-800 pr-2">
-                  {visitors
-                    .filter(v => selectedSession.visitorIds.includes(v.id))
-                    .map(visitor => {
-                      const hasSigned = !!selectedSession.signatures[visitor.id];
-                      return (
-                        <div key={visitor.id} className="flex flex-col sm:flex-row sm:items-center justify-between py-3 gap-3">
-                          <div>
-                            <p className="text-sm font-bold text-white">{visitor.firstName} {visitor.lastName}</p>
-                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5 text-xs text-gray-400">
-                              <span>{visitor.lodge} ({visitor.orient})</span>
-                              {visitor.function && <span>• {visitor.function}</span>}
-                              {isSecOrVM ? (
-                                <div className="flex items-center gap-1">
-                                  <span className="text-amber-500 font-bold font-mono">• Poste :</span>
-                                  <select
-                                    value={selectedSession.visitorRoles?.[visitor.id] || 'Simple Visiteur'}
-                                    onChange={(e) => handleUpdateVisitorRole(visitor.id, e.target.value)}
-                                    className="bg-[#081619] border border-amber-500/20 hover:border-amber-500/40 rounded px-1.5 py-0.5 text-[11px] text-amber-400 focus:outline-none"
-                                  >
-                                    {visitorPositions.map(pos => (
-                                      <option key={pos} value={pos}>{pos}</option>
-                                    ))}
-                                  </select>
-                                </div>
-                              ) : (
-                                selectedSession.visitorRoles?.[visitor.id] && (
-                                  <span className="text-amber-500 font-bold font-mono">
-                                    • Poste tenu : {selectedSession.visitorRoles[visitor.id]}
-                                  </span>
-                                )
-                              )}
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            {hasSigned ? (
-                              <div className="text-xs text-emerald-400 font-bold bg-emerald-500/5 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                                ÉMARGÉ
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => setShowSignatureForId(visitor.id)}
-                                className="px-4 py-1.5 rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white text-xs font-bold transition"
-                              >
-                                ÉMARGER
-                              </button>
-                            )}
-
-                            {isSecOrVM && (
-                              <button
-                                onClick={() => handleRemoveVisitorFromSession(visitor.id)}
-                                className="p-1 rounded bg-red-950/20 text-red-400 border border-red-900/30 hover:bg-red-900/20 transition"
-                                title="Retirer le visiteur"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* VIEW 3: FULL SESSIONS LIST VIEW */}
-        {!selectedSession && !isEditing && (
-          <div className="space-y-4">
-            {visibleSessions.length === 0 ? (
-              <div className="text-center py-12 bg-[#122428]/40 border border-dashed border-gray-800 rounded-2xl text-gray-500">
-                Aucune tenue planifiée correspondant à votre grade de travail.
-              </div>
-            ) : (
-              visibleSessions.map(session => {
-                const isPresent = session.presentIds.includes(currentUser.id);
-                const isExcused = session.excusedIds.includes(currentUser.id);
-
-                return (
-                  <div
-                    key={session.id}
-                    className="bg-[#122428] border border-amber-500/10 hover:border-amber-500/20 transition rounded-2xl overflow-hidden shadow-lg flex flex-col"
-                  >
-                    <button
-                      onClick={() => handleOpenDetail(session)}
-                      className="w-full text-left p-5 flex items-start gap-4"
-                    >
-                      {/* Degree Badge / Initials */}
-                      <div className={`h-12 w-12 rounded-xl border flex items-center justify-center font-bold text-white shrink-0 mt-1 shadow-sm ${
-                        session.degree === 'Apprenti' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
-                        session.degree === 'Compagnon' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
-                        'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                      }`}>
-                        {session.degree[0]}
-                      </div>
-
-                      <div className="space-y-1.5 flex-grow min-w-0">
-                        <h4 className="font-sans text-sm font-bold text-amber-400 uppercase tracking-wider group-hover:text-amber-300 transition truncate pr-6">
-                          {session.title}
-                        </h4>
-
-                        <div className="flex flex-wrap gap-y-1 gap-x-4 text-xs text-[#87A0A0]">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-[#C5A059]" />
-                            {new Date(session.date).toLocaleDateString('fr-FR')} • {session.type}
-                          </span>
-                          <span className="flex items-center gap-1 truncate max-w-[200px]" title={session.location}>
-                            <MapPin className="h-3.5 w-3.5 text-[#C5A059]" />
-                            {session.location}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-amber-500/30 font-mono self-center">
-                        →
-                      </div>
-                    </button>
-
-                    {/* Direct Actions row for Invitation, Émargement, Saisie du Tronc */}
-                    <div className="bg-black/20 border-t border-gray-800/40 px-5 py-3 flex flex-col sm:flex-row gap-2.5 sm:items-center justify-between text-xs">
-                      <span className="text-amber-500 font-mono text-[10px] uppercase tracking-wider font-bold">
-                        Actions Directes :
-                      </span>
-                      <div className="flex flex-wrap gap-2">
-                        {isSecOrVM && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSession(session);
-                              setPdfTypeToShow('invitation');
-                              setCameDirectlyFromList(true);
-                            }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0C7A7A]/20 hover:bg-[#0C7A7A]/40 border border-[#0C7A7A]/30 text-[#0C7A7A] hover:text-teal-400 text-[10px] font-bold tracking-wider uppercase transition shadow-sm cursor-pointer"
-                          >
-                            <Mail className="h-3 w-3 text-teal-400" />
-                            Invitation
-                          </button>
-                        )}
-                        
+                <div className="space-y-2">
+                  {(formData.ordresJour || [""]).map((ordre, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="text-[#C5A059] text-xs font-mono w-6">{5 + idx}.</span>
+                      <input
+                        type="text"
+                        value={ordre}
+                        onChange={(e) => handleOrdreJourChange(idx, e.target.value)}
+                        placeholder="ex: Lecture de planche..."
+                        className="flex-1 bg-[#081619] border border-[#C5A05930] rounded-lg px-3 py-2 text-white text-sm focus:border-[#C5A059] focus:outline-none placeholder-[#87A0A040]"
+                      />
+                      {(formData.ordresJour || []).length > 1 && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedSession(session);
-                            setIsShowingEmargement(true);
-                            setCameDirectlyFromList(true);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/5 hover:bg-amber-500/15 border border-amber-500/20 text-amber-500 hover:text-amber-400 text-[10px] font-bold tracking-wider uppercase transition shadow-sm cursor-pointer"
+                          onClick={() => supprimerLigneOrdre(idx)}
+                          className="p-1.5 text-[#87A0A0] hover:text-red-400 transition-colors"
                         >
-                          <FileText className="h-3 w-3 text-amber-500" />
-                          Émargement
+                          <Trash2 size={14} />
                         </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-                        {isSecOrVM && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedSession(session);
-                              setIsShowingEmargement(true);
-                              setCameDirectlyFromList(true);
-                            }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/5 hover:bg-amber-500/15 border border-amber-500/20 text-amber-500 hover:text-amber-400 text-[10px] font-bold tracking-wider uppercase transition shadow-sm cursor-pointer"
+              {/* ═══════════════════════════════════════════════════════════
+                  LIGNE DE CLÔTURE (modifiable)
+                  ═══════════════════════════════════════════════════════════ */}
+              <div>
+                <label className="block text-[#87A0A0] text-sm mb-2">Ligne de clôture</label>
+                <input
+                  type="text"
+                  value={formData.ligneCloture || ""}
+                  onChange={(e) => handleChange("ligneCloture", e.target.value)}
+                  className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg px-4 py-2.5 text-white text-sm focus:border-[#C5A059] focus:outline-none"
+                  placeholder="Saisir la clôture"
+                />
+                <p className="text-[#87A0A060] text-xs mt-1">
+                  Numéro auto-généré : {4 + (formData.ordresJour || []).filter((o) => o.trim()).length + 1}° (vous pouvez modifier le texte).
+                </p>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════
+                  SECTION AGAPE
+                  ═══════════════════════════════════════════════════════════ */}
+              <div className="border-t border-[#C5A05920] pt-5">
+                <div className="flex items-center justify-between mb-4">
+                  <label className="block text-[#C5A059] text-sm font-medium tracking-wide">
+                    SUIT-ELLE D'AGAPES FRATERNELLES ?
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleChange("suitAgapes", !formData.suitAgapes)}
+                    className="relative"
+                  >
+                    {formData.suitAgapes ? (
+                      <ToggleRight size={40} className="text-[#0C7A7A]" />
+                    ) : (
+                      <ToggleLeft size={40} className="text-[#87A0A040]" />
+                    )}
+                  </button>
+                </div>
+
+                <AnimatePresence>
+                  {formData.suitAgapes && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.25 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[#87A0A0] text-sm mb-2">Heure de l'agape</label>
+                          <input
+                            type="time"
+                            value={formData.heureAgape || ""}
+                            onChange={(e) => handleChange("heureAgape", e.target.value)}
+                            className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg px-4 py-2.5 text-white focus:border-[#C5A059] focus:outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[#87A0A0] text-sm mb-2">Type de repas</label>
+                          <div className="relative">
+                            <select
+                              value={formData.typeRepas || ""}
+                              onChange={(e) => handleChange("typeRepas", e.target.value)}
+                              className="w-full bg-[#081619] border border-[#C5A05930] rounded-lg px-4 py-2.5 text-white focus:border-[#C5A059] focus:outline-none appearance-none"
+                            >
+                              <option value="">-- Sélectionnez --</option>
+                              <option value="Agape avec médaille">🏅 Agape avec médaille</option>
+                              <option value="Agape partage">🤝 Agape partage</option>
+                              <option value="Agape offerte">🎁 Agape offerte</option>
+                            </select>
+                            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#87A0A0] pointer-events-none" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <AnimatePresence>
+                        {formData.typeRepas === "Agape avec médaille" && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            className="mt-4"
                           >
-                            <Coins className="h-3 w-3 text-amber-500" />
-                            Saisie du Tronc
-                          </button>
+                            <label className="block text-[#87A0A0] text-sm mb-2">Montant de la médaille (€)</label>
+                            <div className="relative max-w-xs">
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={formData.montantMedaille || ""}
+                                onChange={(e) => handleChange("montantMedaille", parseFloat(e.target.value) || 0)}
+                                placeholder="Ex: 15.00"
+                                className="w-full bg-[#081619] border border-[#C5A059] rounded-lg px-4 py-2.5 text-white focus:outline-none focus:ring-2 focus:ring-[#C5A05940]"
+                              />
+                              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[#C5A059] font-medium">€</span>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* ── Boutons ── */}
+              <div className="flex gap-3 pt-4 border-t border-[#C5A05920]">
+                <button
+                  type="button"
+                  onClick={() => setShowForm(false)}
+                  className="flex-1 py-2.5 border border-[#C5A05930] text-[#87A0A0] rounded-lg hover:bg-[#C5A05910] transition-colors font-medium"
+                >
+                  ANNULER
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-[#0C7A7A] hover:bg-[#0A6565] disabled:opacity-50 text-white py-2.5 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Traitement...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle size={18} />
+                      {editingId ? "ENREGISTRER" : "PLANIFIER"}
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══════════════════════════════════════════════════════════════
+          LISTE DES TENUES
+          ═══════════════════════════════════════════════════════════════ */}
+      <div className="space-y-4">
+        {sessions.length === 0 ? (
+          <div className="text-center py-16 text-[#87A0A0]">
+            <Calendar size={56} className="mx-auto mb-4 opacity-20" />
+            <p className="text-lg">Aucune tenue planifiée</p>
+          </div>
+        ) : (
+          sessions.map((session) => {
+            const ordresCount = session.ordresJour?.filter((o) => o.trim()).length || 0;
+            return (
+              <motion.div
+                key={session.id}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-[#122428] border border-[#C5A05920] rounded-xl p-5 hover:border-[#C5A05940] transition-colors"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-3 flex-wrap">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        session.typeTenue === "Banquet" ? "bg-[#C5A05920] text-[#C5A059]" : "bg-[#0C7A7A20] text-[#0C7A7A]"
+                      }`}>{session.typeTenue}</span>
+                      <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#C5A05915] text-[#C5A059]">
+                        {session.degreTravail} ({degreToOrdinal(session.degreTravail)} Degré)
+                      </span>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                        session.status === "Planifiée" ? "bg-blue-500/15 text-blue-400" :
+                        session.status === "Terminée" ? "bg-green-500/15 text-green-400" :
+                        "bg-red-500/15 text-red-400"
+                      }`}>{session.status}</span>
+                      {session.chrono && (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-[#C5A05915] text-[#C5A059]">
+                          Tenue n°{session.chrono}
+                        </span>
+                      )}
+                      {session.driveFolderUrl && (
+                        <a
+                          href={session.driveFolderUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs bg-[#0C7A7A20] text-[#0C7A7A] hover:bg-[#0C7A7A30] transition"
+                        >
+                          <FolderOpen size={12} />
+                          Drive
+                        </a>
+                      )}
+                    </div>
+
+                    <h3 className="text-white font-semibold text-lg">
+                      {new Date(session.dateReprise).toLocaleDateString("fr-FR", {
+                        weekday: "long", year: "numeric", month: "long", day: "numeric",
+                      })}
+                    </h3>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-sm text-[#87A0A0]">
+                      <span className="flex items-center gap-1.5">
+                        <Clock size={14} className="text-[#0C7A7A]" />
+                        {new Date(session.dateReprise).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        {session.heureSuspension && <> → <span className="text-[#C5A059]">{session.heureSuspension}</span></>}
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <MapPin size={14} className="text-[#0C7A7A]" />
+                        {session.lieuReunion}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 pl-3 border-l-2 border-[#C5A05920]">
+                      <p className="text-xs text-[#87A0A060] mb-1 uppercase tracking-wider">
+                        Ordre du jour ({4 + ordresCount + 1} points)
+                      </p>
+                      <p className="text-sm text-[#87A0A0] line-clamp-2">
+                        1. {session.travail1} — 2. {session.travail2} — 3. {session.travail3} — 4. {session.travail4}
+                        {ordresCount > 0 && ` — +${ordresCount} ordre(s)`}
+                        {" — "}<span className="text-[#C5A059]">{session.ligneCloture}</span>
+                      </p>
+                    </div>
+
+                    {session.suitAgapes && session.typeRepas && (
+                      <div className="mt-3 flex items-center gap-3 text-sm">
+                        <span className="flex items-center gap-1.5 text-[#C5A059]">
+                          <Users size={14} />
+                          {session.typeRepas}
+                        </span>
+                        {session.montantMedaille !== undefined && session.montantMedaille > 0 && (
+                          <span className="text-[#C5A059] font-medium">— {session.montantMedaille.toFixed(2)} €</span>
                         )}
                       </div>
-                    </div>
-
-                    {/* Attendance quick control footer bar */}
-                    <div className="bg-black/15 border-t border-gray-800/40 px-5 py-3 flex items-center justify-between text-xs">
-                      <span className="text-[#87A0A0] flex items-center gap-1">
-                        <Users className="h-3.5 w-3.5 text-teal-500" />
-                        Présents : <strong className="text-white">{session.presentIds.length}</strong>
-                      </span>
-
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleToggleMyAttendance(session, true)}
-                          className={`px-3 py-1 rounded-lg border text-[10px] font-bold tracking-wider transition ${isPresent ? 'bg-emerald-500/15 border-emerald-500/35 text-emerald-400' : 'bg-transparent border-gray-800 text-gray-500 hover:text-gray-300'}`}
-                        >
-                          JE SERAI PRÉSENT
-                        </button>
-                        <button
-                          onClick={() => handleToggleMyAttendance(session, false)}
-                          className={`px-3 py-1 rounded-lg border text-[10px] font-bold tracking-wider transition ${isExcused ? 'bg-rose-500/15 border-rose-500/35 text-rose-400' : 'bg-transparent border-gray-800 text-gray-500 hover:text-gray-300'}`}
-                        >
-                          JE SERAI EXCUSÉ
-                        </button>
-                      </div>
-                    </div>
+                    )}
                   </div>
-                );
-              })
-            )}
-          </div>
+
+                  <div className="flex items-center gap-2 ml-4 shrink-0 flex-wrap">
+                    <button
+                      onClick={() => onOpenPresence(session.id)}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase rounded-xl bg-sky-500/10 text-sky-200 border border-sky-500/20 hover:bg-sky-500/15 transition-colors"
+                      title="Gérer la présence"
+                    >
+                      <Users size={16} />
+                      Présence
+                    </button>
+                    <button
+                      onClick={() => onOpenEmargement(session.id)}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase rounded-xl bg-emerald-500/10 text-emerald-200 border border-emerald-500/20 hover:bg-emerald-500/15 transition-colors"
+                      title="Accéder à l'émargement"
+                    >
+                      <UserCheck size={16} />
+                      Émargement
+                    </button>
+                    <button
+                      onClick={() => onOpenPlancheTracee(session.id)}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase rounded-xl bg-fuchsia-500/10 text-fuchsia-200 border border-fuchsia-500/20 hover:bg-fuchsia-500/15 transition-colors"
+                      title="Ouvrir la planche tracée"
+                    >
+                      <FileText size={16} />
+                      Planche tracée
+                    </button>
+                    <button onClick={() => handleEdit(session)} className="p-2 text-[#87A0A0] hover:text-[#C5A059] hover:bg-[#C5A05910] rounded-lg transition-colors" title="Modifier">
+                      <Edit size={18} />
+                    </button>
+                    <button onClick={() => handleDelete(session.id)} className="p-2 text-[#87A0A0] hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors" title="Supprimer">
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })
         )}
-      </main>
-
-      {/* CONFIRM DELETE MODAL */}
-      {deleteConfirmationId && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-[#122428] border-2 border-red-500/30 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl relative">
-            <h3 className="text-lg font-bold text-red-400 uppercase tracking-wider">
-              Supprimer la Tenue ?
-            </h3>
-            <p className="text-sm text-[#87A0A0]">
-              Voulez-vous vraiment supprimer définitivement cette tenue ? Cette action est irréversible.
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setDeleteConfirmationId(null)}
-                className="px-4 py-2 rounded-xl bg-teal-950 border border-teal-800 text-teal-400 hover:bg-teal-900 transition text-xs font-bold uppercase tracking-wider"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={confirmDelete}
-                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition text-xs font-bold uppercase tracking-wider"
-              >
-                Supprimer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* CONFIRM VALIDATION MODAL */}
-      {validateConfirmationSession && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-[#122428] border-2 border-amber-500/30 rounded-2xl p-6 max-w-sm w-full space-y-4 shadow-2xl relative">
-            <h3 className="text-lg font-bold text-amber-500 uppercase tracking-wider">
-              Valider la Tenue ?
-            </h3>
-            <p className="text-sm text-[#87A0A0]">
-              Voulez-vous valider cette tenue ? Le numéro de la prochaine tenue sera incrémenté.
-            </p>
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setValidateConfirmationSession(null)}
-                className="px-4 py-2 rounded-xl bg-teal-950 border border-teal-800 text-teal-400 hover:bg-teal-900 transition text-xs font-bold uppercase tracking-wider"
-              >
-                Annuler
-              </button>
-              <button
-                onClick={confirmValidation}
-                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-black transition text-xs font-black uppercase tracking-wider"
-              >
-                Confirmer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }

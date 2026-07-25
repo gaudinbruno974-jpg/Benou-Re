@@ -107,7 +107,7 @@ export default function LoginScreen({ members, onLoginSuccess }: LoginScreenProp
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-[#081619] text-[#E8E8E8] px-4 py-8 relative overflow-hidden select-none">
       {/* Ancient Temple Ambient Background */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-teal-950/20 via-[#081619]/95 to-[#081619] pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,var(--tw-gradient-stops))] from-teal-950/20 via-[#081619]/95 to-[#081619] pointer-events-none" />
       
       {/* Decorative Gold Stars / Points */}
       <div className="absolute top-10 left-10 w-2 h-2 rounded-full bg-amber-500/10" />
@@ -127,7 +127,7 @@ export default function LoginScreen({ members, onLoginSuccess }: LoginScreenProp
             <div className="absolute w-24 h-24 border border-amber-500/10 rotate-45 pointer-events-none" />
           </div>
 
-          <h1 className="font-sans text-3xl font-bold tracking-wider text-[#E8E8E8] text-center mb-1 font-semibold uppercase">
+          <h1 className="font-sans text-3xl tracking-wider text-[#E8E8E8] text-center mb-1 font-semibold uppercase">
             RL Bénou Ré
           </h1>
           <p className="font-sans text-xs tracking-widest text-[#87A0A0] uppercase text-center max-w-xs leading-relaxed">
@@ -243,7 +243,7 @@ export default function LoginScreen({ members, onLoginSuccess }: LoginScreenProp
                 className="bg-[#081619]/60 hover:bg-[#081619] border border-[#87A0A0]/20 rounded-lg p-2 flex flex-col items-center transition hover:border-[#C5A059]/40 group"
               >
                 <span className="font-semibold text-amber-400 text-[11px] group-hover:text-amber-300 transition">Secrétaire (Muriel)</span>
-                <span className="text-[9px] text-gray-500 font-mono text-amber-500/50">muriel.mete.mm@gmail.com</span>
+                <span className="text-[9px] text-amber-500/50 font-mono">muriel.mete.mm@gmail.com</span>
               </button>
 
               {/* Trésorier */}
@@ -252,7 +252,7 @@ export default function LoginScreen({ members, onLoginSuccess }: LoginScreenProp
                 className="bg-[#081619]/60 hover:bg-[#081619] border border-[#87A0A0]/20 rounded-lg p-2 flex flex-col items-center transition hover:border-[#C5A059]/40 group"
               >
                 <span className="font-semibold text-amber-400 text-[11px] group-hover:text-amber-300 transition">Trésorier (Noah)</span>
-                <span className="text-[9px] text-gray-500 font-mono text-amber-500/50">gaudin.noah974@gmail.com</span>
+                <span className="text-[9px] text-amber-500/50 font-mono">gaudin.noah974@gmail.com</span>
               </button>
 
               {/* Maître */}
@@ -323,7 +323,7 @@ export default function LoginScreen({ members, onLoginSuccess }: LoginScreenProp
               Configuration de Firebase
             </h3>
 
-            <div className="bg-[#081619]/60 border border-[#87A0A0]/10 rounded-xl p-4 min-h-[5rem] flex items-center justify-center">
+            <div className="bg-[#081619]/60 border border-[#87A0A0]/10 rounded-xl p-4 min-h-20 flex items-center justify-center">
               <p className="text-xs text-[#87A0A0] leading-relaxed">
                 {initStatus}
               </p>
