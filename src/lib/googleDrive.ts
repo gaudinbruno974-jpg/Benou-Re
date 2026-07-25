@@ -1,5 +1,6 @@
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { Session, Member, Visitor } from '../types';
+import logoBenouReUrl from '../assets/Benou-Re.png';
 
 // ─── CONSTANTES ──────────────────────────────────────────────────
 export const DRIVE_PARENT_FOLDER_ID = "11Qp8SXLFG0Spfks-G6OAQ66EHMGjEOgy";
@@ -323,6 +324,34 @@ export const LODGE_LOGO_BASE64 = '';
 
 const LODGE_NAME = 'Bénou Ré';
 
+type LoadedLogo = { dataUrl: string; width: number; height: number };
+
+// Charge le logo (URL fournie par Vite) et le convertit en data URL base64,
+// en récupérant ses dimensions naturelles pour préserver le ratio d'aspect.
+// Retourne null si le chargement échoue, afin de ne pas planter la génération.
+async function loadLogoDataUrl(url: string): Promise<LoadedLogo | null> {
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('Chargement du logo impossible'));
+      img.src = url;
+    });
+    const width = image.naturalWidth;
+    const height = image.naturalHeight;
+    if (!width || !height) return null;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+    ctx.drawImage(image, 0, 0);
+    return { dataUrl: canvas.toDataURL('image/png'), width, height };
+  } catch {
+    return null;
+  }
+}
+
 type EmargementRow = {
   lastName: string;
   firstName: string;
@@ -478,20 +507,28 @@ export async function generateEmargementPdf(session: Session, members: Member[],
 
   // ── PAGE 1 ──
   let y = MARGIN_TOP;
-  if (LODGE_LOGO_BASE64) {
-    const logoWidth = 30;
-    let logoHeight = 30;
+  const LOGO_RESERVED_HEIGHT = 30;
+  const logo = await loadLogoDataUrl(logoBenouReUrl);
+  if (logo) {
+    // Centrage horizontal sur la page (105 mm), ratio d'aspect conservé.
+    const maxLogoHeight = LOGO_RESERVED_HEIGHT;
+    const maxLogoWidth = 40;
+    const ratio = logo.width / logo.height;
+    let logoHeight = maxLogoHeight;
+    let logoWidth = logoHeight * ratio;
+    if (logoWidth > maxLogoWidth) {
+      logoWidth = maxLogoWidth;
+      logoHeight = logoWidth / ratio;
+    }
+    const logoX = (PAGE_WIDTH - logoWidth) / 2;
+    const logoY = y + (LOGO_RESERVED_HEIGHT - logoHeight) / 2;
     try {
-      const props = doc.getImageProperties(LODGE_LOGO_BASE64);
-      if (props?.width && props?.height) logoHeight = (logoWidth * props.height) / props.width;
-      doc.addImage(LODGE_LOGO_BASE64, (PAGE_WIDTH - logoWidth) / 2, y, logoWidth, logoHeight);
+      doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight);
     } catch {
       // logo indisponible : on conserve l'espace réservé
     }
-    y += logoHeight;
-  } else {
-    y += 30; // espace réservé au logo
   }
+  y += LOGO_RESERVED_HEIGHT; // espace réservé au logo (conservé même en cas d'échec)
 
   y += 5;
   doc.setFont('times', 'bold');
