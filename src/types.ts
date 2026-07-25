@@ -37,6 +37,13 @@ export interface Session {
   lieuReunion?: string;
   typeTenue?: string;
   degreTravail?: 'Apprenti' | 'Compagnon' | 'Maitre';
+  heureReprise?: string;
+  travail1?: string;
+  travail2?: string;
+  travail3?: string;
+  travail4?: string;
+  ordresJour?: string[];
+  ligneCloture?: string;
   presentIds: string[];
   excusedIds: string[];
   visitorIds: string[];
@@ -63,6 +70,11 @@ export interface Session {
   isValidated?: boolean;
   plancheSecretarySigned?: boolean;
   plancheVMSigned?: boolean;
+  plancheSecretarySignature?: string;
+  plancheVMSignature?: string;
+  plancheOrateurSignature?: string;
+  plancheOrateurName?: string;
+  plancheTravauxNotes?: string[];
   sacPropositions?: string;
   visitorRoles?: Record<string, string>; // mapping visitorId -> position/role held during session
   driveFolderId?: string;
