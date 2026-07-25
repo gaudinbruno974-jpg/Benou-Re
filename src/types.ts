@@ -70,6 +70,7 @@ export interface Session {
   isValidated?: boolean;
   plancheSecretarySigned?: boolean;
   plancheVMSigned?: boolean;
+  plancheOrateurSigned?: boolean;
   plancheSecretarySignature?: string;
   plancheVMSignature?: string;
   plancheOrateurSignature?: string;
