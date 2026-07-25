@@ -318,32 +318,254 @@ td { border: 1px solid #cbd5e1; padding: 8px; vertical-align: middle; }
 </body></html>`;
 }
 
+// Image base64 (data URL) du logo de la loge, à renseigner si disponible.
+export const LODGE_LOGO_BASE64 = '';
+
+const LODGE_NAME = 'Bénou Ré';
+
+type EmargementRow = {
+  lastName: string;
+  firstName: string;
+  role: string;
+  lodge: string;
+  signature: string;
+};
+
 export async function generateEmargementPdf(session: Session, members: Member[], visitors: Visitor[]): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
-  const html = generateEmargementHtml(session, members, visitors);
-  const parser = new DOMParser();
-  const parsed = parser.parseFromString(html, 'text/html');
-  const wrapper = document.createElement('div');
-  wrapper.style.position = 'fixed';
-  wrapper.style.top = '-9999px';
-  wrapper.style.left = '0';
-  wrapper.style.width = '800px';
-  wrapper.style.pointerEvents = 'none';
-  wrapper.appendChild(parsed.documentElement);
-  document.body.appendChild(wrapper);
-
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  await doc.html(wrapper, {
-    html2canvas: { scale: 2, useCORS: true },
-    callback: () => {},
-    x: 10,
-    y: 10,
-    width: 190,
+
+  const PAGE_WIDTH = 210;
+  const PAGE_HEIGHT = 297;
+  const MARGIN_LEFT = 20;
+  const MARGIN_RIGHT = 20;
+  const MARGIN_TOP = 25;
+  const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT;
+  const COLUMNS = [35, 35, 35, 35, 30];
+  const HEADERS = ['Nom', 'Prénom', 'Fonction', 'Loge', 'Signature'];
+  const ROW_MIN_HEIGHT = 9;
+  const BORDER_WIDTH = 0.18; // 0,5 pt
+  const PURPLE: [number, number, number] = [112, 26, 117];
+  const GREY: [number, number, number] = [217, 217, 217];
+
+  const signatures = session.signatures || {};
+  const presentIds = session.presentIds || [];
+  const visitorIds = session.visitorIds || [];
+  const visitorRoles = session.visitorRoles || {};
+  const location = session.location || session.lieuReunion || '';
+  const dateStr = session.date || session.dateReprise || '';
+  const type = session.type || session.typeTenue || 'Ordinaire';
+  const degree = session.degree || session.degreTravail || 'Apprenti';
+  const sessionNumber = session.sessionNumber || (session.chrono != null ? String(session.chrono) : '');
+
+  const presentMembers = members.filter(m => presentIds.includes(m.id));
+  const presentVisitors = visitors.filter(v => visitorIds.includes(v.id));
+
+  const memberRows: EmargementRow[] = presentMembers.map(m => ({
+    lastName: m.lastName || '',
+    firstName: m.firstName || '',
+    role: m.function && m.function !== 'Aucun' ? m.function : 'Membre',
+    lodge: LODGE_NAME,
+    signature: signatures[m.id] || '',
+  }));
+  const visitorRows: EmargementRow[] = presentVisitors.map(v => ({
+    lastName: v.lastName || '',
+    firstName: v.firstName || '',
+    role: visitorRoles[v.id] || v.function || 'Visiteur',
+    lodge: v.lodge || '',
+    signature: signatures[v.id] || '',
+  }));
+
+  const columnX = (index: number) => MARGIN_LEFT + COLUMNS.slice(0, index).reduce((a, b) => a + b, 0);
+  const tableWidth = COLUMNS.reduce((a, b) => a + b, 0);
+
+  const signatureMaxWidth = COLUMNS[4] - 4;
+  const signatureSize = (dataUrl: string): { width: number; height: number } | null => {
+    if (!dataUrl) return null;
+    let ratio = 0.35;
+    try {
+      const props = doc.getImageProperties(dataUrl);
+      if (props?.width && props?.height) ratio = props.height / props.width;
+    } catch {
+      return null;
+    }
+    const width = signatureMaxWidth;
+    return { width, height: Math.max(1, width * ratio) };
+  };
+
+  const memberRowsNaturalHeight = (count: number): number => {
+    let total = 0;
+    for (let i = 0; i < count; i++) {
+      const image = memberRows[i] ? signatureSize(memberRows[i].signature) : null;
+      total += Math.max(ROW_MIN_HEIGHT, image ? image.height + 2 : 0);
+    }
+    return total;
+  };
+
+  const drawCellBorders = (y: number, height: number) => {
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(BORDER_WIDTH);
+    doc.line(MARGIN_LEFT, y, MARGIN_LEFT + tableWidth, y);
+    doc.line(MARGIN_LEFT, y + height, MARGIN_LEFT + tableWidth, y + height);
+    for (let i = 0; i <= COLUMNS.length; i++) {
+      const x = columnX(i);
+      doc.line(x, y, x, y + height);
+    }
+  };
+
+  const drawHeaderRow = (y: number): number => {
+    const height = ROW_MIN_HEIGHT;
+    doc.setFillColor(GREY[0], GREY[1], GREY[2]);
+    doc.rect(MARGIN_LEFT, y, tableWidth, height, 'F');
+    drawCellBorders(y, height);
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('times', 'bold');
+    doc.setFontSize(11);
+    HEADERS.forEach((label, i) => {
+      doc.text(label, columnX(i) + COLUMNS[i] / 2, y + height / 2, { align: 'center', baseline: 'middle' });
+    });
+    return y + height;
+  };
+
+  const drawSectionRow = (y: number, label: string): number => {
+    const height = ROW_MIN_HEIGHT;
+    doc.setFillColor(GREY[0], GREY[1], GREY[2]);
+    doc.rect(MARGIN_LEFT, y, tableWidth, height, 'F');
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(BORDER_WIDTH);
+    doc.rect(MARGIN_LEFT, y, tableWidth, height, 'S');
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('times', 'bold');
+    doc.setFontSize(12);
+    doc.text(label, MARGIN_LEFT + tableWidth / 2, y + height / 2, { align: 'center', baseline: 'middle' });
+    return y + height;
+  };
+
+  const drawDataRow = (y: number, row: EmargementRow | null, minHeight = ROW_MIN_HEIGHT): number => {
+    const image = row ? signatureSize(row.signature) : null;
+    const height = Math.max(minHeight, image ? image.height + 2 : 0);
+    drawCellBorders(y, height);
+    if (row) {
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('times', 'normal');
+      doc.setFontSize(11);
+      const values = [row.lastName, row.firstName, row.role, row.lodge];
+      values.forEach((value, i) => {
+        if (!value) return;
+        const maxWidth = COLUMNS[i] - 4;
+        const text = doc.splitTextToSize(value, maxWidth)[0];
+        doc.text(text, columnX(i) + 2, y + height / 2, { baseline: 'middle' });
+      });
+      if (image) {
+        const x = columnX(4) + (COLUMNS[4] - image.width) / 2;
+        const imageY = y + (height - image.height) / 2;
+        try {
+          doc.addImage(row.signature, x, imageY, image.width, image.height);
+        } catch {
+          // signature illisible : cellule laissée vide
+        }
+      }
+    }
+    return y + height;
+  };
+
+  const drawFooter = () => {
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('times', 'bold');
+    doc.setFontSize(10);
+    doc.text('1', PAGE_WIDTH / 2, PAGE_HEIGHT - 20, { align: 'center', baseline: 'middle' });
+  };
+
+  // ── PAGE 1 ──
+  let y = MARGIN_TOP;
+  if (LODGE_LOGO_BASE64) {
+    const logoWidth = 30;
+    let logoHeight = 30;
+    try {
+      const props = doc.getImageProperties(LODGE_LOGO_BASE64);
+      if (props?.width && props?.height) logoHeight = (logoWidth * props.height) / props.width;
+      doc.addImage(LODGE_LOGO_BASE64, (PAGE_WIDTH - logoWidth) / 2, y, logoWidth, logoHeight);
+    } catch {
+      // logo indisponible : on conserve l'espace réservé
+    }
+    y += logoHeight;
+  } else {
+    y += 30; // espace réservé au logo
+  }
+
+  y += 5;
+  doc.setFont('times', 'bold');
+  doc.setFontSize(18);
+  doc.setTextColor(PURPLE[0], PURPLE[1], PURPLE[2]);
+  doc.text('Respectable Loge Benou Ré', PAGE_WIDTH / 2, y, { align: 'center', baseline: 'top' });
+  y += 8;
+
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(BORDER_WIDTH);
+  doc.line(MARGIN_LEFT, y, MARGIN_LEFT + CONTENT_WIDTH, y);
+
+  y += 15;
+  const titleText = 'FEUILLE DE PRÉSENCE';
+  doc.setFont('times', 'bold');
+  doc.setFontSize(22);
+  doc.setTextColor(PURPLE[0], PURPLE[1], PURPLE[2]);
+  doc.text(titleText, PAGE_WIDTH / 2, y, { align: 'center', baseline: 'top', charSpace: 0.4 });
+  const titleWidth = doc.getTextWidth(titleText) + 0.4 * titleText.length;
+  doc.setDrawColor(PURPLE[0], PURPLE[1], PURPLE[2]);
+  doc.line((PAGE_WIDTH - titleWidth) / 2, y + 9, (PAGE_WIDTH + titleWidth) / 2, y + 9);
+
+  y += 20;
+  const metaLines: Array<[string, string]> = [
+    ['Objet : ', `${type} – Grade d'${degree}`],
+    ['Fiche N° : ', sessionNumber],
+    ['Date : ', formatDateFrench(dateStr)],
+    ['Lieu : ', location],
+  ];
+  doc.setTextColor(0, 0, 0);
+  metaLines.forEach(([label, value], index) => {
+    const lineY = y + index * 7;
+    doc.setFont('times', 'bold');
+    doc.setFontSize(12);
+    doc.text(label, MARGIN_LEFT, lineY, { baseline: 'middle' });
+    const labelWidth = doc.getTextWidth(label);
+    const lineStart = MARGIN_LEFT + labelWidth;
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(BORDER_WIDTH);
+    doc.line(lineStart, lineY + 1.5, lineStart + 120, lineY + 1.5);
+    if (value) {
+      doc.setFont('times', 'normal');
+      doc.text(doc.splitTextToSize(value, 118)[0], lineStart + 2, lineY, { baseline: 'middle' });
+    }
   });
 
-  const blob = doc.output('blob');
-  document.body.removeChild(wrapper);
-  return blob;
+  y = y + (metaLines.length - 1) * 7 + 20;
+  y = drawHeaderRow(y);
+  y = drawSectionRow(y, 'MEMBRES DE LA LOGE');
+
+  // La hauteur nominale de 9 mm par ligne dépasse le bas de page : on la réduit
+  // au besoin pour que les 20 lignes tiennent au-dessus du pied de page.
+  const MEMBER_ROWS = 20;
+  const availableHeight = PAGE_HEIGHT - 25 - y;
+  const naturalHeight = memberRowsNaturalHeight(MEMBER_ROWS);
+  const memberRowMinHeight = naturalHeight > availableHeight
+    ? Math.max(6, ROW_MIN_HEIGHT - (naturalHeight - availableHeight) / MEMBER_ROWS)
+    : ROW_MIN_HEIGHT;
+  for (let i = 0; i < MEMBER_ROWS; i++) {
+    y = drawDataRow(y, memberRows[i] || null, memberRowMinHeight);
+  }
+  drawFooter();
+
+  // ── PAGE 2 ──
+  doc.addPage();
+  y = MARGIN_TOP;
+  y = drawHeaderRow(y);
+  y = drawSectionRow(y, 'INVITÉS');
+  for (let i = 0; i < 5; i++) {
+    y = drawDataRow(y, visitorRows[i] || null);
+  }
+  drawFooter();
+
+  return doc.output('blob');
 }
 
 export function generatePlancheTraceeHtml(session: Session, members: Member[], visitors: Visitor[]): string {
