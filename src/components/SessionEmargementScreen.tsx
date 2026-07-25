@@ -102,7 +102,13 @@ export default function SessionEmargementScreen({
     if (!safeSession || isExporting) return;
     setIsExporting(true);
     setDriveStatus({ type: 'idle', message: '' });
-    const fileName = `Feuille-Emargement-Tenue-${session.sessionNumber || session.id}.pdf`;
+    const numero = session.sessionNumber || session.chrono || session.id;
+    const sessionDate = session.date ? new Date(session.date) : null;
+    const dateStr =
+      sessionDate && !Number.isNaN(sessionDate.getTime())
+        ? sessionDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+        : 'date inconnue';
+    const fileName = `Emargement tenue n° ${numero} du ${dateStr}.pdf`;
     let blob: Blob;
     try {
       blob = await generateEmargementPdf(session, members, visitors);
