@@ -506,31 +506,30 @@ export async function generateEmargementPdf(session: Session, members: Member[],
   };
 
   // ── PAGE 1 ──
-  let y = MARGIN_TOP;
-  const LOGO_RESERVED_HEIGHT = 30;
+  // Logo agrandi et remonté vers le haut de page.
+  let y = 12;
+  const LOGO_MAX_HEIGHT = 42;
+  const LOGO_MAX_WIDTH = 60;
   const logo = await loadLogoDataUrl(logoBenouReUrl);
+  let logoBottom = y + LOGO_MAX_HEIGHT;
   if (logo) {
     // Centrage horizontal sur la page (105 mm), ratio d'aspect conservé.
-    const maxLogoHeight = LOGO_RESERVED_HEIGHT;
-    const maxLogoWidth = 40;
     const ratio = logo.width / logo.height;
-    let logoHeight = maxLogoHeight;
+    let logoHeight = LOGO_MAX_HEIGHT;
     let logoWidth = logoHeight * ratio;
-    if (logoWidth > maxLogoWidth) {
-      logoWidth = maxLogoWidth;
+    if (logoWidth > LOGO_MAX_WIDTH) {
+      logoWidth = LOGO_MAX_WIDTH;
       logoHeight = logoWidth / ratio;
     }
     const logoX = (PAGE_WIDTH - logoWidth) / 2;
-    const logoY = y + (LOGO_RESERVED_HEIGHT - logoHeight) / 2;
     try {
-      doc.addImage(logo.dataUrl, 'PNG', logoX, logoY, logoWidth, logoHeight);
+      doc.addImage(logo.dataUrl, 'PNG', logoX, y, logoWidth, logoHeight);
+      logoBottom = y + logoHeight;
     } catch {
       // logo indisponible : on conserve l'espace réservé
     }
   }
-  y += LOGO_RESERVED_HEIGHT; // espace réservé au logo (conservé même en cas d'échec)
-
-  y += 5;
+  y = logoBottom + 6;
   doc.setFont('times', 'bold');
   doc.setFontSize(18);
   doc.setTextColor(PURPLE[0], PURPLE[1], PURPLE[2]);
@@ -552,32 +551,30 @@ export async function generateEmargementPdf(session: Session, members: Member[],
   doc.line((PAGE_WIDTH - titleWidth) / 2, y + 9, (PAGE_WIDTH + titleWidth) / 2, y + 9);
 
   y += 20;
+  const META_SIZE = 14;
+  const META_SPACING = 9;
   const metaLines: Array<[string, string]> = [
-    ['Objet : ', `${type} – Grade d'${degree}`],
+    ['Objet : ', `Tenue ${type} – Grade d'${degree}`],
     ['Fiche N° : ', sessionNumber],
     ['Date : ', formatDateFrench(dateStr)],
     ['Lieu : ', location],
   ];
   doc.setTextColor(0, 0, 0);
   metaLines.forEach(([label, value], index) => {
-    const lineY = y + index * 7;
+    const lineY = y + index * META_SPACING;
     doc.setFont('times', 'bold');
-    doc.setFontSize(12);
+    doc.setFontSize(META_SIZE);
     doc.text(label, MARGIN_LEFT, lineY, { baseline: 'middle' });
     const labelWidth = doc.getTextWidth(label);
-    const lineStart = MARGIN_LEFT + labelWidth;
-    doc.setDrawColor(0, 0, 0);
-    doc.setLineWidth(BORDER_WIDTH);
-    doc.line(lineStart, lineY + 1.5, lineStart + 120, lineY + 1.5);
     if (value) {
       doc.setFont('times', 'normal');
-      doc.text(doc.splitTextToSize(value, 118)[0], lineStart + 2, lineY, { baseline: 'middle' });
+      doc.text(doc.splitTextToSize(value, CONTENT_WIDTH - labelWidth)[0], MARGIN_LEFT + labelWidth + 2, lineY, { baseline: 'middle' });
     }
   });
 
-  y = y + (metaLines.length - 1) * 7 + 20;
-  y = drawHeaderRow(y);
+  y = y + (metaLines.length - 1) * META_SPACING + 20;
   y = drawSectionRow(y, 'MEMBRES DE LA LOGE');
+  y = drawHeaderRow(y);
 
   // La hauteur nominale de 9 mm par ligne dépasse le bas de page : on la réduit
   // au besoin pour que les 20 lignes tiennent au-dessus du pied de page.
@@ -595,8 +592,8 @@ export async function generateEmargementPdf(session: Session, members: Member[],
   // ── PAGE 2 ──
   doc.addPage();
   y = MARGIN_TOP;
-  y = drawHeaderRow(y);
   y = drawSectionRow(y, 'INVITÉS');
+  y = drawHeaderRow(y);
   for (let i = 0; i < 5; i++) {
     y = drawDataRow(y, visitorRows[i] || null);
   }
