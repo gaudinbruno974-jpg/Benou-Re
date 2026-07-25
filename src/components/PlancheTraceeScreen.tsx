@@ -15,11 +15,22 @@ import {
   Sparkles,
   FolderOpen,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { Member, Session, Visitor } from '../types';
 import GoogleDriveArchivePanel from './GoogleDriveArchivePanel';
 import SignaturePad from './SignaturePad';
+import { generatePlancheTraceePDF } from '../lib/plancheTraceePdf';
+import {
+  authenticateGoogleDrive,
+  findOrCreateFolder,
+  uploadBlobToDrive,
+  getDriveFolderName,
+  getSessionDetails,
+  DRIVE_PARENT_FOLDER_ID
+} from '../lib/googleDrive';
 
 interface PlancheTraceeScreenProps {
   currentUser: Member;
@@ -47,11 +58,16 @@ export default function PlancheTraceeScreen({
   const [draftText, setDraftText] = useState('');
   const [sacText, setSacText] = useState('');
   const [draftTronc, setDraftTronc] = useState<number>(0);
+  const [draftNotes, setDraftNotes] = useState<string[]>([]);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // États pour la signature
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [signingRole, setSigningRole] = useState<'secretaire' | 'vm' | null>(null);
+
+  // Export PDF de la planche tracée
+  const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
+  const [exportMsg, setExportMsg] = useState<string | null>(null);
 
   const functionTrim = (currentUser.function || '').trim();
   const isVM = functionTrim === 'Vénérable Maître' ||
@@ -68,6 +84,7 @@ export default function PlancheTraceeScreen({
       setDraftText(selectedSession.plancheDraftText || '');
       setSacText(selectedSession.sacPropositions || '');
       setDraftTronc(selectedSession.troncAmount || 0);
+      setDraftNotes(selectedSession.plancheTravauxNotes || []);
     }
   }, [selectedSession]);
 
@@ -97,6 +114,23 @@ export default function PlancheTraceeScreen({
   const selectedSessionDate = selectedSession.date || selectedSession.dateReprise || '';
   const selectedSessionLocation = selectedSession.location || selectedSession.lieuReunion || 'Lieu inconnu';
   const selectedSessionDegree = selectedSession.degree || selectedSession.degreTravail || 'Apprenti';
+
+  // Points d'ordre du jour de la tenue (mêmes sources que la convocation),
+  // sous lesquels le secrétaire peut ajouter une note.
+  const ordreDuJourItems: string[] = (() => {
+    const raw = [
+      selectedSession.travail1,
+      selectedSession.travail2,
+      selectedSession.travail3,
+      selectedSession.travail4,
+      ...((selectedSession.ordresJour || []).filter((o) => (o || '').trim() !== '')),
+      selectedSession.ligneCloture,
+    ];
+    const fallback = [selectedSession.agenda1, selectedSession.agenda2, selectedSession.agenda3, selectedSession.agenda4];
+    return (raw.some((r) => (r || '').trim() !== '') ? raw : fallback)
+      .map((item) => (item || '').replace(/^\s*\d+\s*[.)]\s*/, '').trim())
+      .filter((item) => item !== '');
+  })();
 
   // Génération du template
   const handleGenerateTemplate = () => {
@@ -156,6 +190,7 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
       plancheDraftText: draftText,
       sacPropositions: sacText,
       troncAmount: draftTronc,
+      plancheTravauxNotes: draftNotes,
     };
     onUpdateSession(updated);
     setSelectedSession(updated);
@@ -209,6 +244,53 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
 
   const handlePrint = () => {
     window.print();
+  };
+
+  // Export PDF de la planche tracée + dépôt dans le dossier Drive de la tenue.
+  // En cas d'indisponibilité de Google Drive, on télécharge le PDF localement.
+  const handleExportPdf = async () => {
+    if (!selectedSession) return;
+    setExportStatus('exporting');
+    setExportMsg(null);
+    try {
+      const { chrono } = getSessionDetails(selectedSession);
+      const chronoNum = selectedSession.chrono ?? Number(chrono) ?? 0;
+      const blob = await generatePlancheTraceePDF(selectedSession, members, visitors, chronoNum);
+      const fileName = `Planche tracée Tenue N° ${chrono} du ${getSessionDetails(selectedSession).jj}-${getSessionDetails(selectedSession).mm}-${getSessionDetails(selectedSession).annee}.pdf`;
+
+      try {
+        const { token } = await authenticateGoogleDrive();
+        let folderId = selectedSession.driveFolderId || '';
+        let folderUrl = selectedSession.driveFolderUrl || '';
+        if (!folderId) {
+          folderId = await findOrCreateFolder(token, getDriveFolderName(selectedSession), DRIVE_PARENT_FOLDER_ID);
+          folderUrl = `https://drive.google.com/drive/folders/${folderId}`;
+          const updated: Session = { ...selectedSession, driveFolderId: folderId, driveFolderUrl: folderUrl };
+          onUpdateSession(updated);
+          setSelectedSession(updated);
+        }
+        await uploadBlobToDrive(token, folderId, fileName, blob);
+        setExportStatus('success');
+        setExportMsg(`PDF déposé dans le dossier Drive de la tenue « ${getDriveFolderName(selectedSession)} ».`);
+      } catch (driveErr) {
+        console.error('Drive indisponible, téléchargement local du PDF', driveErr);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setExportStatus('success');
+        setExportMsg('Google Drive indisponible : le PDF a été téléchargé localement.');
+      }
+      setTimeout(() => { setExportStatus('idle'); setExportMsg(null); }, 6000);
+    } catch (err) {
+      console.error(err);
+      setExportStatus('error');
+      setExportMsg(err instanceof Error ? err.message : 'Échec de l’export du PDF.');
+    }
   };
 
   const presentCount = selectedSession.presentIds?.length || 0;
@@ -300,6 +382,18 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
 
             <div className="flex items-center gap-2">
               <button
+                onClick={handleExportPdf}
+                disabled={exportStatus === 'exporting'}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 text-[#081619] text-xs font-bold hover:bg-amber-400 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {exportStatus === 'exporting' ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {exportStatus === 'exporting' ? 'EXPORT EN COURS…' : 'EXPORTER (PDF)'}
+              </button>
+              <button
                 onClick={handlePrint}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#081619] border border-amber-500/20 text-[#87A0A0] text-xs font-bold hover:bg-amber-500/5 hover:text-white transition"
               >
@@ -309,6 +403,18 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
             </div>
           </div>
         </header>
+
+        {exportMsg && (
+          <div className="max-w-7xl mx-auto px-4 mt-4">
+            <div className={`rounded-xl px-4 py-3 text-xs font-mono border ${
+              exportStatus === 'error'
+                ? 'bg-rose-500/10 border-rose-500/20 text-rose-300'
+                : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300'
+            }`}>
+              {exportMsg}
+            </div>
+          </div>
+        )}
 
         <main className="max-w-7xl mx-auto px-4 mt-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Panneau gauche : liste des tenues */}
@@ -605,6 +711,30 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
                       className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-3 text-xs text-white focus:border-[#C5A059] focus:outline-none"
                     />
                   </div>
+
+                  {ordreDuJourItems.length > 0 && (
+                    <div className="space-y-2.5">
+                      <label className="text-xs text-[#87A0A0] font-mono uppercase tracking-wider block">
+                        Notes sous chaque travail de l'ordre du jour
+                      </label>
+                      {ordreDuJourItems.map((item, idx) => (
+                        <div key={idx} className="space-y-1">
+                          <span className="text-[11px] text-amber-400 font-serif">{idx + 1}. {item}</span>
+                          <textarea
+                            value={draftNotes[idx] || ''}
+                            onChange={(e) => {
+                              const next = [...draftNotes];
+                              while (next.length < ordreDuJourItems.length) next.push('');
+                              next[idx] = e.target.value;
+                              setDraftNotes(next);
+                            }}
+                            placeholder="Compte rendu / commentaire du secrétaire pour ce point…"
+                            className="w-full bg-[#081619] border border-[#87A0A0]/20 rounded-xl px-4 py-2 text-xs text-white focus:border-[#C5A059] focus:outline-none min-h-[3rem] leading-relaxed font-serif"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="flex gap-3 justify-end border-t border-amber-500/10 pt-4">
                     <button
