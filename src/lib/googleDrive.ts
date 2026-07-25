@@ -159,6 +159,27 @@ export async function uploadOrCreateFile(
   return fileId;
 }
 
+export async function uploadBlobToDrive(
+  token: string,
+  folderId: string,
+  fileName: string,
+  blob: Blob
+): Promise<void> {
+  const formData = new FormData();
+  formData.append('metadata', new Blob([JSON.stringify({
+    name: fileName,
+    parents: [folderId],
+  })], { type: 'application/json' }));
+  formData.append('file', blob);
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  if (!res.ok) throw new Error(`Erreur upload du fichier: ${await res.text()}`);
+}
+
 // ─── GÉNÉRATION DES DOCUMENTS HTML ────────────────────────────
 function formatDateFrench(dateStr: string): string {
   if (!dateStr) return 'Date inconnue';

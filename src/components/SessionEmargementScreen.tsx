@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect, useState } from 'react';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { Member, Session, Visitor } from '../types';
-import { generateEmargementHtml, generateEmargementPdf } from '../lib/googleDrive';
+import { generateEmargementHtml, generateEmargementPdf, authenticateGoogleDrive, uploadBlobToDrive } from '../lib/googleDrive';
 import SignaturePad from './SignaturePad';
 
 interface SessionEmargementScreenProps {
@@ -33,6 +33,8 @@ export default function SessionEmargementScreen({
   const [showSignaturePad, setShowSignaturePad] = useState(false);
   const [previewKey, setPreviewKey] = useState(0);
   const [signingPersonId, setSigningPersonId] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [driveStatus, setDriveStatus] = useState<{ type: 'idle' | 'uploading' | 'success' | 'warning' | 'error'; message: string }>({ type: 'idle', message: '' });
 
   const safeSession = useMemo(() => {
     if (!session) return null;
@@ -97,20 +99,55 @@ export default function SessionEmargementScreen({
   );
 
   const handleExportPdf = async () => {
-    if (!safeSession) return;
+    if (!safeSession || isExporting) return;
+    setIsExporting(true);
+    setDriveStatus({ type: 'idle', message: '' });
+    const fileName = `Feuille-Emargement-Tenue-${session.sessionNumber || session.id}.pdf`;
+    let blob: Blob;
     try {
-      const blob = await generateEmargementPdf(session, members, visitors);
+      blob = await generateEmargementPdf(session, members, visitors);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Feuille-Emargement-Tenue-${session.sessionNumber || session.id}.pdf`;
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       link.remove();
       URL.revokeObjectURL(url);
     } catch (error) {
       console.error('Erreur génération PDF émargement:', error);
-      alert('Impossible de générer le PDF. Vérifiez la console.');
+      setDriveStatus({ type: 'error', message: 'Impossible de générer le PDF. Vérifiez la console.' });
+      setIsExporting(false);
+      return;
+    }
+
+    const driveFolderId = session.driveFolderId;
+    if (!driveFolderId) {
+      setDriveStatus({
+        type: 'warning',
+        message: "PDF téléchargé localement. Aucun dossier Google Drive n'est associé à cette tenue : l'archivage sur Drive a été ignoré.",
+      });
+      setIsExporting(false);
+      return;
+    }
+
+    try {
+      setDriveStatus({ type: 'uploading', message: 'Archivage du PDF sur Google Drive…' });
+      const { token } = await authenticateGoogleDrive();
+      await uploadBlobToDrive(token, driveFolderId, fileName, blob);
+      setDriveStatus({
+        type: 'success',
+        message: 'PDF téléchargé localement et archivé dans le dossier Google Drive de la tenue.',
+      });
+    } catch (error) {
+      console.error('Erreur upload PDF émargement sur Drive:', error);
+      const detail = error instanceof Error ? error.message : String(error);
+      setDriveStatus({
+        type: 'error',
+        message: `PDF téléchargé localement, mais l'archivage sur Google Drive a échoué : ${detail}`,
+      });
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -173,9 +210,13 @@ export default function SessionEmargementScreen({
               <FileText className="h-4 w-4" />
               {nextUnsignedPerson ? `Signer ${nextUnsignedPerson.name}` : 'Tous signés'}
             </button>
-            <button onClick={handleExportPdf} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500 text-[#081619] font-bold uppercase tracking-widest hover:bg-blue-400 transition">
+            <button
+              onClick={handleExportPdf}
+              disabled={isExporting}
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl font-bold uppercase tracking-widest transition ${isExporting ? 'bg-blue-500/40 text-[#081619]/70 cursor-not-allowed' : 'bg-blue-500 text-[#081619] hover:bg-blue-400'}`}
+            >
               <FileText className="h-4 w-4" />
-              Export PDF
+              {isExporting ? 'Export en cours…' : 'Export PDF'}
             </button>
           </div>
         </div>
@@ -202,6 +243,21 @@ export default function SessionEmargementScreen({
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {driveStatus.type !== 'idle' && (
+          <div
+            className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
+              driveStatus.type === 'success'
+                ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-200'
+                : driveStatus.type === 'warning'
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-200'
+                : driveStatus.type === 'error'
+                ? 'border-red-500/30 bg-red-500/10 text-red-200'
+                : 'border-blue-500/30 bg-blue-500/10 text-blue-200'
+            }`}
+          >
+            {driveStatus.message}
+          </div>
+        )}
         <div className="bg-[#122428] border border-[#87A0A0]/10 rounded-3xl p-5 mb-6">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
