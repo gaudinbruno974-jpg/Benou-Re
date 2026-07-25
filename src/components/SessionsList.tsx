@@ -7,7 +7,9 @@ import {
   Lock, FileText, FolderOpen, CloudUpload, Loader2, LogOut, ExternalLink, UserCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { authenticateGoogleDrive, hasGoogleDriveToken, disconnectGoogleDrive } from '../lib/googleDrive';
+import { authenticateGoogleDrive, hasGoogleDriveToken, disconnectGoogleDrive, loadLogoDataUrl } from '../lib/googleDrive';
+import logoGLDBUrl from '../assets/GLDB.png';
+import logoBenouReUrl from '../assets/Benou-Re.png';
 
 // ═══════════════════════════════════════════════════════════════════
 // TYPES (réutilisés)
@@ -170,16 +172,6 @@ const uploadFileToDrive = async (folderId: string, fileName: string, blob: Blob,
 // ═══════════════════════════════════════════════════════════════════
 // GÉNÉRATION PDF CONVOCATION (AVEC LOGOS)
 // ═══════════════════════════════════════════════════════════════════
-const loadImageAsBase64 = async (url: string): Promise<string> => {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.readAsDataURL(blob);
-  });
-};
-
 const generateConvocationPDF = async (
   session: Session,
   chrono: number
@@ -188,127 +180,198 @@ const generateConvocationPDF = async (
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 15;
-  let y = 10;
+  const contentWidth = pageWidth - 2 * margin;
+  const centerX = pageWidth / 2;
+  const BRONZE: [number, number, number] = [139, 90, 43];
+  const VIOLET: [number, number, number] = [112, 26, 117];
+  let y = 12;
 
-  // Charger les logos
-  const logoGLDB = await loadImageAsBase64('/assets/GLDB.png');
-  const logoBenou = await loadImageAsBase64('/assets/Benou Re.png');
+  // ─── LOGOS (GLDB à gauche, Bénou Ré à droite) ──────────────────
+  const LOGO_BOX = 26;
+  const [logoGLDB, logoBenou] = await Promise.all([
+    loadLogoDataUrl(logoGLDBUrl),
+    loadLogoDataUrl(logoBenouReUrl),
+  ]);
+  const placeLogo = (
+    logo: Awaited<ReturnType<typeof loadLogoDataUrl>>,
+    boxX: number
+  ) => {
+    if (!logo) return;
+    const ratio = logo.width / logo.height;
+    let w = LOGO_BOX;
+    let h = LOGO_BOX;
+    if (ratio >= 1) h = w / ratio;
+    else w = h * ratio;
+    const drawX = boxX + (LOGO_BOX - w) / 2;
+    const drawY = y + (LOGO_BOX - h) / 2;
+    try {
+      doc.addImage(logo.dataUrl, 'PNG', drawX, drawY, w, h);
+    } catch {
+      // logo indisponible : espace conservé
+    }
+  };
+  placeLogo(logoGLDB, margin);
+  placeLogo(logoBenou, pageWidth - margin - LOGO_BOX);
 
-  // ─── LOGOS ────────────────────────────
-  doc.addImage(logoGLDB, 'PNG', margin, y, 30, 30);
-  doc.addImage(logoBenou, 'PNG', pageWidth - margin - 30, y, 30, 30);
-
-  y += 8;
-
-  // ─── EN-TÊTE TEXTE ────────────────────
-  doc.setFontSize(14);
-  doc.setTextColor(139, 90, 43); // bronze
-  doc.text('GRANDE LOGE DE BOURBON', pageWidth / 2, y, { align: 'center' });
-  y += 6;
-  doc.setFontSize(10);
-  doc.text('FRANCS-MACONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM', pageWidth / 2, y, { align: 'center' });
-  y += 6;
-
-  // ─── RITES ────────────────────────────
-  doc.setFontSize(8);
-  doc.setTextColor(0);
-  const rites = [
-    'Rite Primitif, Paris 1721',
-    'Rite Primitif des Philadelphes, Narbonne 1779',
-    'Rite de Memphis, Montauban 1815',
-    'Rite de Misraïm, Venise 1788',
-    'Rite Ancien et Primitif, Manchester 1876'
-  ];
-  const xRites = [margin, margin + 35, margin + 70, margin + 105, margin + 140];
-  rites.forEach((r, i) => {
-    doc.text(r, xRites[i], y + 2);
-  });
-  y += 10;
-
-  // ─── FILIATIONS ──────────────────────
-  doc.setFontSize(7);
-  doc.setTextColor(80, 80, 80);
-  doc.text('Filiation directe Robert Ambelain   Filiation Directe Gérard Kloppel   Filiation Directe Joseph Tsang Mang Kin', pageWidth / 2, y, { align: 'center' });
-  y += 8;
-
-  // ─── TITRE PRINCIPAL ──────────────────
-  doc.setFontSize(16);
-  doc.setTextColor(139, 90, 43);
+  // ─── EN-TÊTE TEXTE (centré entre les logos) ────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.text(`R∴L∴ Bénou Ré N°5 O∴ de Saint Pierre – Île de la Réunion`, pageWidth / 2, y, { align: 'center' });
+  doc.setFontSize(17);
+  doc.setTextColor(BRONZE[0], BRONZE[1], BRONZE[2]);
+  doc.text('GRANDE LOGE DE BOURBON', centerX, y + 8, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const subtitle = doc.splitTextToSize(
+    'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
+    contentWidth - 2 * LOGO_BOX - 8
+  );
+  doc.text(subtitle, centerX, y + 14, { align: 'center' });
+
+  // Le contenu suivant démarre sous les logos.
+  y += LOGO_BOX + 6;
+
+  // ─── RITES HISTORIQUES (5 colonnes, nom puis lieu/année) ───────
+  const rites: Array<{ name: string; place: string }> = [
+    { name: 'Rite Primitif', place: 'Paris 1721' },
+    { name: 'Rite Primitif des Philadelphes', place: 'Narbonne 1779' },
+    { name: 'Rite de Memphis', place: 'Montauban 1815' },
+    { name: 'Rite de Misraïm', place: 'Venise 1788' },
+    { name: 'Rite Ancien et Primitif', place: 'Manchester 1876' },
+  ];
+  const colWidth = contentWidth / rites.length;
+  doc.setTextColor(0, 0, 0);
+  let maxNameLines = 1;
+  rites.forEach((rite, i) => {
+    const colCenter = margin + colWidth * i + colWidth / 2;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(7.5);
+    const nameLines = doc.splitTextToSize(rite.name, colWidth - 2);
+    maxNameLines = Math.max(maxNameLines, nameLines.length);
+    doc.text(nameLines, colCenter, y, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.text(rite.place, colCenter, y + nameLines.length * 3 + 1, { align: 'center' });
+  });
+  y += maxNameLines * 3 + 6;
+
+  // ─── FILIATIONS (3 lignes centrées) ────────────────────────────
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(80, 80, 80);
+  const filiations = [
+    'Filiation directe Robert Ambelain',
+    'Filiation Directe Gérard Kloppel',
+    'Filiation Directe Joseph Tsang Mang Kin',
+  ];
+  filiations.forEach((f) => {
+    doc.text(f, centerX, y, { align: 'center' });
+    y += 4;
+  });
+  y += 3;
+
+  // ─── LOCALISATION DE LA LOGE (2 lignes centrées, sans trait) ───
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(BRONZE[0], BRONZE[1], BRONZE[2]);
+  doc.text('R∴ L∴ Bénou Ré N°5', centerX, y, { align: 'center' });
+  y += 6;
+  doc.setFontSize(11);
+  doc.text('O∴ de Saint Pierre – Île de la Réunion', centerX, y, { align: 'center' });
   y += 12;
 
-  // ─── CADRE ORDRE DU JOUR ─────────────
-  doc.setDrawColor(0);
-  doc.setLineWidth(0.5);
-  doc.rect(margin + 20, y - 5, pageWidth - 2 * margin - 40, 20);
-  doc.setFontSize(12);
-  doc.setTextColor(0);
-  doc.setFont('helvetica', 'bold');
+  // ─── CADRE ORDRE DU JOUR ────────────────────────────────────────
   const dateFormatted = formatDateConvoc(session.dateReprise);
-  doc.text(`ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted} E∴V∴`, pageWidth / 2, y + 10, { align: 'center' });
-  y += 25;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  const boxTitle = doc.splitTextToSize(
+    `ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted} E∴V∴`,
+    contentWidth - 12
+  );
+  const boxHeight = boxTitle.length * 6 + 8;
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.4);
+  doc.rect(margin, y, contentWidth, boxHeight);
+  doc.text(boxTitle, centerX, y + 6, { align: 'center' });
+  y += boxHeight + 10;
 
-  // ─── INVITATION ──────────────────────
+  // ─── INVITATION (lignes centrées) ──────────────────────────────
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
-  doc.setTextColor(0);
-  doc.text('A la Gloire Du Grand Architecte De l\'Univers,', margin + 10, y);
+  doc.setTextColor(0, 0, 0);
+  doc.text('A la Gloire Du Grand Architecte De l\'Univers,', centerX, y, { align: 'center' });
   y += 6;
-  doc.text('Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,', margin + 10, y);
+  doc.text('Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,', centerX, y, { align: 'center' });
   y += 8;
-  const degreLong = session.degreTravail === 'Apprenti' ? '1er DEGRE' : session.degreTravail === 'Compagnon' ? '2eme DEGRE' : '3eme DEGRE';
-  doc.text(`La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux`, margin + 10, y);
-  y += 6;
-  doc.text(`de sa ${chrono}° TENUE REGULIERE au ${degreLong} qui se déroulera au ${session.lieuReunion} le :`, margin + 10, y);
-  y += 10;
+  const degreLong = degreToOrdinalLong(session.degreTravail);
+  const typeTenue = session.typeTenue || 'Ordinaire';
+  const lieu = session.lieuReunion || 'Temple Thérèse Eliseman à Saint-Pierre';
+  const invitation = doc.splitTextToSize(
+    `La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux de sa ${chrono}° TENUE ${typeTenue.toUpperCase()} au ${degreLong} qui se déroulera au ${lieu} le :`,
+    contentWidth
+  );
+  doc.text(invitation, centerX, y, { align: 'center' });
+  y += invitation.length * 5 + 4;
 
-  // ─── DATE ÉGYPTIENNE ─────────────────
+  // ─── DATE ÉGYPTIENNE (violet) ──────────────────────────────────
   const masonicDate = getMasonicDate(new Date(session.dateReprise));
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(30, 70, 200);
-  doc.text(masonicDate, pageWidth / 2, y, { align: 'center' });
-  y += 12;
-  doc.setTextColor(0);
+  doc.setFontSize(11);
+  doc.setTextColor(VIOLET[0], VIOLET[1], VIOLET[2]);
+  const masonicLines = doc.splitTextToSize(masonicDate, contentWidth);
+  doc.text(masonicLines, centerX, y, { align: 'center' });
+  y += masonicLines.length * 5 + 8;
+  doc.setTextColor(0, 0, 0);
 
-  // ─── ORDRE DU JOUR LISTE ─────────────
+  // ─── ORDRE DU JOUR : LISTE NUMÉROTÉE 1 À N ─────────────────────
   doc.setFont('helvetica', 'bold');
-  doc.text("L'ordre du jour appellera :", margin + 10, y);
-  y += 8;
+  doc.setFontSize(11);
+  doc.text("L'ordre du jour appellera :", margin, y);
+  y += 7;
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
 
-  // Construire la liste complète
-  const ordres = [
+  const rawItems = [
     session.travail1,
     session.travail2,
     session.travail3,
     session.travail4,
-    ...session.ordresJour.filter(o => o.trim() !== ''),
+    ...(session.ordresJour || []).filter(o => o.trim() !== ''),
     session.ligneCloture,
-  ];
-  ordres.forEach((ordre, idx) => {
-    const lines = doc.splitTextToSize(ordre, pageWidth - 2 * margin - 20);
-    doc.text(lines, margin + 10, y);
+  ]
+    .map(item => (item || '').replace(/^\s*\d+\s*[.)]\s*/, '').trim())
+    .filter(item => item !== '');
+
+  rawItems.forEach((item, idx) => {
+    const numberLabel = `${idx + 1}. `;
+    const indent = doc.getTextWidth(numberLabel);
+    const lines = doc.splitTextToSize(item, contentWidth - indent);
+    doc.text(numberLabel, margin, y);
+    doc.text(lines, margin + indent, y);
     y += lines.length * 5 + 2;
     if (y > 270) { doc.addPage(); y = 20; }
   });
-  y += 5;
+  y += 6;
 
-  // ─── AGAPES ──────────────────────────
+  // ─── PIED DE PAGE : AGAPES ─────────────────────────────────────
   if (session.suitAgapes) {
+    if (y > 262) { doc.addPage(); y = 20; }
     doc.setFont('helvetica', 'italic');
     doc.setFontSize(10);
-    doc.text('Les Travaux seront suivis d\'Agapes au nom de la Fraternité en Salle Humide.', margin + 10, y);
-    y += 6;
-    if (session.montantMedaille && session.montantMedaille > 0) {
-      doc.text(`La médaille est de ${session.montantMedaille.toFixed(2)} euros.`, margin + 10, y);
-      y += 6;
-    }
+    const medaille = session.montantMedaille && session.montantMedaille > 0
+      ? ` La médaille est de ${session.montantMedaille} euros.`
+      : '';
+    const agapeLines = doc.splitTextToSize(
+      `Les Travaux seront suivis d'Agapes au nom de la Fraternité en Salle Humide.${medaille}`,
+      contentWidth
+    );
+    doc.text(agapeLines, centerX, y, { align: 'center' });
+    y += agapeLines.length * 5 + 3;
     doc.setFont('helvetica', 'normal');
-    doc.text('Merci aux SS∴ et FF∴ Invités de s\'annoncer afin d\'ajuster au mieux les Agapes.', margin + 10, y);
-    y += 6;
-    doc.text('Tél : 06 93 470 700', margin + 10, y);
+    const annonce = doc.splitTextToSize(
+      "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 0693 470 700",
+      contentWidth
+    );
+    doc.text(annonce, centerX, y, { align: 'center' });
   }
 
   return doc.output("blob");

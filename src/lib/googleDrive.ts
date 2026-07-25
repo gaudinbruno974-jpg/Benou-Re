@@ -324,12 +324,12 @@ export const LODGE_LOGO_BASE64 = '';
 
 const LODGE_NAME = 'Bénou Ré';
 
-type LoadedLogo = { dataUrl: string; width: number; height: number };
+export type LoadedLogo = { dataUrl: string; width: number; height: number };
 
 // Charge le logo (URL fournie par Vite) et le convertit en data URL base64,
 // en récupérant ses dimensions naturelles pour préserver le ratio d'aspect.
 // Retourne null si le chargement échoue, afin de ne pas planter la génération.
-async function loadLogoDataUrl(url: string): Promise<LoadedLogo | null> {
+export async function loadLogoDataUrl(url: string): Promise<LoadedLogo | null> {
   try {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const img = new Image();
