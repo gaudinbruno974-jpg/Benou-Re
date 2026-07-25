@@ -20,7 +20,6 @@ import {
   Loader2
 } from 'lucide-react';
 import { Member, Session, Visitor } from '../types';
-import GoogleDriveArchivePanel from './GoogleDriveArchivePanel';
 import SignaturePad from './SignaturePad';
 import { generatePlancheTraceePDF } from '../lib/plancheTraceePdf';
 import {
@@ -63,7 +62,7 @@ export default function PlancheTraceeScreen({
 
   // États pour la signature
   const [showSignaturePad, setShowSignaturePad] = useState(false);
-  const [signingRole, setSigningRole] = useState<'secretaire' | 'vm' | null>(null);
+  const [signingRole, setSigningRole] = useState<'secretaire' | 'vm' | 'orateur' | null>(null);
 
   // Export PDF de la planche tracée
   const [exportStatus, setExportStatus] = useState<'idle' | 'exporting' | 'success' | 'error'>('idle');
@@ -75,6 +74,7 @@ export default function PlancheTraceeScreen({
                currentUser.email === 'vm@loge.com';
   const isSecretary = functionTrim === 'Secrétaire' ||
                       currentUser.email === 'muriel.mete.mm@gmail.com';
+  const isOrateur = functionTrim === 'Orateur';
 
   const canEdit = isVM || isSecretary;
 
@@ -131,6 +131,13 @@ export default function PlancheTraceeScreen({
       .map((item) => (item || '').replace(/^\s*\d+\s*[.)]\s*/, '').trim())
       .filter((item) => item !== '');
   })();
+
+  // Nom de l'Orateur : désigné sur la tenue, sinon membre présent occupant l'office.
+  const orateurMember = members.find(
+    (m) => (m.function || '').trim() === 'Orateur' && (selectedSession.presentIds || []).includes(m.id),
+  );
+  const orateurDisplayName = selectedSession.plancheOrateurName
+    || (orateurMember ? `${orateurMember.firstName} ${orateurMember.lastName}`.trim() : '');
 
   // Génération du template
   const handleGenerateTemplate = () => {
@@ -207,8 +214,10 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
       ...selectedSession,
       plancheSecretarySignature: signingRole === 'secretaire' ? base64Png : selectedSession.plancheSecretarySignature,
       plancheVMSignature: signingRole === 'vm' ? base64Png : selectedSession.plancheVMSignature,
+      plancheOrateurSignature: signingRole === 'orateur' ? base64Png : selectedSession.plancheOrateurSignature,
       plancheSecretarySigned: signingRole === 'secretaire' ? true : selectedSession.plancheSecretarySigned,
       plancheVMSigned: signingRole === 'vm' ? true : selectedSession.plancheVMSigned,
+      plancheOrateurSigned: signingRole === 'orateur' ? true : selectedSession.plancheOrateurSigned,
     };
 
     onUpdateSession(updated);
@@ -229,14 +238,22 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
     setShowSignaturePad(true);
   };
 
-  const handleRemoveSignature = (role: 'secretaire' | 'vm') => {
+  const handleSignOrateur = () => {
+    if (!selectedSession) return;
+    setSigningRole('orateur');
+    setShowSignaturePad(true);
+  };
+
+  const handleRemoveSignature = (role: 'secretaire' | 'vm' | 'orateur') => {
     if (!selectedSession) return;
     const updated: Session = {
       ...selectedSession,
       plancheSecretarySignature: role === 'secretaire' ? undefined : selectedSession.plancheSecretarySignature,
       plancheVMSignature: role === 'vm' ? undefined : selectedSession.plancheVMSignature,
+      plancheOrateurSignature: role === 'orateur' ? undefined : selectedSession.plancheOrateurSignature,
       plancheSecretarySigned: role === 'secretaire' ? false : selectedSession.plancheSecretarySigned,
       plancheVMSigned: role === 'vm' ? false : selectedSession.plancheVMSigned,
+      plancheOrateurSigned: role === 'orateur' ? false : selectedSession.plancheOrateurSigned,
     };
     onUpdateSession(updated);
     setSelectedSession(updated);
@@ -541,19 +558,72 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
               </div>
 
               {/* Panneau des signatures avec images */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                {/* Signature Orateur */}
+                <div className="bg-[#081619]/60 border border-[#87A0A0]/10 rounded-xl p-4 flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[9px] text-[#87A0A0] block uppercase font-mono">Orateur de l'Atelier</span>
+                    {(isOrateur || canEdit) && (
+                      <div className="flex gap-1.5">
+                        {!selectedSession.plancheOrateurSigned ? (
+                          <button
+                            onClick={handleSignOrateur}
+                            className="px-3 py-1 rounded-lg bg-violet-500/10 border border-violet-500/30 text-violet-300 text-xs font-bold hover:bg-violet-500/20 transition"
+                          >
+                            APPROUVER
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleRemoveSignature('orateur')}
+                            className="px-3 py-1 rounded-lg bg-red-950/20 border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-900/20 transition"
+                          >
+                            RETIRER
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-16 h-12 bg-[#081619] border border-[#87A0A0]/10 rounded flex items-center justify-center overflow-hidden">
+                      {selectedSession.plancheOrateurSigned && selectedSession.plancheOrateurSignature ? (
+                        <img
+                          src={selectedSession.plancheOrateurSignature}
+                          alt="Signature Orateur"
+                          className="max-h-10 max-w-[60px] object-contain"
+                        />
+                      ) : (
+                        <span className="text-[8px] text-gray-500">(vide)</span>
+                      )}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-white">{orateurDisplayName || 'Orateur'}</span>
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {selectedSession.plancheOrateurSigned ? (
+                          <span className="text-[9px] text-violet-300 font-mono font-semibold flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" /> Approuvée
+                          </span>
+                        ) : (
+                          <span className="text-[9px] text-gray-500 font-mono flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> En attente
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Signature Secrétaire */}
                 <div className="bg-[#081619]/60 border border-[#87A0A0]/10 rounded-xl p-4 flex flex-col gap-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[9px] text-[#87A0A0] block uppercase font-mono">Secrétaire de l'Atelier</span>
-                    {isSecretary && (
+                    {(isSecretary || canEdit) && (
                       <div className="flex gap-1.5">
                         {!selectedSession.plancheSecretarySigned ? (
                           <button
                             onClick={handleSignSecretary}
                             className="px-3 py-1 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400 text-xs font-bold hover:bg-teal-500/20 transition"
                           >
-                            SIGNER
+                            APPROUVER
                           </button>
                         ) : (
                           <button
@@ -649,16 +719,6 @@ L'Ordre du Jour étant épuisé, le Vénérable Maître a clos les travaux en la
                 </div>
               </div>
             </div>
-
-            {/* Archivage Google Drive si validé */}
-            {(selectedSession.plancheValidated || selectedSession.plancheVMSigned) && (
-              <GoogleDriveArchivePanel
-                session={selectedSession}
-                members={members}
-                visitors={visitors}
-                onUpdateSession={onUpdateSession}
-              />
-            )}
 
             {/* Éditeur / Visualiseur de la planche */}
             <div className="bg-[#122428] border border-amber-500/20 rounded-2xl shadow-xl overflow-hidden">
