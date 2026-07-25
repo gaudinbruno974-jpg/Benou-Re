@@ -209,7 +209,7 @@ export function renderPlanche(
     return OFFICE_PLACEMENT[role] || DIRECT_PLACEMENT[role];
   };
   const placementSentence = (v: Visitor, placement: string, role: string): string => {
-    const who = `le F∴/S∴ ${visitorFullName(v)} (${v.lodge})`;
+    const who = `le F∴ S∴ ${visitorFullName(v)} (${v.lodge})`;
     const qualite = isOffice(role) ? ` en qualité de ${role}` : '';
     switch (placement) {
       case 'Colonne du Midi':
@@ -246,7 +246,7 @@ export function renderPlanche(
     || (orateurVisitor ? visitorFullName(orateurVisitor) : undefined);
   paragraph(
     orateurName
-      ? `Le poste d’Orateur est occupé par le F∴/S∴ ${orateurName}.`
+      ? `Le poste d’Orateur est occupé par le F∴ S∴ ${orateurName}.`
       : 'Le poste d’Orateur est resté vide.',
     { size: 10, gap: 6 },
   );
@@ -262,7 +262,7 @@ export function renderPlanche(
     if (placement) {
       paragraph(placementSentence(v, placement, role as string), { size: 10, gap: 3 });
     } else {
-      paragraph(`Le F∴/S∴ ${visitorFullName(v)} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.`, {
+      paragraph(`Le F∴ S∴ ${visitorFullName(v)} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.`, {
         size: 10, gap: 3,
       });
     }
