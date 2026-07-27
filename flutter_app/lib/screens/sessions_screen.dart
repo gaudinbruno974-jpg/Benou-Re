@@ -11,6 +11,9 @@ import '../models/session.dart';
 import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import 'emargement_screen.dart';
+
+const _navyBtn = Color(0xFF0C235C);
 
 String formatSessionDate(Session s) {
   final dt = s.dateTime;
@@ -110,6 +113,19 @@ class SessionDetailScreen extends StatelessWidget {
               style: TextStyle(
                   color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
           const SizedBox(height: 12),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+                foregroundColor: BrColors.goldBright,
+                side: const BorderSide(color: BrColors.gold)),
+            icon: const Icon(Icons.draw_outlined, size: 18),
+            label: const Text('Émargement / signatures'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => EmargementScreen(sessionId: session.id),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: BrColors.teal),
             icon: const Icon(Icons.people_alt_outlined, size: 18),
@@ -118,6 +134,17 @@ class SessionDetailScreen extends StatelessWidget {
               context,
               'Emargement',
               () => buildEmargementPdf(session, state.members, state.visitors),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
+            icon: const Icon(Icons.mail_outline, size: 18),
+            label: const Text('Convocation / ordre du jour (PDF)'),
+            onPressed: () => _openPdf(
+              context,
+              'Convocation',
+              () => buildConvocationPdf(session, _chrono(session)),
             ),
           ),
           const SizedBox(height: 10),

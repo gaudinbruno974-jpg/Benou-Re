@@ -108,6 +108,71 @@ List<String> _collectOrdreDuJour(Session s) {
       .toList();
 }
 
+// Calendrier égyptien du R∴A∴P∴M∴M∴ (porté depuis lodgeHeader.ts -> getMasonicDate).
+const _egMonths = [
+  ['THOT', 'SCHA'],
+  ['PAOPHI', 'SCHA'],
+  ['ATHYR', 'SCHA'],
+  ['KHAOIAK', 'SCHA'],
+  ['TYBI', 'PRE'],
+  ['MEKHEIN', 'PRE'],
+  ['PHAMENOTH', 'PRE'],
+  ['PHARMOUTHI', 'PRE'],
+  ['PAKHOUS', 'SCHEMON'],
+  ['PSYRIE', 'SCHEMON'],
+  ['EPIPHI', 'SCHEMON'],
+  ['MESORI', 'SCHEMON'],
+];
+const _egEpagomenes = ['OSIRIS', 'HORUS', 'SETH', 'ISIS', 'NEPHTHYS'];
+
+String getMasonicDate(DateTime? date) {
+  if (date == null) return 'Date inconnue';
+  final d = DateTime(date.year, date.month, date.day, 12);
+  final civilYear = d.year;
+  final newYear = DateTime(civilYear, 7, 19, 12);
+  final DateTime start;
+  final int egYear;
+  if (!d.isBefore(newYear)) {
+    start = newYear;
+    egYear = civilYear + 1292;
+  } else {
+    start = DateTime(civilYear - 1, 7, 19, 12);
+    egYear = civilYear - 1 + 1292;
+  }
+  final offset = d.difference(start).inDays;
+  const suffixe = 'de la Lumière d’Égypte';
+  if (offset >= 360) {
+    final idx = (offset - 360).clamp(0, _egEpagomenes.length - 1);
+    final ord = idx + 1;
+    final ordStr = ord == 1 ? '1er' : '$ord' 'ème';
+    return 'Le $ordStr jour épagomène (Naissance de ${_egEpagomenes[idx]}) De l’an $egYear $suffixe';
+  }
+  final monthIndex = (offset ~/ 30).clamp(0, _egMonths.length - 1);
+  final dayInMonth = (offset % 30) + 1;
+  final month = _egMonths[monthIndex];
+  final dayStr = dayInMonth == 1 ? '1er' : '$dayInMonth' 'ème';
+  return 'Le $dayStr jour du mois de ${month[0]} de la saison ${month[1]} De l’an $egYear $suffixe';
+}
+
+String _degreToOrdinalLong(String? degre) {
+  switch (degre) {
+    case 'Compagnon':
+      return '2eme DEGRE';
+    case 'Maitre':
+    case 'Maître':
+      return '3eme DEGRE';
+    default:
+      return '1er DEGRE';
+  }
+}
+
+String _formatDateConvoc(String? dateStr) {
+  if (dateStr == null || dateStr.isEmpty) return 'xx-xx-xxxx';
+  final d = DateTime.tryParse(dateStr);
+  if (d == null) return 'xx-xx-xxxx';
+  return DateFormat('EEEE d MMMM y', 'fr_FR').format(d);
+}
+
 class _PdfFonts {
   final pw.Font base;
   final pw.Font bold;
@@ -118,6 +183,189 @@ Future<_PdfFonts> _loadFonts() async {
   final base = await PdfGoogleFonts.notoSerifRegular();
   final bold = await PdfGoogleFonts.notoSerifBold();
   return _PdfFonts(base, bold);
+}
+
+// En-tête commun des documents officiels (logos GLDB/Bénou Ré, GRANDE LOGE DE
+// BOURBON, rites historiques, filiations, R∴L∴ Bénou Ré) — porté de
+// lodgeHeader.ts -> drawLodgeHeader.
+const _rites = [
+  ['Rite Primitif', 'Paris 1721'],
+  ['Rite Primitif des Philadelphes', 'Narbonne 1779'],
+  ['Rite de Memphis', 'Montauban 1815'],
+  ['Rite de Misraïm', 'Venise 1788'],
+  ['Rite Ancien et Primitif', 'Manchester 1876'],
+];
+const _filiations = [
+  'Filiation directe Robert Ambelain',
+  'Filiation Directe Gérard Kloppel',
+  'Filiation Directe Joseph Tsang Mang Kin',
+];
+
+pw.Widget _lodgeHeader(
+  _PdfFonts fonts,
+  pw.ImageProvider? logoGldb,
+  pw.ImageProvider? logoBenou,
+) {
+  pw.Widget logoBox(pw.ImageProvider? img) => pw.SizedBox(
+        width: 60,
+        height: 60,
+        child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
+      );
+  return pw.Column(children: [
+    pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        logoBox(logoGldb),
+        pw.Expanded(
+          child: pw.Column(children: [
+            pw.Text('GRANDE LOGE DE BOURBON',
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                    font: fonts.bold, fontSize: 16, color: _navy)),
+            pw.SizedBox(height: 3),
+            pw.Text(
+                'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(font: fonts.base, fontSize: 7.5)),
+          ]),
+        ),
+        logoBox(logoBenou),
+      ],
+    ),
+    pw.SizedBox(height: 10),
+    pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        for (final r in _rites)
+          pw.Expanded(
+            child: pw.Column(children: [
+              pw.Text(r[0],
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 7.5)),
+              pw.Text(r[1],
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fonts.base, fontSize: 7)),
+            ]),
+          ),
+      ],
+    ),
+    pw.SizedBox(height: 10),
+    for (final f in _filiations)
+      pw.Text(f,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(
+              font: fonts.base,
+              fontSize: 8,
+              color: const PdfColor.fromInt(0xFF505050))),
+    pw.SizedBox(height: 8),
+    pw.Text('R∴ L∴ Bénou Ré N°5',
+        style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy)),
+    pw.SizedBox(height: 2),
+    pw.Text('O∴ de Saint Pierre – Île de la Réunion',
+        style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy)),
+    pw.SizedBox(height: 12),
+  ]);
+}
+
+Future<List<pw.ImageProvider?>> _loadLogos() async {
+  Future<pw.ImageProvider?> load(String path) async {
+    try {
+      return await imageFromAssetBundle(path);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  return Future.wait([load('assets/GLDB.png'), load('assets/Benou-Re.png')]);
+}
+
+// ══════════════════════════════════════════════════════════════════
+// CONVOCATION / ORDRE DU JOUR
+// ══════════════════════════════════════════════════════════════════
+Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
+  final fonts = await _loadFonts();
+  final logos = await _loadLogos();
+  final doc = pw.Document();
+
+  final dateSource = session.dateReprise ?? session.date;
+  final dateFormatted = _formatDateConvoc(dateSource);
+  final degreLong = _degreToOrdinalLong(session.degreTravail ?? session.degree);
+  final typeTenue =
+      session.typeTenue ?? (session.type.isNotEmpty ? session.type : 'Ordinaire');
+  final lieu = session.lieuReunionExtra ??
+      (session.location.isNotEmpty
+          ? session.location
+          : 'Temple Thérèse Eliseman à Saint-Pierre');
+  final masonicDate = getMasonicDate(DateTime.tryParse(dateSource));
+  final items = _collectOrdreDuJour(session);
+  final medaille = (session.montantMedaille ?? 0) > 0
+      ? ' La médaille est de ${session.montantMedaille} euros.'
+      : '';
+
+  doc.addPage(pw.MultiPage(
+    pageFormat: PdfPageFormat.a4,
+    margin: const pw.EdgeInsets.all(15),
+    build: (context) => [
+      _lodgeHeader(fonts, logos[0], logos[1]),
+      pw.Container(
+        width: double.infinity,
+        decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.black, width: 0.4)),
+        padding: const pw.EdgeInsets.all(4),
+        child: pw.Text(
+            'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted.toUpperCase()} E∴V∴',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+      ),
+      pw.SizedBox(height: 12),
+      pw.Center(
+          child: pw.Text('A la Gloire Du Grand Architecte De l\'Univers,',
+              style: pw.TextStyle(font: fonts.base, fontSize: 11))),
+      pw.SizedBox(height: 4),
+      pw.Center(
+          child: pw.Text('Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,',
+              style: pw.TextStyle(font: fonts.base, fontSize: 11))),
+      pw.SizedBox(height: 8),
+      pw.Text(
+          'La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(font: fonts.base, fontSize: 11, color: _violet)),
+      pw.SizedBox(height: 8),
+      pw.Text(masonicDate,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy)),
+      pw.SizedBox(height: 12),
+      pw.Text("L'ordre du jour appellera :",
+          style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+      pw.SizedBox(height: 6),
+      for (var i = 0; i < items.length; i++)
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 3),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text('${i + 1}. ',
+                  style: pw.TextStyle(font: fonts.base, fontSize: 11)),
+              pw.Expanded(
+                  child: pw.Text(items[i],
+                      style: pw.TextStyle(font: fonts.base, fontSize: 11))),
+            ],
+          ),
+        ),
+      pw.SizedBox(height: 14),
+      pw.Text(
+          "Les Travaux seront suivis d'Agapes au nom de la Fraternité en Salle Humide.$medaille",
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy)),
+      pw.SizedBox(height: 3),
+      pw.Text(
+          "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy)),
+    ],
+  ));
+
+  return doc.save();
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -325,6 +573,7 @@ Future<Uint8List> buildPlancheTraceePdf(
   int chrono,
 ) async {
   final fonts = await _loadFonts();
+  final logos = await _loadLogos();
   final doc = pw.Document();
 
   String memberFullName(Member m) => '${m.firstName} ${m.lastName}'.trim();
@@ -335,6 +584,7 @@ Future<Uint8List> buildPlancheTraceePdf(
   final degre = _degreOrdinal(session.degreTravail ?? session.degree);
 
   final content = <pw.Widget>[];
+  content.add(_lodgeHeader(fonts, logos[0], logos[1]));
 
   pw.Widget para(String text,
       {double size = 10,

@@ -217,4 +217,9 @@ class Session {
 
   List<String> get ordresJour => _stringList(extra['ordresJour']);
   List<String> get plancheTravauxNotes => _stringList(extra['plancheTravauxNotes']);
+
+  num? get montantMedaille {
+    final v = extra['montantMedaille'];
+    return v is num ? v : null;
+  }
 }
