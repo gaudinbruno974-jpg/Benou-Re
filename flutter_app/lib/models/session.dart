@@ -195,4 +195,26 @@ class Session {
     if (raw.isEmpty) return null;
     return DateTime.tryParse(raw);
   }
+
+  // ─── Champs additionnels (stockés dans `extra`) utilisés par les PDF ──
+  String? _s(String key) {
+    final v = extra[key];
+    return v is String ? v : null;
+  }
+
+  String? get travail1 => _s('travail1');
+  String? get travail2 => _s('travail2');
+  String? get travail3 => _s('travail3');
+  String? get travail4 => _s('travail4');
+  String? get ligneCloture => _s('ligneCloture');
+  String? get typeTenue => _s('typeTenue');
+  String? get degreTravail => _s('degreTravail');
+  String? get lieuReunionExtra => lieuReunion ?? _s('lieuReunion');
+  String? get plancheOrateurName => _s('plancheOrateurName');
+  String? get plancheOrateurSignature => _s('plancheOrateurSignature');
+  String? get plancheVMSignature => _s('plancheVMSignature');
+  String? get plancheSecretarySignature => _s('plancheSecretarySignature');
+
+  List<String> get ordresJour => _stringList(extra['ordresJour']);
+  List<String> get plancheTravauxNotes => _stringList(extra['plancheTravauxNotes']);
 }

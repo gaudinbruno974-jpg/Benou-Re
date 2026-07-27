@@ -1,10 +1,14 @@
 // Liste des tenues (porté partiellement depuis src/components/SessionsList.tsx).
 // Lecture + détail. La génération de planche/PDF/Drive reste à porter (voir README).
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../models/session.dart';
+import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 
@@ -101,27 +105,68 @@ class SessionDetailScreen extends StatelessWidget {
               excused.map((m) => m.fullName).toList()),
           _section('Visiteurs (${visitors.length})',
               visitors.map((v) => '${v.fullName} — ${v.lodge}').toList()),
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: const [
-                  Icon(Icons.info_outline, color: BrColors.gold, size: 18),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Génération de la planche tracée, du PDF d'émargement et archivage Google Drive : à porter (voir README).",
-                      style: TextStyle(color: BrColors.muted, fontSize: 12),
-                    ),
-                  ),
-                ],
+          const SizedBox(height: 20),
+          const Text('DOCUMENTS',
+              style: TextStyle(
+                  color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: BrColors.teal),
+            icon: const Icon(Icons.people_alt_outlined, size: 18),
+            label: const Text("Feuille de présence (PDF)"),
+            onPressed: () => _openPdf(
+              context,
+              'Emargement',
+              () => buildEmargementPdf(session, state.members, state.visitors),
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF701A75)),
+            icon: const Icon(Icons.history_edu, size: 18),
+            label: const Text('Planche tracée (PDF)'),
+            onPressed: () => _openPdf(
+              context,
+              'PlancheTracee',
+              () => buildPlancheTraceePdf(
+                session,
+                state.members,
+                state.visitors,
+                _chrono(session),
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            "L'archivage automatique sur Google Drive reste à porter (voir README). Les PDF peuvent être partagés / enregistrés depuis l'aperçu.",
+            style: TextStyle(color: BrColors.muted, fontSize: 11),
           ),
         ],
       ),
     );
+  }
+
+  int _chrono(Session s) {
+    if (s.chrono != null) return s.chrono!.toInt();
+    final n = int.tryParse((s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''));
+    return n ?? 0;
+  }
+
+  Future<void> _openPdf(BuildContext context, String prefix,
+      Future<List<int>> Function() builder) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await builder();
+      await Printing.layoutPdf(
+        onLayout: (_) async => Uint8List.fromList(bytes),
+        name: '${prefix}_tenue.pdf',
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Erreur PDF : $e')),
+      );
+    }
   }
 
   Widget _infoRow(String label, String value) {

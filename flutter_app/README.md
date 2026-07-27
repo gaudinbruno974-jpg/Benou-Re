@@ -20,6 +20,11 @@ Android/iOS natif et se développe entièrement en Dart (VSCode / Android Studio
   - Trésorerie : synthèse cotisations + suivi paiement (`treasury_screen.dart`).
   - Bibliothèque (Architecture/Instructions/Rituels) : écran d'attente
     (`library_screen.dart`).
+- **Génération PDF** (`services/pdf_service.dart`, packages `pdf` + `printing`) :
+  - **Feuille de présence / émargement** (tableau membres + invités, signatures).
+  - **Planche tracée** (texte officiel de la tenue + signatures Orateur/V∴M∴/
+    Secrétaire).
+  - Boutons d'export dans le détail d'une tenue (aperçu + partage/enregistrement).
 - **Modèles Dart** : `models/member.dart`, `session.dart`, `visitor.dart`
   (avec `fromMap` / `toMap`, portés depuis `src/types.ts`).
 - **État** : `state/app_state.dart` (`ChangeNotifier` + `provider`).
@@ -27,9 +32,12 @@ Android/iOS natif et se développe entièrement en Dart (VSCode / Android Studio
 
 ## Reste à porter (TODO)
 
-- Génération des **PDF** (ordre du jour, émargement, planche tracée) — utiliser
-  le package `pdf` / `printing` (équivalent de `jspdf` côté web).
-- Intégration **Google Drive** (archivage) — voir la note OAuth ci-dessous.
+- Note sur les PDF : l'en-tête graphique complet de la convocation (logos GLDB /
+  Bénou Ré, filiations) n'est pas encore repris — le PDF de planche démarre au
+  titre. Convocation / ordre du jour restent aussi à porter.
+- Intégration **Google Drive** (archivage automatique des PDF) — voir la note
+  OAuth ci-dessous. Les PDF sont pour l'instant partageables/enregistrables
+  manuellement via l'aperçu.
 - **Planche tracée** complète (éditeur + signatures) et écran d'**émargement**
   avec pad de signature (`signature`).
 - Écran de **statistiques** détaillé (équivalent `DashboardStats.tsx`).
