@@ -12,6 +12,7 @@ import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'emargement_screen.dart';
+import 'session_edit_screen.dart';
 
 const _navyBtn = Color(0xFF0C235C);
 
@@ -31,6 +32,14 @@ class SessionsScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tenues')),
+      floatingActionButton: FloatingActionButton.extended(
+        backgroundColor: BrColors.teal,
+        icon: const Icon(Icons.add),
+        label: const Text('Nouvelle tenue'),
+        onPressed: () => Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const SessionEditScreen()),
+        ),
+      ),
       body: sessions.isEmpty
           ? const Center(
               child: Text('Aucune tenue enregistrée',
@@ -79,6 +88,11 @@ class SessionDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+    // Toujours refléter la dernière version en base (après édition/signature).
+    final session = state.sessions.firstWhere(
+      (s) => s.id == this.session.id,
+      orElse: () => this.session,
+    );
     final present = state.members
         .where((m) => session.presentIds.contains(m.id))
         .toList();
@@ -91,7 +105,23 @@ class SessionDetailScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-          title: Text(session.title.isNotEmpty ? session.title : 'Tenue')),
+        title: Text(session.title.isNotEmpty ? session.title : 'Tenue'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.edit),
+            tooltip: 'Modifier',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                  builder: (_) => SessionEditScreen(session: session)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Supprimer',
+            onPressed: () => _confirmDelete(context, state, session),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -172,6 +202,36 @@ class SessionDetailScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _confirmDelete(
+      BuildContext context, AppState state, Session session) async {
+    final navigator = Navigator.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: const Text('Supprimer la tenue ?',
+            style: TextStyle(color: Colors.white)),
+        content: const Text(
+            'Cette action est définitive.',
+            style: TextStyle(color: BrColors.muted)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Annuler')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Supprimer'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await state.deleteSession(session.id);
+      navigator.pop();
+    }
   }
 
   int _chrono(Session s) {
