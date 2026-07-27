@@ -1,0 +1,264 @@
+// Émargement : capture des signatures (porté depuis
+// src/components/SessionEmargementScreen.tsx + SignaturePad.tsx).
+// Chaque présent signe ; les signatures (data URL base64) sont enregistrées
+// dans session.signatures. Les signatures de la planche (Orateur / V∴M∴ /
+// Secrétaire) sont enregistrées dans les champs planche* de la tenue.
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:signature/signature.dart';
+
+import '../models/member.dart';
+import '../models/session.dart';
+import '../state/app_state.dart';
+import '../theme.dart';
+
+class _Signer {
+  final String id; // clé de stockage
+  final String name;
+  final String role;
+  final String? current; // data URL existante
+  const _Signer(this.id, this.name, this.role, this.current);
+}
+
+class EmargementScreen extends StatelessWidget {
+  final String sessionId;
+  const EmargementScreen({super.key, required this.sessionId});
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    final session = state.sessions.firstWhere(
+      (s) => s.id == sessionId,
+      orElse: () => Session(id: sessionId),
+    );
+    final sigs = session.signatures;
+
+    final presentMembers =
+        state.members.where((m) => session.presentIds.contains(m.id)).toList();
+    final presentVisitors =
+        state.visitors.where((v) => session.visitorIds.contains(v.id)).toList();
+
+    final attendees = <_Signer>[
+      for (final m in presentMembers)
+        _Signer(
+          m.id,
+          m.fullName,
+          m.function != 'Aucun' && m.function.isNotEmpty ? m.function : 'Membre',
+          sigs[m.id],
+        ),
+      for (final v in presentVisitors)
+        _Signer(
+          v.id,
+          v.fullName,
+          session.visitorRoles[v.id] ??
+              (v.function.isNotEmpty ? v.function : 'Visiteur'),
+          sigs[v.id],
+        ),
+    ];
+
+    final missing = attendees.where((a) => (a.current ?? '').isEmpty).length;
+
+    // Signatures officielles de la planche tracée.
+    final vmName = session.vmName?.isNotEmpty == true ? session.vmName! : 'Bruno GAUDIN';
+    final orateur = state.members.firstWhere(
+      (m) => m.function.trim() == 'Orateur' && session.presentIds.contains(m.id),
+      orElse: () => const Member(id: ''),
+    );
+    final secretaire = state.members.firstWhere(
+      (m) => m.function.trim() == 'Secrétaire' && session.presentIds.contains(m.id),
+      orElse: () => const Member(id: ''),
+    );
+    final plancheSigners = <_Signer>[
+      _Signer('plancheOrateurSignature',
+          session.plancheOrateurName ?? (orateur.id.isNotEmpty ? orateur.fullName : 'Orateur'),
+          'Le Frère Orateur', session.plancheOrateurSignature),
+      _Signer('plancheVMSignature', vmName, 'Le Vénérable Maître',
+          session.plancheVMSignature),
+      _Signer(
+          'plancheSecretarySignature',
+          secretaire.id.isNotEmpty ? secretaire.fullName : 'Secrétaire',
+          'La Sœur Secrétaire',
+          session.plancheSecretarySignature),
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Émargement / signatures'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(28),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8, left: 16, right: 16),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                '$missing signature(s) manquante(s) sur ${attendees.length} présent(s)',
+                style: const TextStyle(color: BrColors.muted, fontSize: 12),
+              ),
+            ),
+          ),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          const _SectionTitle('PRÉSENTS'),
+          if (attendees.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Aucun présent enregistré.',
+                  style: TextStyle(color: BrColors.muted)),
+            ),
+          for (final a in attendees)
+            _SignerTile(
+              signer: a,
+              onSign: () => _sign(context, session, a, isPlanche: false),
+            ),
+          const SizedBox(height: 12),
+          const _SectionTitle('SIGNATURES DE LA PLANCHE TRACÉE'),
+          for (final s in plancheSigners)
+            _SignerTile(
+              signer: s,
+              onSign: () => _sign(context, session, s, isPlanche: true),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sign(BuildContext context, Session session, _Signer signer,
+      {required bool isPlanche}) async {
+    final state = context.read<AppState>();
+    final dataUrl = await _captureSignature(context, signer.name);
+    if (dataUrl == null) return;
+
+    final map = Map<String, dynamic>.from(session.toMap());
+    if (isPlanche) {
+      map[signer.id] = dataUrl;
+    } else {
+      final sigs = Map<String, dynamic>.from(
+          (map['signatures'] as Map?) ?? <String, dynamic>{});
+      sigs[signer.id] = dataUrl;
+      map['signatures'] = sigs;
+    }
+    await state.updateSession(Session.fromMap(session.id, map));
+  }
+}
+
+Future<String?> _captureSignature(BuildContext context, String name) async {
+  final controller = SignatureController(
+    penStrokeWidth: 3,
+    penColor: Colors.black,
+    exportBackgroundColor: Colors.white,
+  );
+  final result = await showDialog<String>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: BrColors.surface,
+      title: Text('Signature — $name',
+          style: const TextStyle(color: Colors.white, fontSize: 16)),
+      content: SizedBox(
+        width: 400,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Signature(
+            controller: controller,
+            height: 220,
+            backgroundColor: Colors.white,
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => controller.clear(),
+          child: const Text('Effacer'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('Annuler'),
+        ),
+        ElevatedButton(
+          onPressed: () async {
+            if (controller.isEmpty) {
+              Navigator.pop(ctx);
+              return;
+            }
+            final bytes = await controller.toPngBytes();
+            if (bytes == null) {
+              if (ctx.mounted) Navigator.pop(ctx);
+              return;
+            }
+            final dataUrl = 'data:image/png;base64,${base64Encode(bytes)}';
+            if (ctx.mounted) Navigator.pop(ctx, dataUrl);
+          },
+          child: const Text('Valider'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+  return result;
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(text,
+          style: const TextStyle(
+              color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
+    );
+  }
+}
+
+class _SignerTile extends StatelessWidget {
+  final _Signer signer;
+  final VoidCallback onSign;
+  const _SignerTile({required this.signer, required this.onSign});
+
+  @override
+  Widget build(BuildContext context) {
+    final signed = (signer.current ?? '').isNotEmpty;
+    return Card(
+      child: ListTile(
+        title: Text(signer.name,
+            style: const TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
+        subtitle: Text(signer.role,
+            style: const TextStyle(color: BrColors.muted, fontSize: 12)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: (signed ? const Color(0xFF34D399) : BrColors.gold)
+                    .withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(signed ? 'Signé' : 'En attente',
+                  style: TextStyle(
+                      color:
+                          signed ? const Color(0xFF34D399) : BrColors.goldBright,
+                      fontSize: 11)),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: onSign,
+              child: Text(signed ? 'Modifier' : 'Signer',
+                  style: const TextStyle(color: BrColors.teal)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
