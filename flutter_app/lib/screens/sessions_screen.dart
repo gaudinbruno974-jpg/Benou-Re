@@ -8,6 +8,7 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../models/session.dart';
+import '../services/drive_service.dart';
 import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -194,14 +195,49 @@ class SessionDetailScreen extends StatelessWidget {
               ),
             ),
           ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF34D399),
+                side: const BorderSide(color: Color(0xFF34D399))),
+            icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+            label: const Text('Archiver sur Google Drive'),
+            onPressed: () => _archiveDrive(context, session, state),
+          ),
           const SizedBox(height: 12),
           const Text(
-            "L'archivage automatique sur Google Drive reste à porter (voir README). Les PDF peuvent être partagés / enregistrés depuis l'aperçu.",
+            "L'archivage envoie les 3 PDF dans le dossier « Tenue … » sur Google Drive. Nécessite la connexion Google (voir README pour la config OAuth).",
             style: TextStyle(color: BrColors.muted, fontSize: 11),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _archiveDrive(
+      BuildContext context, Session session, AppState state) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showSnackBar(const SnackBar(
+        content: Text('Connexion Google et archivage en cours...')));
+    try {
+      final chrono = _chrono(session);
+      final files = <String, Uint8List>{
+        'Convocation_Tenue_$chrono.pdf': Uint8List.fromList(
+            await buildConvocationPdf(session, chrono)),
+        'Emargement_Tenue_$chrono.pdf': Uint8List.fromList(
+            await buildEmargementPdf(session, state.members, state.visitors)),
+        'PlancheTracee_Tenue_$chrono.pdf': Uint8List.fromList(
+            await buildPlancheTraceePdf(
+                session, state.members, state.visitors, chrono)),
+      };
+      final email = await DriveService.instance.archivePdfs(session, files);
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(
+          content: Text('Archivé sur Google Drive ($email).')));
+    } catch (e) {
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(SnackBar(content: Text('Drive : $e')));
+    }
   }
 
   Future<void> _confirmDelete(
