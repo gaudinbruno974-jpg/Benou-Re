@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Bénou Ré</string>
+    <string name="title_activity_main">Bénou Ré</string>
+    <string name="package_name">re.benou.app</string>
+    <string name="custom_url_scheme">re.benou.app</string>
+</resources>

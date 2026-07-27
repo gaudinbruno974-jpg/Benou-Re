@@ -1,6 +1,12 @@
 import { getAuth, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
 import { Session, Member, Visitor } from '../types';
 import logoBenouReUrl from '../assets/Benou-Re.png';
+
+// Vrai lorsque l'application tourne dans la WebView native Capacitor (Android/iOS).
+export function isNativePlatform(): boolean {
+  return Capacitor.isNativePlatform();
+}
 
 // ─── CONSTANTES ──────────────────────────────────────────────────
 export const DRIVE_PARENT_FOLDER_ID = "11Qp8SXLFG0Spfks-G6OAQ66EHMGjEOgy";
@@ -12,6 +18,19 @@ let cachedUserEmail: string | null = null;
 export async function authenticateGoogleDrive(): Promise<{ token: string; email: string }> {
   if (cachedAccessToken && cachedUserEmail) {
     return { token: cachedAccessToken, email: cachedUserEmail };
+  }
+
+  // Le flux OAuth par popup de Firebase (signInWithPopup) ne fonctionne pas dans
+  // une WebView Android/iOS : la fenêtre popup y est bloquée et aucun jeton
+  // d'accès Google n'est renvoyé. L'archivage Google Drive n'est donc disponible
+  // que sur le web tant qu'une authentification native n'est pas configurée
+  // (voir README.md, section « Google Drive OAuth sur mobile »).
+  if (isNativePlatform()) {
+    throw new Error(
+      "L'archivage Google Drive n'est pas disponible dans l'application Android. "
+      + "Utilisez la version web (navigateur) pour archiver sur Google Drive. "
+      + "Le reste de l'application (connexion, sessions, PDF) reste utilisable sur mobile."
+    );
   }
 
   const auth = getAuth();
