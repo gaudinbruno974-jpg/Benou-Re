@@ -39,9 +39,6 @@ Android/iOS natif et se développe entièrement en Dart (VSCode / Android Studio
 
 ## Reste à porter (TODO)
 
-- Intégration **Google Drive** (archivage automatique des PDF) — voir la note
-  OAuth ci-dessous. Les PDF sont pour l'instant partageables/enregistrables
-  manuellement via l'aperçu.
 - **Éditeur** de planche tracée (saisie des travaux/notes) — la génération PDF et
   la capture des signatures sont faites, mais l'édition du texte des travaux se
   fait encore côté web.
@@ -79,10 +76,42 @@ Cela génère un `firebase_options.dart` par plateforme et
 `android/app/google-services.json`, après avoir enregistré l'app Android
 (`re.benou.benou_re`) dans la console Firebase.
 
-## Google Drive OAuth (mobile)
+## Google Drive (archivage des PDF)
 
-Comme sur le web, le flux OAuth par popup ne fonctionne pas en natif. Pour
-l'archivage Drive, utiliser `google_sign_in` (+ scope Drive) puis l'API Drive
-REST, ce qui nécessite un **client OAuth Android** (package `re.benou.benou_re`
-+ empreinte SHA-1) dans la Google Cloud Console. Étape à réaliser côté console
-projet.
+L'archivage Drive est implémenté nativement (`lib/services/drive_service.dart`) :
+connexion via `google_sign_in` (scope `drive`), puis appels à l'API Drive REST
+pour créer/retrouver le dossier de la tenue (`Tenue {chrono} {jj} {mm} {annee}`,
+sous le dossier parent partagé) et y déposer les 3 PDF. Le bouton **« Archiver
+sur Google Drive »** se trouve dans le détail d'une tenue.
+
+Comme sur le web, le flux OAuth par popup ne fonctionne pas en natif : il faut un
+**client OAuth Android** provisionné pour l'app. Config à faire une seule fois :
+
+1. **Empreinte SHA-1** de la clé de signature (debug) :
+   ```bash
+   cd flutter_app/android
+   ./gradlew signingReport        # Windows : .\gradlew signingReport
+   ```
+   Copiez la ligne `SHA1:` de la variante `debug` (et la `SHA-256` si demandée).
+   Pour un APK release, ajoutez aussi le SHA-1 de votre keystore de release.
+
+2. **Firebase Console** → *Project settings* → votre app Android
+   (`re.benou.benou_re`) → **Add fingerprint** → collez le SHA-1.
+   Cela crée automatiquement le client OAuth Android dans le projet Google Cloud.
+
+3. **Firebase Console** → *Authentication* → *Sign-in method* → activez le
+   fournisseur **Google**.
+
+4. **Google Cloud Console** (projet `benou-re-loge`) :
+   - *APIs & Services* → **activer l'API Google Drive** ;
+   - *OAuth consent screen* : si l'app est en mode *Testing*, ajoutez votre
+     adresse Google dans **Test users** (sinon le scope Drive est refusé).
+
+5. Relancez : `flutter clean && flutter run`. Au 1er archivage, une fenêtre de
+   connexion Google s'affiche ; ensuite les PDF sont déposés dans le dossier de
+   la tenue.
+
+> Le scope `drive` complet est utilisé (comme le web) pour écrire dans le dossier
+> parent partagé existant. Pour une publication grand public, ce scope demande la
+> vérification de l'app par Google ; en usage interne (utilisateurs de test) ce
+> n'est pas nécessaire.
