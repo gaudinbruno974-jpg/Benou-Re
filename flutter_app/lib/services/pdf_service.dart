@@ -1,9 +1,18 @@
-// Génération des PDF (porté depuis src/lib/plancheTraceePdf.ts et
-// src/lib/googleDrive.ts -> generateEmargementPdf).
+// Génération des PDF (porté depuis src/lib/plancheTraceePdf.ts,
+// src/lib/lodgeHeader.ts, src/components/SessionsList.tsx -> generateConvocationPDF
+// et src/lib/googleDrive.ts -> generateEmargementPdf).
 //
-// Deux documents sont produits :
+// Trois documents sont produits, avec un rendu aligné sur la version React :
+//  - la convocation / ordre du jour ;
 //  - la feuille de présence / émargement (tableau membres + invités) ;
 //  - la planche tracée (texte officiel de la tenue + signatures).
+//
+// Points clés de fidélité :
+//  - toutes les longueurs sont exprimées en millimètres (comme jsPDF `unit:'mm'`)
+//    via la constante `_mm` ; les tailles de police restent en points ;
+//  - la convocation et la planche utilisent la police DejaVu Sans embarquée
+//    (rendu identique des symboles maçonniques « ∴ »), exactement comme React ;
+//  - la feuille de présence utilise une police à empattement (Times), comme React.
 //
 // Les signatures sont des data URLs base64 stockées dans `session.signatures`
 // (et les champs planche* pour la planche tracée).
@@ -11,6 +20,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -19,6 +29,9 @@ import 'package:printing/printing.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
+
+// 1 mm en points PDF (le paquet `pdf` travaille en points ; jsPDF en mm).
+const double _mm = PdfPageFormat.mm;
 
 const _navy = PdfColor.fromInt(0xFF0C235C);
 const _violet = PdfColor.fromInt(0xFF701A75);
@@ -179,11 +192,16 @@ class _PdfFonts {
   _PdfFonts(this.base, this.bold);
 }
 
-Future<_PdfFonts> _loadFonts() async {
-  final base = await PdfGoogleFonts.notoSerifRegular();
-  final bold = await PdfGoogleFonts.notoSerifBold();
+// Police DejaVu Sans embarquée (identique à la version React : rend les « ∴ »).
+Future<_PdfFonts> _loadLodgeFonts() async {
+  final base = pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSans.ttf'));
+  final bold =
+      pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSans-Bold.ttf'));
   return _PdfFonts(base, bold);
 }
+
+// Feuille de présence : police à empattement (Times), comme le PDF React.
+_PdfFonts _serifFonts() => _PdfFonts(pw.Font.times(), pw.Font.timesBold());
 
 // En-tête commun des documents officiels (logos GLDB/Bénou Ré, GRANDE LOGE DE
 // BOURBON, rites historiques, filiations, R∴L∴ Bénou Ré) — porté de
@@ -207,9 +225,10 @@ pw.Widget _lodgeHeader(
   pw.ImageProvider? logoBenou,
 ) {
   pw.Widget logoBox(pw.ImageProvider? img) => pw.SizedBox(
-        width: 60,
-        height: 60,
-        child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
+        width: 26 * _mm,
+        height: 26 * _mm,
+        child:
+            img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
       );
   return pw.Column(children: [
     pw.Row(
@@ -222,7 +241,7 @@ pw.Widget _lodgeHeader(
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                     font: fonts.bold, fontSize: 16, color: _navy)),
-            pw.SizedBox(height: 3),
+            pw.SizedBox(height: 2 * _mm),
             pw.Text(
                 'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
                 textAlign: pw.TextAlign.center,
@@ -232,7 +251,7 @@ pw.Widget _lodgeHeader(
         logoBox(logoBenou),
       ],
     ),
-    pw.SizedBox(height: 10),
+    pw.SizedBox(height: 8 * _mm),
     pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -242,6 +261,7 @@ pw.Widget _lodgeHeader(
               pw.Text(r[0],
                   textAlign: pw.TextAlign.center,
                   style: pw.TextStyle(font: fonts.bold, fontSize: 7.5)),
+              pw.SizedBox(height: 1 * _mm),
               pw.Text(r[1],
                   textAlign: pw.TextAlign.center,
                   style: pw.TextStyle(font: fonts.base, fontSize: 7)),
@@ -249,21 +269,24 @@ pw.Widget _lodgeHeader(
           ),
       ],
     ),
-    pw.SizedBox(height: 10),
+    pw.SizedBox(height: 10 * _mm),
     for (final f in _filiations)
-      pw.Text(f,
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(
-              font: fonts.base,
-              fontSize: 8,
-              color: const PdfColor.fromInt(0xFF505050))),
-    pw.SizedBox(height: 8),
+      pw.Padding(
+        padding: pw.EdgeInsets.only(bottom: 1 * _mm),
+        child: pw.Text(f,
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(
+                font: fonts.base,
+                fontSize: 8,
+                color: const PdfColor.fromInt(0xFF505050))),
+      ),
+    pw.SizedBox(height: 7 * _mm),
     pw.Text('R∴ L∴ Bénou Ré N°5',
         style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy)),
-    pw.SizedBox(height: 2),
+    pw.SizedBox(height: 2 * _mm),
     pw.Text('O∴ de Saint Pierre – Île de la Réunion',
         style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy)),
-    pw.SizedBox(height: 12),
+    pw.SizedBox(height: 12 * _mm),
   ]);
 }
 
@@ -283,7 +306,7 @@ Future<List<pw.ImageProvider?>> _loadLogos() async {
 // CONVOCATION / ORDRE DU JOUR
 // ══════════════════════════════════════════════════════════════════
 Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
-  final fonts = await _loadFonts();
+  final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
   final doc = pw.Document();
 
@@ -304,43 +327,43 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
 
   doc.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4,
-    margin: const pw.EdgeInsets.all(15),
+    margin: pw.EdgeInsets.all(15 * _mm),
     build: (context) => [
       _lodgeHeader(fonts, logos[0], logos[1]),
       pw.Container(
         width: double.infinity,
         decoration: pw.BoxDecoration(
             border: pw.Border.all(color: PdfColors.black, width: 0.4)),
-        padding: const pw.EdgeInsets.all(4),
+        padding: pw.EdgeInsets.symmetric(vertical: 3 * _mm, horizontal: 4 * _mm),
         child: pw.Text(
             'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted.toUpperCase()} E∴V∴',
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
       ),
-      pw.SizedBox(height: 12),
+      pw.SizedBox(height: 12 * _mm),
       pw.Center(
           child: pw.Text('A la Gloire Du Grand Architecte De l\'Univers,',
               style: pw.TextStyle(font: fonts.base, fontSize: 11))),
-      pw.SizedBox(height: 4),
+      pw.SizedBox(height: 6 * _mm),
       pw.Center(
           child: pw.Text('Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,',
               style: pw.TextStyle(font: fonts.base, fontSize: 11))),
-      pw.SizedBox(height: 8),
+      pw.SizedBox(height: 9 * _mm),
       pw.Text(
           'La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(font: fonts.base, fontSize: 11, color: _violet)),
-      pw.SizedBox(height: 8),
+      pw.SizedBox(height: 6 * _mm),
       pw.Text(masonicDate,
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy)),
-      pw.SizedBox(height: 12),
+      pw.SizedBox(height: 12 * _mm),
       pw.Text("L'ordre du jour appellera :",
           style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
-      pw.SizedBox(height: 6),
+      pw.SizedBox(height: 8 * _mm),
       for (var i = 0; i < items.length; i++)
         pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 3),
+          padding: pw.EdgeInsets.only(bottom: 2.5 * _mm),
           child: pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
@@ -352,12 +375,12 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
             ],
           ),
         ),
-      pw.SizedBox(height: 14),
+      pw.SizedBox(height: 12 * _mm),
       pw.Text(
           "Les Travaux seront suivis d'Agapes au nom de la Fraternité en Salle Humide.$medaille",
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy)),
-      pw.SizedBox(height: 3),
+      pw.SizedBox(height: 3 * _mm),
       pw.Text(
           "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
           textAlign: pw.TextAlign.center,
@@ -376,7 +399,11 @@ Future<Uint8List> buildEmargementPdf(
   List<Member> members,
   List<Visitor> visitors,
 ) async {
-  final fonts = await _loadFonts();
+  final fonts = _serifFonts();
+  // DejaVu en repli : Times (standard-14) ne connaît pas « – » ni certains
+  // symboles ; on garde la typo Times avec repli DejaVu pour les glyphes manquants.
+  final fallback = await _loadLodgeFonts();
+  final logo = (await _loadLogos())[1]; // Bénou Ré
   final doc = pw.Document();
 
   final signatures = session.signatures;
@@ -414,51 +441,71 @@ Future<Uint8List> buildEmargementPdf(
       .toList();
 
   pw.Widget header() => pw.Column(children: [
+        if (logo != null)
+          pw.Center(
+            child: pw.SizedBox(
+              height: 32 * _mm,
+              child: pw.Image(logo, fit: pw.BoxFit.contain),
+            ),
+          ),
+        pw.SizedBox(height: 4 * _mm),
         pw.Text('Respectable Loge Benou Ré',
             style: pw.TextStyle(
                 font: fonts.bold, fontSize: 18, color: _violet)),
-        pw.SizedBox(height: 4),
-        pw.Divider(color: PdfColors.black, thickness: 0.4),
-        pw.SizedBox(height: 10),
+        pw.SizedBox(height: 3 * _mm),
+        pw.Container(
+          width: double.infinity,
+          decoration: const pw.BoxDecoration(
+            border:
+                pw.Border(bottom: pw.BorderSide(color: PdfColors.black, width: 0.4)),
+          ),
+        ),
+        pw.SizedBox(height: 10 * _mm),
         pw.Text('FEUILLE DE PRÉSENCE',
             style: pw.TextStyle(
                 font: fonts.bold,
                 fontSize: 22,
                 color: _violet,
                 letterSpacing: 1)),
+        pw.SizedBox(height: 1 * _mm),
         pw.Container(
-          width: 160,
+          width: 92 * _mm,
           decoration: const pw.BoxDecoration(
             border: pw.Border(bottom: pw.BorderSide(color: _violet, width: 1)),
           ),
         ),
-        pw.SizedBox(height: 12),
+        pw.SizedBox(height: 10 * _mm),
       ]);
 
   pw.Widget metaLine(String label, String value) => pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(vertical: 2),
+        padding: pw.EdgeInsets.symmetric(vertical: 2 * _mm),
         child: pw.RichText(
           text: pw.TextSpan(
             children: [
               pw.TextSpan(
                   text: label,
-                  style: pw.TextStyle(font: fonts.bold, fontSize: 13)),
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
               pw.TextSpan(
                   text: value,
-                  style: pw.TextStyle(font: fonts.base, fontSize: 13)),
+                  style: pw.TextStyle(font: fonts.base, fontSize: 14)),
             ],
           ),
         ),
       );
 
-  pw.TableRow sectionRow(String label) => pw.TableRow(
-        decoration: const pw.BoxDecoration(color: _grey),
+  pw.Table sectionTable(String label) => pw.Table(
+        border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
         children: [
-          pw.Container(
-            alignment: pw.Alignment.center,
-            padding: const pw.EdgeInsets.symmetric(vertical: 4),
-            child: pw.Text(label,
-                style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: _grey),
+            children: [
+              pw.Container(
+                alignment: pw.Alignment.center,
+                height: 9 * _mm,
+                child: pw.Text(label,
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
+              ),
+            ],
           ),
         ],
       );
@@ -472,7 +519,7 @@ Future<Uint8List> buildEmargementPdf(
     4: const pw.FlexColumnWidth(30),
   };
 
-  pw.Table dataTable(List<_Row?> rows) {
+  pw.Table dataTable(List<_Row?> rows, double rowHeight) {
     return pw.Table(
       columnWidths: colWidths,
       border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
@@ -483,7 +530,7 @@ Future<Uint8List> buildEmargementPdf(
             for (final h in headers)
               pw.Container(
                 alignment: pw.Alignment.center,
-                padding: const pw.EdgeInsets.symmetric(vertical: 3),
+                height: 9 * _mm,
                 child: pw.Text(h,
                     style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
               ),
@@ -492,11 +539,11 @@ Future<Uint8List> buildEmargementPdf(
         for (final row in rows)
           pw.TableRow(
             children: [
-              _cell(fonts, row?.lastName),
-              _cell(fonts, row?.firstName),
-              _cell(fonts, row?.role),
-              _cell(fonts, row?.lodge),
-              _signatureCell(_decodeSignature(row?.signature)),
+              _cell(fonts, row?.lastName, rowHeight),
+              _cell(fonts, row?.firstName, rowHeight),
+              _cell(fonts, row?.role, rowHeight),
+              _cell(fonts, row?.lodge, rowHeight),
+              _signatureCell(_decodeSignature(row?.signature), rowHeight),
             ],
           ),
       ],
@@ -510,48 +557,52 @@ Future<Uint8List> buildEmargementPdf(
 
   doc.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4,
-    margin: const pw.EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+    margin: pw.EdgeInsets.fromLTRB(20 * _mm, 12 * _mm, 20 * _mm, 18 * _mm),
+    theme: pw.ThemeData.withFont(
+      base: fonts.base,
+      bold: fonts.bold,
+      fontFallback: [fallback.base, fallback.bold],
+    ),
+    footer: (context) => pw.Container(
+      alignment: pw.Alignment.center,
+      child: pw.Text('${context.pageNumber}',
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+    ),
     build: (context) => [
       header(),
       metaLine('Objet : ', "Tenue $type – Grade d'$degree"),
       metaLine('Fiche N° : ', sessionNumber),
       metaLine('Date : ', _formatDateFrench(dateStr)),
       metaLine('Lieu : ', location),
-      pw.SizedBox(height: 14),
-      pw.Table(
-        border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
-        children: [sectionRow('MEMBRES DE LA LOGE')],
-      ),
-      dataTable(memberSlots),
-      pw.SizedBox(height: 16),
-      pw.Table(
-        border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
-        children: [sectionRow('INVITÉS')],
-      ),
-      dataTable(visitorSlots),
+      pw.SizedBox(height: 8 * _mm),
+      sectionTable('MEMBRES DE LA LOGE'),
+      dataTable(memberSlots, 6 * _mm),
+      pw.NewPage(),
+      sectionTable('INVITÉS'),
+      dataTable(visitorSlots, 9 * _mm),
     ],
   ));
 
   return doc.save();
 }
 
-pw.Widget _cell(_PdfFonts fonts, String? value) => pw.Container(
-      height: 22,
+pw.Widget _cell(_PdfFonts fonts, String? value, double height) => pw.Container(
+      height: height,
       alignment: pw.Alignment.centerLeft,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 2),
+      padding: pw.EdgeInsets.symmetric(horizontal: 2 * _mm),
       child: pw.Text(value ?? '',
           maxLines: 1,
           overflow: pw.TextOverflow.clip,
-          style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+          style: pw.TextStyle(font: fonts.base, fontSize: 11)),
     );
 
-pw.Widget _signatureCell(Uint8List? bytes) => pw.Container(
-      height: 22,
+pw.Widget _signatureCell(Uint8List? bytes, double height) => pw.Container(
+      height: height,
       alignment: pw.Alignment.center,
-      padding: const pw.EdgeInsets.all(2),
+      padding: pw.EdgeInsets.all(1 * _mm),
       child: bytes == null
           ? pw.SizedBox()
-          : pw.Image(pw.MemoryImage(bytes), height: 18, fit: pw.BoxFit.contain),
+          : pw.Image(pw.MemoryImage(bytes), fit: pw.BoxFit.contain),
     );
 
 class _Row {
@@ -572,7 +623,7 @@ Future<Uint8List> buildPlancheTraceePdf(
   List<Visitor> visitors,
   int chrono,
 ) async {
-  final fonts = await _loadFonts();
+  final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
   final doc = pw.Document();
 
@@ -593,7 +644,7 @@ Future<Uint8List> buildPlancheTraceePdf(
       PdfColor color = PdfColors.black,
       double gap = 4}) {
     return pw.Padding(
-      padding: pw.EdgeInsets.only(bottom: gap),
+      padding: pw.EdgeInsets.only(bottom: gap * _mm),
       child: pw.Text(
         text,
         textAlign: align,
@@ -720,7 +771,7 @@ Future<Uint8List> buildPlancheTraceePdf(
     }
   }
 
-  content.add(pw.SizedBox(height: 3));
+  content.add(pw.SizedBox(height: 3 * _mm));
   content.add(
       para('La planche tracée de nos derniers travaux a été adoptée.', size: 10, gap: 6));
 
@@ -731,7 +782,7 @@ Future<Uint8List> buildPlancheTraceePdf(
   final notes = session.plancheTravauxNotes;
   for (var idx = 0; idx < items.length; idx++) {
     content.add(pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 2),
+      padding: pw.EdgeInsets.only(bottom: 2 * _mm),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -747,7 +798,7 @@ Future<Uint8List> buildPlancheTraceePdf(
     final note = (idx < notes.length ? notes[idx] : '').trim();
     if (note.isNotEmpty) {
       content.add(pw.Padding(
-        padding: const pw.EdgeInsets.only(left: 8, bottom: 3),
+        padding: pw.EdgeInsets.only(left: 6 * _mm, bottom: 3 * _mm),
         child: pw.Text(note,
             style: pw.TextStyle(
                 font: fonts.base,
@@ -756,7 +807,7 @@ Future<Uint8List> buildPlancheTraceePdf(
       ));
     }
   }
-  content.add(pw.SizedBox(height: 4));
+  content.add(pw.SizedBox(height: 4 * _mm));
 
   // Tronc de la veuve
   final tronc = session.troncAmount.toDouble();
@@ -782,7 +833,7 @@ Future<Uint8List> buildPlancheTraceePdf(
     ['Le Vénérable Maître', vmName, session.plancheVMSignature],
     ['La Sœur Secrétaire', secretaryName, session.plancheSecretarySignature],
   ];
-  content.add(pw.SizedBox(height: 10));
+  content.add(pw.SizedBox(height: 6 * _mm));
   content.add(pw.Row(
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
@@ -793,15 +844,15 @@ Future<Uint8List> buildPlancheTraceePdf(
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                     font: fonts.bold, fontSize: 9.5, color: _navy)),
-            pw.SizedBox(height: 3),
+            pw.SizedBox(height: 3 * _mm),
             pw.SizedBox(
-              height: 20,
+              height: 18 * _mm,
               child: _decodeSignature(s[2]) == null
                   ? pw.SizedBox()
                   : pw.Image(pw.MemoryImage(_decodeSignature(s[2])!),
                       fit: pw.BoxFit.contain),
             ),
-            pw.SizedBox(height: 3),
+            pw.SizedBox(height: 3 * _mm),
             pw.Text(s[1] ?? '',
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(font: fonts.base, fontSize: 9)),
@@ -812,7 +863,7 @@ Future<Uint8List> buildPlancheTraceePdf(
 
   doc.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4,
-    margin: const pw.EdgeInsets.all(15),
+    margin: pw.EdgeInsets.all(15 * _mm),
     build: (context) => content,
   ));
 
