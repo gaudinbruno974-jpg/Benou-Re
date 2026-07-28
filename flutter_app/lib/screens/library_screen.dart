@@ -4,13 +4,11 @@
 // dépend du grade du membre connecté ; les dossiers autorisés s'ouvrent dans
 // le navigateur / l'app Drive.
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../services/url_opener.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
-
-const MethodChannel _urlChannel = MethodChannel('re.benou.benou_re/urls');
 
 class _DriveFolder {
   final String grade; // 'Apprenti' | 'Compagnon' | 'Maitre'
@@ -76,7 +74,7 @@ class LibraryScreen extends StatelessWidget {
   Future<void> _open(BuildContext context, String url) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await _urlChannel.invokeMethod<bool>('openUrl', {'url': url});
+      await openExternalUrl(url);
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(content: Text("Impossible d'ouvrir le dossier Drive.")),
