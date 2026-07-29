@@ -81,6 +81,7 @@ class AppState extends ChangeNotifier {
   Future<void> addSession(Session s) => repo.setSession(s);
   Future<void> updateSession(Session s) => repo.setSession(s);
   Future<void> deleteSession(String id) => repo.deleteSession(id);
+  Future<int> allocateSessionChrono() => repo.allocateSessionChrono();
 
   // Actions visiteurs
   Future<void> addVisitor(Visitor v) => repo.setVisitor(v);

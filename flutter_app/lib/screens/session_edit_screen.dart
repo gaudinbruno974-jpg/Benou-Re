@@ -1,8 +1,11 @@
-// Création / modification d'une tenue (porté depuis src/components/SessionsList.tsx).
-// Champs principaux + sélection des présents, excusés et visiteurs, puis
-// enregistrement dans Firestore via AppState. Les champs non modélisés
-// explicitement (typeTenue, degreTravail, travail1..4, ligneCloture...) sont
-// écrits dans la map brute pour rester compatibles avec le web.
+// Création / modification d'une tenue — parité avec src/components/SessionsList.tsx.
+//
+// Reproduit la planification riche du web : type/degré, date & heure de reprise,
+// heure de suspension, lieu, ordre du jour (4 travaux fixes auto-générés mais
+// modifiables), ordres du jour complémentaires dynamiques, ligne de clôture
+// numérotée automatiquement, et section Agapes (heure, type de repas, médaille).
+// Le chrono est réservé auprès de config/settings à la création (comme React).
+// Les champs de présence (présents / excusés / visiteurs) restent gérés ici.
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -13,12 +16,39 @@ import '../theme.dart';
 
 const _sessionTypes = [
   'Ordinaire',
-  'Solennelle',
-  'Blanche',
-  'Funèbre',
-  'Installation',
+  'Extraordinaire',
+  'Banquet',
+  'Tenue blanche',
+  'Tenue noire',
 ];
-const _degrees = ['Apprenti', 'Compagnon', 'Maitre'];
+const _degrees = ['Apprenti', 'Compagnon', 'Maître'];
+const _repasTypes = [
+  'Agape avec médaille',
+  'Agape partage',
+  'Agape offerte',
+];
+
+// ─── Générateurs de textes (portés de SessionsList.tsx) ──────────────────
+Map<String, String> _travauxFixes(String degre, TimeOfDay? heure) {
+  final ord = Session.degreeOrdinal(degre);
+  final h = heure != null
+      ? '${heure.hour.toString().padLeft(2, '0')}h${heure.minute.toString().padLeft(2, '0')}'
+      : 'xxhxx';
+  return {
+    't1':
+        '$h Ouverture des Travaux au $ord Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ Bruno GAU∴',
+    't2': 'Appel des FF∴ et SS∴ de la loge',
+    't3':
+        'Lecture de la planche tracée de nos derniers travaux au $ord Degré symbolique.',
+    't4': 'Lecture de la correspondance et des affaires diverses.',
+  };
+}
+
+String _ligneCloture(String degre, int ordresCount) {
+  final ord = Session.degreeOrdinal(degre);
+  final n = 4 + ordresCount + 1;
+  return '$n. Clôture des Travaux au $ord Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ Bruno GAU∴';
+}
 
 class SessionEditScreen extends StatefulWidget {
   final Session? session;
@@ -32,9 +62,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _title;
-  late final TextEditingController _sessionNumber;
   late final TextEditingController _location;
-  late final TextEditingController _closingTime;
   late final TextEditingController _tronc;
   late final TextEditingController _vmName;
   late final TextEditingController _t1;
@@ -42,11 +70,17 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   late final TextEditingController _t3;
   late final TextEditingController _t4;
   late final TextEditingController _cloture;
+  late final TextEditingController _medaille;
+  late final List<TextEditingController> _ordres;
 
   late String _type;
   late String _degree;
   DateTime? _date;
-  late bool _hasAgape;
+  TimeOfDay? _heureReprise;
+  TimeOfDay? _heureSuspension;
+  TimeOfDay? _heureAgape;
+  bool _hasAgape = false;
+  String? _typeRepas;
 
   late List<String> _presentIds;
   late List<String> _excusedIds;
@@ -59,12 +93,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     super.initState();
     final s = widget.session;
     _title = TextEditingController(text: s?.title ?? '');
-    _sessionNumber = TextEditingController(text: s?.sessionNumber ?? '');
     _location = TextEditingController(
         text: s?.location.isNotEmpty == true
             ? s!.location
             : (s?.lieuReunion ?? 'Temple Thérèse Eliseman à Saint-Pierre'));
-    _closingTime = TextEditingController(text: s?.closingTime ?? '18:30');
     _tronc = TextEditingController(
         text: s != null && s.troncAmount != 0 ? '${s.troncAmount}' : '');
     _vmName = TextEditingController(text: s?.vmName ?? '');
@@ -73,27 +105,58 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _t3 = TextEditingController(text: s?.travail3 ?? '');
     _t4 = TextEditingController(text: s?.travail4 ?? '');
     _cloture = TextEditingController(text: s?.ligneCloture ?? '');
+    _medaille = TextEditingController(
+        text: (s?.montantMedaille ?? 0) > 0 ? '${s!.montantMedaille}' : '');
 
-    _type = _sessionTypes.contains(s?.typeTenue)
-        ? s!.typeTenue!
-        : (_sessionTypes.contains(s?.type) ? s!.type : 'Ordinaire');
-    _degree = _degrees.contains(s?.degreTravail)
-        ? s!.degreTravail!
-        : (_degrees.contains(s?.degree) ? s!.degree : 'Apprenti');
+    final ordres = (s?.ordresJour ?? const <String>[])
+        .where((o) => o.trim().isNotEmpty)
+        .toList();
+    _ordres = [
+      for (final o in ordres) TextEditingController(text: o),
+      if (ordres.isEmpty) TextEditingController(),
+    ];
+
+    _type = _ensure(s?.typeTenue ?? s?.type, 'Ordinaire');
+    _degree =
+        _ensure(_normalizeDegree(s?.degreTravail ?? s?.degree), 'Apprenti');
     _date = s?.dateTime;
-    _hasAgape = s?.hasAgape ?? false;
+    _heureReprise = _date != null && (_date!.hour != 0 || _date!.minute != 0)
+        ? TimeOfDay(hour: _date!.hour, minute: _date!.minute)
+        : null;
+    _heureSuspension = _parseTime(s?.heureSuspension ?? s?.closingTime);
+    _heureAgape = _parseTime(s?.heureAgape);
+    _hasAgape = s?.suitAgapes ?? false;
+    _typeRepas = _repasTypes.contains(s?.typeRepas) ? s!.typeRepas : null;
     _presentIds = List<String>.from(s?.presentIds ?? const []);
     _excusedIds = List<String>.from(s?.excusedIds ?? const []);
     _visitorIds = List<String>.from(s?.visitorIds ?? const []);
+  }
+
+  String _normalizeDegree(String? d) => d == 'Maitre' ? 'Maître' : (d ?? '');
+
+  String _ensure(String? value, String fallback) {
+    if (value != null && value.isNotEmpty) return value;
+    return fallback;
+  }
+
+  List<String> _itemsWith(List<String> base, String value) =>
+      base.contains(value) ? base : [...base, value];
+
+  TimeOfDay? _parseTime(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return null;
+    final parts = raw.split(RegExp('[:h]'));
+    if (parts.length < 2) return null;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return null;
+    return TimeOfDay(hour: h, minute: m);
   }
 
   @override
   void dispose() {
     for (final c in [
       _title,
-      _sessionNumber,
       _location,
-      _closingTime,
       _tronc,
       _vmName,
       _t1,
@@ -101,10 +164,29 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       _t3,
       _t4,
       _cloture,
+      _medaille,
+      ..._ordres,
     ]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  int get _ordresCount =>
+      _ordres.where((c) => c.text.trim().isNotEmpty).length;
+
+  // Régénère les 4 travaux fixes (comme React sur changement degré/date).
+  void _regenerateTravaux() {
+    final fixes = _travauxFixes(_degree, _heureReprise);
+    _t1.text = fixes['t1']!;
+    _t2.text = fixes['t2']!;
+    _t3.text = fixes['t3']!;
+    _t4.text = fixes['t4']!;
+    _regenerateCloture();
+  }
+
+  void _regenerateCloture() {
+    _cloture.text = _ligneCloture(_degree, _ordresCount);
   }
 
   Future<void> _save() async {
@@ -119,40 +201,74 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     final state = context.read<AppState>();
     final existing = widget.session;
     final id = existing?.id ?? 's_${DateTime.now().millisecondsSinceEpoch}';
-    final iso = DateFormat('yyyy-MM-dd').format(_date!);
+    final dateOnly = DateFormat('yyyy-MM-dd').format(_date!);
+    final dateReprise = _heureReprise != null
+        ? '${dateOnly}T${_heureReprise!.hour.toString().padLeft(2, '0')}:${_heureReprise!.minute.toString().padLeft(2, '0')}'
+        : dateOnly;
+    final closing =
+        _heureSuspension != null ? _fmtTime(_heureSuspension!) : '';
+    final ordres = _ordres
+        .map((c) => c.text.trim())
+        .where((o) => o.isNotEmpty)
+        .toList();
 
     final map = <String, dynamic>{
       if (existing != null) ...existing.toMap(),
       'id': id,
       'title': _title.text.trim(),
-      'date': iso,
-      'dateReprise': iso,
+      'date': dateOnly,
+      'dateReprise': dateReprise,
       'type': _type,
       'typeTenue': _type,
       'degree': _degree,
       'degreTravail': _degree,
       'location': _location.text.trim(),
       'lieuReunion': _location.text.trim(),
-      'sessionNumber': _sessionNumber.text.trim(),
-      'closingTime': _closingTime.text.trim(),
+      'closingTime': closing,
+      'heureSuspension': closing,
       'troncAmount': num.tryParse(_tronc.text.trim().replaceAll(',', '.')) ?? 0,
       'vmName': _vmName.text.trim(),
       'travail1': _t1.text.trim(),
       'travail2': _t2.text.trim(),
       'travail3': _t3.text.trim(),
       'travail4': _t4.text.trim(),
+      'ordresJour': ordres,
       'ligneCloture': _cloture.text.trim(),
       'hasAgape': _hasAgape,
+      'suitAgapes': _hasAgape,
+      'status': existing?.statut ?? 'Planifiée',
       'presentIds': _presentIds,
       'excusedIds': _excusedIds,
       'visitorIds': _visitorIds,
     };
 
-    final chrono = int.tryParse(
-        _sessionNumber.text.trim().replaceAll(RegExp(r'[^\d]'), ''));
-    if (chrono != null) map['chrono'] = chrono;
+    if (_hasAgape) {
+      map['heureAgape'] = _heureAgape != null ? _fmtTime(_heureAgape!) : '';
+      map['agapeTime'] = map['heureAgape'];
+      map['typeRepas'] = _typeRepas ?? '';
+      map['agapeType'] = _typeRepas ?? '';
+      if (_typeRepas == 'Agape avec médaille') {
+        map['montantMedaille'] =
+            num.tryParse(_medaille.text.trim().replaceAll(',', '.')) ?? 0;
+      } else {
+        map.remove('montantMedaille');
+      }
+    } else {
+      map.remove('heureAgape');
+      map.remove('typeRepas');
+      map.remove('montantMedaille');
+      map['agapeType'] = '';
+    }
 
     try {
+      int? chrono = existing?.chrono?.toInt();
+      if (existing == null) {
+        chrono = await state.allocateSessionChrono();
+      }
+      if (chrono != null) {
+        map['chrono'] = chrono;
+        map['sessionNumber'] = '$chrono';
+      }
       final session = Session.fromMap(id, map);
       if (existing == null) {
         await state.addSession(session);
@@ -170,52 +286,179 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     }
   }
 
+  String _fmtTime(TimeOfDay t) =>
+      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final isNew = widget.session == null;
+    final ord = Session.degreeOrdinal(_degree);
 
     return Scaffold(
-      appBar: AppBar(title: Text(isNew ? 'Nouvelle tenue' : 'Modifier la tenue')),
+      appBar:
+          AppBar(title: Text(isNew ? 'Nouvelle tenue' : 'Modifier la tenue')),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _field(_title, 'Titre / objet'),
-            _dateField(),
-            _dropdown('Type de tenue', _type, _sessionTypes,
+            _dropdown('Type de Tenue', _type, _itemsWith(_sessionTypes, _type),
                 (v) => setState(() => _type = v)),
-            _dropdown('Degré', _degree, _degrees,
-                (v) => setState(() => _degree = v)),
-            _field(_location, 'Lieu'),
-            _field(_sessionNumber, 'Numéro de tenue',
-                keyboard: TextInputType.number),
-            _field(_closingTime, 'Heure de clôture'),
+            _dropdown(
+              'Degré de Travail',
+              _degree,
+              _itemsWith(_degrees, _degree),
+              (v) => setState(() {
+                _degree = v;
+                _regenerateTravaux();
+              }),
+              labelBuilder: (d) =>
+                  '$d (${Session.degreeOrdinal(d)} Degré)',
+            ),
+            Row(children: [
+              Expanded(child: _dateField()),
+              const SizedBox(width: 8),
+              Expanded(child: _timeField(
+                'Heure de reprise',
+                _heureReprise,
+                (t) => setState(() {
+                  _heureReprise = t;
+                  _regenerateTravaux();
+                }),
+              )),
+            ]),
+            _timeField('Heure de suspension (clôture)', _heureSuspension,
+                (t) => setState(() => _heureSuspension = t)),
+            _field(_location, 'Lieu de Réunion', icon: Icons.place_outlined),
+            _field(_title, 'Titre / objet (optionnel)'),
+
+            const SizedBox(height: 8),
+            _Heading('ORDRE DU JOUR — TRAVAUX FIXES ($ord Degré)'),
+            _numberedField('1', _t1),
+            _numberedField('2', _t2),
+            _numberedField('3', _t3),
+            _numberedField('4', _t4),
+            const Padding(
+              padding: EdgeInsets.only(top: 4, left: 4),
+              child: Text('Tous les travaux peuvent être modifiés.',
+                  style: TextStyle(color: BrColors.muted, fontSize: 11)),
+            ),
+
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: _Heading('ORDRES DU JOUR COMPLÉMENTAIRES'),
+                ),
+                TextButton.icon(
+                  onPressed: () => setState(
+                      () => _ordres.add(TextEditingController())),
+                  icon: const Icon(Icons.add, size: 16, color: BrColors.teal),
+                  label: const Text('Ajouter',
+                      style: TextStyle(color: BrColors.teal, fontSize: 12)),
+                ),
+              ],
+            ),
+            for (int i = 0; i < _ordres.length; i++)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: 24,
+                      child: Text('${5 + i}.',
+                          style: const TextStyle(
+                              color: BrColors.gold, fontSize: 13)),
+                    ),
+                    Expanded(
+                      child: TextField(
+                        controller: _ordres[i],
+                        style: const TextStyle(color: BrColors.text),
+                        decoration: const InputDecoration(
+                            hintText: 'ex : Lecture de planche...'),
+                        onChanged: (_) => setState(_regenerateCloture),
+                      ),
+                    ),
+                    if (_ordres.length > 1)
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            size: 18, color: BrColors.muted),
+                        onPressed: () => setState(() {
+                          _ordres.removeAt(i).dispose();
+                          _regenerateCloture();
+                        }),
+                      ),
+                  ],
+                ),
+              ),
+
+            const SizedBox(height: 8),
+            _field(_cloture, 'Ligne de clôture'),
+            Padding(
+              padding: const EdgeInsets.only(left: 4),
+              child: Text(
+                  'Numéro auto-généré : ${4 + _ordresCount + 1}° (texte modifiable).',
+                  style: const TextStyle(color: BrColors.muted, fontSize: 11)),
+            ),
+
+            const SizedBox(height: 12),
+            const Divider(color: BrColors.gold),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text("Suit-elle d'Agapes fraternelles ?",
+                  style: TextStyle(color: BrColors.gold, letterSpacing: 1)),
+              activeThumbColor: BrColors.teal,
+              value: _hasAgape,
+              onChanged: (v) => setState(() {
+                _hasAgape = v;
+                if (!v) {
+                  _typeRepas = null;
+                  _heureAgape = null;
+                }
+              }),
+            ),
+            if (_hasAgape) ...[
+              Row(children: [
+                Expanded(
+                  child: _timeField("Heure de l'agape", _heureAgape,
+                      (t) => setState(() => _heureAgape = t)),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _dropdown(
+                    'Type de repas',
+                    _typeRepas ?? '',
+                    ['', ..._repasTypes],
+                    (v) => setState(() {
+                      _typeRepas = v.isEmpty ? null : v;
+                      if (_typeRepas != 'Agape avec médaille') {
+                        _medaille.clear();
+                      }
+                    }),
+                    labelBuilder: (v) =>
+                        v.isEmpty ? '-- Sélectionnez --' : v,
+                  ),
+                ),
+              ]),
+              if (_typeRepas == 'Agape avec médaille')
+                _field(_medaille, 'Montant de la médaille (€)',
+                    keyboard:
+                        const TextInputType.numberWithOptions(decimal: true)),
+            ],
+
+            const SizedBox(height: 12),
+            const Divider(color: BrColors.gold),
             _field(_tronc, 'Tronc de la Veuve (€)',
                 keyboard: const TextInputType.numberWithOptions(decimal: true)),
             _field(_vmName, 'Vénérable Maître'),
-            const SizedBox(height: 8),
-            const _Heading("Ordre du jour"),
-            _field(_t1, 'Travail 1'),
-            _field(_t2, 'Travail 2'),
-            _field(_t3, 'Travail 3'),
-            _field(_t4, 'Travail 4'),
-            _field(_cloture, 'Ligne de clôture'),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Suivi d\'agapes',
-                  style: TextStyle(color: BrColors.text)),
-              activeThumbColor: BrColors.gold,
-              value: _hasAgape,
-              onChanged: (v) => setState(() => _hasAgape = v),
-            ),
+
             const SizedBox(height: 8),
             _MultiSelect(
               label: 'Membres présents',
-              options: [
-                for (final m in state.members) (m.id, m.fullName),
-              ],
+              options: [for (final m in state.members) (m.id, m.fullName)],
               selected: _presentIds,
               onChanged: (ids) => setState(() {
                 _presentIds = ids;
@@ -225,9 +468,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             ),
             _MultiSelect(
               label: 'Membres excusés',
-              options: [
-                for (final m in state.members) (m.id, m.fullName),
-              ],
+              options: [for (final m in state.members) (m.id, m.fullName)],
               selected: _excusedIds,
               onChanged: (ids) => setState(() {
                 _excusedIds = ids;
@@ -244,6 +485,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               selected: _visitorIds,
               onChanged: (ids) => setState(() => _visitorIds = ids),
             ),
+
             const SizedBox(height: 24),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
@@ -255,8 +497,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                       height: 18,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.save),
-              label: Text(_saving ? 'Enregistrement...' : 'Enregistrer'),
+                  : Icon(isNew ? Icons.check_circle : Icons.save),
+              label: Text(_saving
+                  ? 'Traitement...'
+                  : (isNew ? 'PLANIFIER' : 'ENREGISTRER')),
               onPressed: _saving ? null : _save,
             ),
           ],
@@ -266,14 +510,43 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   }
 
   Widget _field(TextEditingController c, String label,
-      {TextInputType? keyboard}) {
+      {TextInputType? keyboard, IconData? icon}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextFormField(
         controller: c,
         keyboardType: keyboard,
         style: const TextStyle(color: BrColors.text),
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: icon != null
+              ? Icon(icon, size: 18, color: BrColors.muted)
+              : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _numberedField(String num, TextEditingController c) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 24,
+            child: Text('$num.',
+                style: const TextStyle(color: BrColors.gold, fontSize: 13)),
+          ),
+          Expanded(
+            child: TextField(
+              controller: c,
+              maxLines: null,
+              style: const TextStyle(color: BrColors.text, fontSize: 13),
+              decoration: InputDecoration(hintText: 'Travail $num'),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -291,14 +564,19 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             lastDate: DateTime(now.year + 3),
             locale: const Locale('fr', 'FR'),
           );
-          if (picked != null) setState(() => _date = picked);
+          if (picked != null) {
+            setState(() {
+              _date = picked;
+              _regenerateTravaux();
+            });
+          }
         },
         child: InputDecorator(
-          decoration: const InputDecoration(labelText: 'Date de la tenue'),
+          decoration: const InputDecoration(labelText: 'Date de reprise'),
           child: Text(
             _date == null
-                ? 'Choisir une date'
-                : DateFormat('EEEE d MMMM y', 'fr_FR').format(_date!),
+                ? 'Choisir'
+                : DateFormat('d MMM y', 'fr_FR').format(_date!),
             style: TextStyle(
                 color: _date == null ? BrColors.muted : BrColors.text),
           ),
@@ -307,17 +585,45 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     );
   }
 
+  Widget _timeField(
+      String label, TimeOfDay? value, ValueChanged<TimeOfDay> onPick) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: InkWell(
+        onTap: () async {
+          final picked = await showTimePicker(
+            context: context,
+            initialTime: value ?? const TimeOfDay(hour: 20, minute: 0),
+          );
+          if (picked != null) onPick(picked);
+        },
+        child: InputDecorator(
+          decoration: InputDecoration(labelText: label),
+          child: Text(
+            value == null ? 'Choisir' : _fmtTime(value),
+            style: TextStyle(
+                color: value == null ? BrColors.muted : BrColors.text),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _dropdown(String label, String value, List<String> options,
-      ValueChanged<String> onChanged) {
+      ValueChanged<String> onChanged,
+      {String Function(String)? labelBuilder}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: DropdownButtonFormField<String>(
         initialValue: value,
         dropdownColor: BrColors.surface,
+        isExpanded: true,
         style: const TextStyle(color: BrColors.text),
         decoration: InputDecoration(labelText: label),
         items: [
-          for (final o in options) DropdownMenuItem(value: o, child: Text(o)),
+          for (final o in options)
+            DropdownMenuItem(
+                value: o, child: Text(labelBuilder != null ? labelBuilder(o) : o)),
         ],
         onChanged: (v) {
           if (v != null) onChanged(v);
@@ -336,7 +642,7 @@ class _Heading extends StatelessWidget {
         padding: const EdgeInsets.only(top: 8, bottom: 4),
         child: Text(text,
             style: const TextStyle(
-                color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
+                color: BrColors.gold, fontSize: 12, letterSpacing: 1.5)),
       );
 }
 
