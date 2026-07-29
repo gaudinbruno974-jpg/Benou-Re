@@ -222,4 +222,36 @@ class Session {
     final v = extra['montantMedaille'];
     return v is num ? v : null;
   }
+
+  // ─── Champs de planification (parité SessionsList.tsx) ────────────────
+  String? get heureSuspension => _s('heureSuspension');
+  String? get heureAgape => _s('heureAgape');
+  String? get typeRepas => _s('typeRepas');
+  String get statut => _s('status') ?? 'Planifiée';
+  bool get suitAgapes => (extra['suitAgapes'] as bool?) ?? hasAgape;
+
+  /// Type affiché : préfère le champ React `typeTenue`, sinon `type`.
+  String get typeLabel =>
+      (typeTenue != null && typeTenue!.isNotEmpty) ? typeTenue! : type;
+
+  /// Degré affiché : préfère le champ React `degreTravail`, sinon `degree`.
+  String get degreeLabel =>
+      (degreTravail != null && degreTravail!.isNotEmpty) ? degreTravail! : degree;
+
+  /// Nombre d'ordres du jour complémentaires non vides.
+  int get ordresJourCount =>
+      ordresJour.where((o) => o.trim().isNotEmpty).length;
+
+  /// Ordinal du degré (1er / 2ème / 3ème).
+  static String degreeOrdinal(String d) {
+    switch (d) {
+      case 'Compagnon':
+        return '2ème';
+      case 'Maître':
+      case 'Maitre':
+        return '3ème';
+      default:
+        return '1er';
+    }
+  }
 }

@@ -101,4 +101,20 @@ class FirestoreRepository {
     await ref.set({'regularSessionChrono': newVal}, SetOptions(merge: true));
     return newVal;
   }
+
+  /// Réserve et renvoie le chrono courant pour une nouvelle tenue, puis
+  /// incrémente le compteur (comportement identique à getAndIncrementChrono
+  /// côté React). Utilise une transaction pour éviter les doublons.
+  Future<int> allocateSessionChrono() {
+    final ref = _db.collection('config').doc('settings');
+    return _db.runTransaction<int>((tx) async {
+      final snap = await tx.get(ref);
+      final current = snap.exists
+          ? ((snap.data()?['regularSessionChrono'] ?? 1) as num).toInt()
+          : 1;
+      tx.set(ref, {'regularSessionChrono': current + 1},
+          SetOptions(merge: true));
+      return current;
+    });
+  }
 }
