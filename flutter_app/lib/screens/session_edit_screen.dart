@@ -6,14 +6,13 @@
 // numérotée automatiquement, et section Agapes (heure, type de repas, médaille).
 // Le chrono est réservé auprès de config/settings à la création (comme React).
 //
-// NOUVEAUTÉ : à la création d'une tenue, on archive automatiquement la
-// convocation PDF dans un dossier Google Drive (nommé "Tenue X jj mm aaaa").
-// Si la connexion Google échoue, on propose le téléchargement local du PDF.
+// À la création d'une tenue, on crée le dossier Google Drive, on y dépose la
+// convocation PDF et on mémorise l'ID/URL du dossier dans la session. Cet
+// archivage est « best effort » : son échec n'empêche pas l'enregistrement.
 
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../models/session.dart';
@@ -186,182 +185,27 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _cloture.text = _ligneCloture(_degree, _ordresCount);
   }
 
-  // ─── PROPOSER LE TÉLÉCHARGEMENT LOCAL DU PDF ──────────────────────
-  Future<void> _proposeDownloadLocal(Session session, int chrono) async {
-    if (!mounted) return;
-
-    final shouldDownload = await showDialog<bool>(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: BrColors.surface,
-        title: const Text(
-          'Télécharger la convocation ?',
-          style: TextStyle(color: BrColors.gold),
-        ),
-        content: const Text(
-          'L\'archivage automatique n\'a pas pu être effectué.\n'
-          'Vous pouvez télécharger le PDF de convocation localement '
-          'et le déposer manuellement dans votre Drive plus tard.\n\n'
-          'Voulez-vous le télécharger maintenant ?',
-          style: TextStyle(color: BrColors.text),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Non'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Télécharger'),
-          ),
-        ],
-      ),
+  // ─── ARCHIVAGE DRIVE À LA CRÉATION (best effort) ──────────────────
+  Future<Session> _createDriveFolder(Session session, int chrono) async {
+    final pdf = Uint8List.fromList(await buildConvocationPdf(session, chrono));
+    final res = await DriveService.instance.ensureFolderAndUpload(
+      session,
+      {'Convocation_Tenue_$chrono.pdf': pdf},
     );
-
-    if (shouldDownload == true) {
-      try {
-        final bytes = await buildConvocationPdf(session, chrono);
-        // Utiliser le package `printing` pour télécharger
-        await Printing.sharePdf(
-          bytes: Uint8List.fromList(bytes),
-          filename: 'Convocation_Tenue_$chrono.pdf',
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('PDF téléchargé avec succès'),
-              backgroundColor: BrColors.teal,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Erreur lors du téléchargement : $e'),
-              backgroundColor: BrColors.error,
-            ),
-          );
-        }
-      }
-    }
-  }
-
-  // ─── ARCHIVAGE AUTOMATIQUE AVEC GESTION DE CONNEXION ──────────────
-  Future<void> _autoArchive(Session session, int chrono) async {
-    print('🔍 _autoArchive: Début pour la tenue $chrono');
-
-    // Vérifier si déjà connecté
-    bool isConnected = DriveService.instance.isConnected;
-    print('🔍 Connecté à Google : $isConnected');
-
-    if (!isConnected) {
-      // Proposer la connexion via une boîte de dialogue
-      final shouldConnect = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: BrColors.surface,
-          title: const Text(
-            'Connexion Google requise',
-            style: TextStyle(color: BrColors.gold),
-          ),
-          content: const Text(
-            'Pour archiver automatiquement la convocation sur Google Drive, '
-            'vous devez vous connecter à votre compte Google.\n\n'
-            'Souhaitez-vous vous connecter maintenant ?',
-            style: TextStyle(color: BrColors.text),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Non, plus tard'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Se connecter'),
-            ),
-          ],
+    final map = session.toMap();
+    map['driveFolderId'] = res.folderId;
+    map['driveFolderUrl'] = res.folderUrl;
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Dossier Drive créé par ${res.email}'),
+          backgroundColor: BrColors.teal,
         ),
       );
-
-      if (shouldConnect != true) {
-        // L'utilisateur refuse la connexion → on propose le téléchargement local
-        await _proposeDownloadLocal(session, chrono);
-        return;
-      }
-
-      // Tenter la connexion
-      try {
-        print('🔍 Tentative de connexion Google...');
-        // On appelle une méthode qui force l'affichage du pop-up OAuth
-        await DriveService.instance.archivePdfs(session, {});
-        // Si on arrive ici, la connexion a réussi
-        isConnected = true;
-        print('✅ Connexion Google réussie');
-      } catch (e) {
-        print('❌ Échec de connexion : $e');
-        // Si la connexion échoue, on propose le téléchargement local
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Connexion Google échouée. Téléchargez le PDF localement.',
-              ),
-              backgroundColor: BrColors.error,
-              duration: Duration(seconds: 4),
-            ),
-          );
-          await _proposeDownloadLocal(session, chrono);
-        }
-        return;
-      }
     }
-
-    // Maintenant connecté, on peut archiver
-    try {
-      // Générer le PDF
-      print('🔍 Génération du PDF de convocation...');
-      final convocationBytes = await buildConvocationPdf(session, chrono);
-      print('✅ PDF généré (${convocationBytes.length} octets)');
-
-      // Archiver
-      print('🔍 Archivage sur Google Drive...');
-      final files = <String, Uint8List>{
-        'Convocation_Tenue_$chrono.pdf': Uint8List.fromList(convocationBytes),
-      };
-      final email = await DriveService.instance.archivePdfs(session, files);
-      print('✅ Archivage réussi par $email');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✅ Dossier Drive créé par $email'),
-            backgroundColor: BrColors.teal,
-            duration: const Duration(seconds: 3),
-          ),
-        );
-      }
-    } catch (e, stack) {
-      print('❌ ERREUR ARCHIVAGE : $e');
-      print('📚 Stack trace : $stack');
-
-      if (mounted) {
-        // En cas d'échec de l'upload, proposer le téléchargement local
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('⚠️ Échec de l\'archivage : $e'),
-            backgroundColor: BrColors.error,
-            duration: const Duration(seconds: 4),
-          ),
-        );
-        await _proposeDownloadLocal(session, chrono);
-      }
-    }
+    return Session.fromMap(session.id, map);
   }
 
-  // ─── MÉTHODE _save MODIFIÉE AVEC APPEL À _autoArchive ──────────────
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_date == null) {
@@ -433,7 +277,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       int? chrono = existing?.chrono?.toInt();
       if (existing == null) {
         chrono = await state.allocateSessionChrono();
-        print('🔍 Nouveau chrono alloué : $chrono');
       }
       if (chrono != null) {
         map['chrono'] = chrono;
@@ -442,27 +285,28 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       final session = Session.fromMap(id, map);
       if (existing == null) {
         await state.addSession(session);
-        print('✅ Tenue créée avec ID : $id');
+        // Archivage Drive « best effort » : ne doit pas bloquer la création.
+        if (chrono != null) {
+          try {
+            await state.updateSession(
+                await _createDriveFolder(session, chrono));
+          } catch (e) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Dossier Drive non créé : $e'),
+                  backgroundColor: BrColors.error,
+                ),
+              );
+            }
+          }
+        }
       } else {
         await state.updateSession(session);
-        print('✅ Tenue mise à jour : $id');
-      }
-
-      // ─── ARCHIVAGE AUTOMATIQUE (uniquement pour une nouvelle tenue) ────
-      if (existing == null && chrono != null) {
-        print('🔍 Lancement de l\'archivage automatique pour la tenue $chrono');
-        // On attend 1 seconde pour laisser le temps à Firestore de synchroniser
-        await Future.delayed(const Duration(seconds: 1));
-        await _autoArchive(session, chrono);
-      } else {
-        print(
-          'ℹ️ Pas d\'archivage automatique (tenue existante ou chrono nul)',
-        );
       }
 
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
-      print('❌ Erreur lors de l\'enregistrement : $e');
       if (mounted) {
         setState(() => _saving = false);
         ScaffoldMessenger.of(

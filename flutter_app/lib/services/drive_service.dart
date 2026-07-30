@@ -153,12 +153,25 @@ class DriveService {
   /// Renvoie l'e-mail Google utilisé.
   Future<String> archivePdfs(
       Session session, Map<String, Uint8List> files) async {
+    final res = await ensureFolderAndUpload(session, files);
+    return res.email;
+  }
+
+  /// Crée (ou retrouve) le dossier Drive de la tenue, y dépose [files] et
+  /// renvoie l'identifiant, l'URL du dossier et l'e-mail Google utilisé.
+  Future<({String folderId, String folderUrl, String email})>
+      ensureFolderAndUpload(
+          Session session, Map<String, Uint8List> files) async {
     final headers = await _authHeaders();
     final folderId = await _findOrCreateFolder(
         headers, folderName(session), kDriveParentFolderId);
     for (final entry in files.entries) {
       await _uploadPdf(headers, folderId, entry.key, entry.value);
     }
-    return currentEmail ?? 'compte Google';
+    return (
+      folderId: folderId,
+      folderUrl: 'https://drive.google.com/drive/folders/$folderId',
+      email: currentEmail ?? 'compte Google',
+    );
   }
 }
