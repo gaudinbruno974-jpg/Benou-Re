@@ -2,14 +2,15 @@
 import 'package:flutter/material.dart';
 
 class BrColors {
-  static const background = Color(0xFF081619);
-  static const backgroundDark = Color(0xFF040D10);
-  static const surface = Color(0xFF122428);
-  static const gold = Color(0xFFC5A059);
-  static const goldBright = Color(0xFFE0B96A);
-  static const teal = Color(0xFF0C7A7A);
-  static const muted = Color(0xFF87A0A0);
-  static const text = Color(0xFFE8E8E8);
+  // Palette éclaircie : fonds plus clairs, accents plus vifs, texte plus lisible.
+  static const background = Color(0xFF11292E);
+  static const backgroundDark = Color(0xFF0B1E23);
+  static const surface = Color(0xFF1C3941);
+  static const gold = Color(0xFFD4B36A);
+  static const goldBright = Color(0xFFEDCB82);
+  static const teal = Color(0xFF16A0A0);
+  static const muted = Color(0xFFAAC2C2);
+  static const text = Color(0xFFF2F4F4);
 }
 
 ThemeData buildBrTheme() {
