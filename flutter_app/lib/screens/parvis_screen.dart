@@ -17,8 +17,14 @@ class _MenuItem {
   final Color color;
   final bool visible;
   final Widget Function() build;
-  const _MenuItem(this.title, this.subtitle, this.icon, this.color,
-      this.visible, this.build);
+  const _MenuItem(
+    this.title,
+    this.subtitle,
+    this.icon,
+    this.color,
+    this.visible,
+    this.build,
+  );
 }
 
 class ParvisScreen extends StatelessWidget {
@@ -30,41 +36,77 @@ class ParvisScreen extends StatelessWidget {
     final user = state.currentUser!;
     final fn = user.function.trim();
     final isAdmin = user.isAdmin;
-    final isTreasury = isAdmin ||
+    final isTreasury =
+        isAdmin ||
         fn.contains('Trésorier') ||
         fn.contains('Vénérable Maître') ||
         fn.contains('Secrétaire');
-    final isVisitors = isAdmin ||
-        fn.contains('Vénérable Maître') ||
-        fn.contains('Secrétaire');
+    final isVisitors =
+        isAdmin || fn.contains('Vénérable Maître') || fn.contains('Secrétaire');
 
     final items = <_MenuItem>[
-      _MenuItem('Membres', 'Tableau des colonnes', Icons.people_outline,
-          BrColors.gold, true, () => const MembersScreen()),
-      _MenuItem('Tenues', 'Calendrier des travaux', Icons.calendar_today,
-          BrColors.teal, true, () => const SessionsScreen()),
-      _MenuItem('Visiteurs', 'Répertoire des visiteurs', Icons.shield_outlined,
-          const Color(0xFF34D399), isVisitors, () => const VisitorsScreen()),
       _MenuItem(
-          "Morceaux d'architecture",
-          'Planches et travaux',
-          Icons.history_edu,
-          const Color(0xFF38BDF8),
-          true,
-          () => const LibraryScreen(type: 'Architecture')),
-      _MenuItem('Instructions', 'Cahiers de formation', Icons.school_outlined,
-          const Color(0xFF818CF8), true,
-          () => const LibraryScreen(type: 'Instructions')),
-      _MenuItem('Rituels', 'Textes sacrés', Icons.menu_book_outlined,
-          const Color(0xFFA78BFA), true,
-          () => const LibraryScreen(type: 'Rituels')),
-      _MenuItem('Trésorerie', 'Bilans & Cotisations', Icons.work_outline,
-          const Color(0xFFFB7185), isTreasury, () => const TreasuryScreen()),
+        'Membres',
+        'Tableau des colonnes',
+        Icons.people_outline,
+        BrColors.gold,
+        true,
+        () => const MembersScreen(),
+      ),
+      _MenuItem(
+        'Tenues',
+        'Calendrier des travaux',
+        Icons.calendar_today,
+        BrColors.teal,
+        true,
+        () => const SessionsScreen(),
+      ),
+      _MenuItem(
+        'Visiteurs',
+        'Répertoire des visiteurs',
+        Icons.shield_outlined,
+        BrColors.menuVisiteurs,
+        isVisitors,
+        () => const VisitorsScreen(),
+      ),
+      _MenuItem(
+        "Morceaux d'architecture",
+        'Planches et travaux',
+        Icons.history_edu,
+        BrColors.menuArchitecture,
+        true,
+        () => const LibraryScreen(type: 'Architecture'),
+      ),
+      _MenuItem(
+        'Instructions',
+        'Cahiers de formation',
+        Icons.school_outlined,
+        BrColors.menuInstruction,
+        true,
+        () => const LibraryScreen(type: 'Instructions'),
+      ),
+      _MenuItem(
+        'Rituels',
+        'Textes sacrés',
+        Icons.menu_book_outlined,
+        BrColors.menuRituels,
+        true,
+        () => const LibraryScreen(type: 'Rituels'),
+      ),
+      _MenuItem(
+        'Trésorerie',
+        'Bilans & Cotisations',
+        Icons.work_outline,
+        BrColors.menuTresorerie,
+        isTreasury,
+        () => const TreasuryScreen(),
+      ),
     ];
     final visibleItems = items.where((i) => i.visible).toList();
 
-    final activeMembers =
-        state.members.where((m) => m.status == 'Actif').length;
+    final activeMembers = state.members
+        .where((m) => m.status == 'Actif')
+        .length;
 
     return Scaffold(
       appBar: AppBar(
@@ -79,10 +121,14 @@ class ParvisScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: const [
-                Text('R. L. Bénou Ré',
-                    style: TextStyle(fontSize: 16, letterSpacing: 1)),
-                Text('Orient de Saint-Pierre',
-                    style: TextStyle(fontSize: 11, color: BrColors.muted)),
+                Text(
+                  'R. L. Bénou Ré',
+                  style: TextStyle(fontSize: 16, letterSpacing: 1),
+                ),
+                Text(
+                  'Orient de Saint-Pierre',
+                  style: TextStyle(fontSize: 11, color: BrColors.muted),
+                ),
               ],
             ),
           ],
@@ -90,7 +136,7 @@ class ParvisScreen extends StatelessWidget {
         actions: [
           IconButton(
             tooltip: 'Quitter le Temple',
-            icon: const Icon(Icons.logout, color: Color(0xFFFB7185)),
+            icon: const Icon(Icons.logout, color: BrColors.menuTresorerie),
             onPressed: () => state.logout(),
           ),
         ],
@@ -109,9 +155,10 @@ class ParvisScreen extends StatelessWidget {
                     Text(
                       'Salutations Fraternelles, mon T. C. F. ${user.firstName}',
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold),
+                        color: BrColors.text,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
@@ -126,50 +173,62 @@ class ParvisScreen extends StatelessWidget {
             Row(
               children: [
                 _StatCard(
-                    label: 'Membres actifs',
-                    value: '$activeMembers',
-                    icon: Icons.people),
+                  label: 'Membres actifs',
+                  value: '$activeMembers',
+                  icon: Icons.people,
+                ),
                 const SizedBox(width: 12),
                 _StatCard(
-                    label: 'Tenues',
-                    value: '${state.sessions.length}',
-                    icon: Icons.calendar_month),
+                  label: 'Tenues',
+                  value: '${state.sessions.length}',
+                  icon: Icons.calendar_month,
+                ),
                 const SizedBox(width: 12),
                 _StatCard(
-                    label: 'Visiteurs',
-                    value: '${state.visitors.length}',
-                    icon: Icons.shield),
+                  label: 'Visiteurs',
+                  value: '${state.visitors.length}',
+                  icon: Icons.shield,
+                ),
               ],
             ),
             const SizedBox(height: 24),
-            const Text('VOTRE ESPACE DE TRAVAIL',
-                style: TextStyle(
-                    color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
+            const Text(
+              'VOTRE ESPACE DE TRAVAIL',
+              style: TextStyle(
+                color: BrColors.gold,
+                fontSize: 12,
+                letterSpacing: 2,
+              ),
+            ),
             const SizedBox(height: 12),
-            LayoutBuilder(builder: (context, constraints) {
-              final cols = constraints.maxWidth > 700 ? 2 : 1;
-              return GridView.count(
-                crossAxisCount: cols,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 4.5,
-                children: [
-                  for (final item in visibleItems)
-                    _MenuCard(
-                      item: item,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => item.build()),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final cols = constraints.maxWidth > 700 ? 2 : 1;
+                return GridView.count(
+                  crossAxisCount: cols,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 4.5,
+                  children: [
+                    for (final item in visibleItems)
+                      _MenuCard(
+                        item: item,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).push(MaterialPageRoute(builder: (_) => item.build())),
                       ),
-                    ),
-                ],
-              );
-            }),
+                  ],
+                );
+              },
+            ),
             const SizedBox(height: 24),
             const Center(
-              child: Text('RL Bénou Ré • RAPMM • v1.0.0',
-                  style: TextStyle(color: BrColors.muted, fontSize: 11)),
+              child: Text(
+                'RL Bénou Ré • RAPMM • v1.0.0',
+                style: TextStyle(color: BrColors.muted, fontSize: 11),
+              ),
             ),
           ],
         ),
@@ -182,8 +241,11 @@ class _StatCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  const _StatCard(
-      {required this.label, required this.value, required this.icon});
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -195,15 +257,20 @@ class _StatCard extends StatelessWidget {
             children: [
               Icon(icon, color: BrColors.gold, size: 22),
               const SizedBox(height: 8),
-              Text(value,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold)),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: BrColors.text,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 2),
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: BrColors.muted, fontSize: 11)),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: BrColors.muted, fontSize: 11),
+              ),
             ],
           ),
         ),
@@ -233,8 +300,7 @@ class _MenuCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   color: item.color.withValues(alpha: 0.1),
-                  border:
-                      Border.all(color: item.color.withValues(alpha: 0.3)),
+                  border: Border.all(color: item.color.withValues(alpha: 0.3)),
                 ),
                 child: Icon(item.icon, color: item.color),
               ),
@@ -244,23 +310,29 @@ class _MenuCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(item.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold)),
-                    Text(item.subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(color: BrColors.muted, fontSize: 12)),
+                    Text(
+                      item.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: BrColors.text,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      item.subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: BrColors.muted,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward,
-                  color: BrColors.gold, size: 18),
+              const Icon(Icons.arrow_forward, color: BrColors.gold, size: 18),
             ],
           ),
         ),

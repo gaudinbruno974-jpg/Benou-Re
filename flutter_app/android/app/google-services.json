@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "184228725535",
+    "project_id": "benou-re-loge",
+    "storage_bucket": "benou-re-loge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:184228725535:android:e831784d7837eadc08a62a",
+        "android_client_info": {
+          "package_name": "re.benou.benou_re"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "184228725535-kptstidkro6e2rr8naau5pbjllusf4vk.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "re.benou.benou_re",
+            "certificate_hash": "f136bcca65a8e2fbac61bb11835b3a652d6bb9e6"
+          }
+        },
+        {
+          "client_id": "184228725535-0h0l98qrg18f8bnecs0t3k98llj1raq2.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBrQaUIG2AjSRCAwjFilVnrLcuZPEum39Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "184228725535-0h0l98qrg18f8bnecs0t3k98llj1raq2.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "184228725535-nt27evr72vn4cuven9c45g3f740tqlep.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "re.benou.benouRe"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

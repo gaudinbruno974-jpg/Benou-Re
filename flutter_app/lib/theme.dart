@@ -1,16 +1,24 @@
-// Thème sombre teal/or, repris de l'identité visuelle web (LoginScreen/Parvis).
 import 'package:flutter/material.dart';
 
 class BrColors {
-  // Palette éclaircie : fonds plus clairs, accents plus vifs, texte plus lisible.
-  static const background = Color(0xFF11292E);
-  static const backgroundDark = Color(0xFF0B1E23);
-  static const surface = Color(0xFF1C3941);
+  // ---- PALETTE ÉCLAIRCIE ----
+  static const background = Color(0xFF1A4A55);
+  static const backgroundDark = Color(0xFF143B44);
+  static const surface = Color(0xFF2A5F6B);
   static const gold = Color(0xFFD4B36A);
   static const goldBright = Color(0xFFEDCB82);
-  static const teal = Color(0xFF16A0A0);
-  static const muted = Color(0xFFAAC2C2);
-  static const text = Color(0xFFF2F4F4);
+  static const teal = Color(0xFF20B2B2);
+  static const muted = Color(0xFFC4D8D8);
+  static const text = Color(0xFFF8FAFA);
+
+  // NOUVELLES CONSTANTES (pour les menus et erreurs)
+  static const error = Color(0xFFFF8A80);
+  static const divider = Color(0x40FFFFFF);
+  static const menuArchitecture = Color(0xFF4FC3F7);
+  static const menuInstruction = Color(0xFF9FA8DA);
+  static const menuRituels = Color(0xFFCE93D8);
+  static const menuTresorerie = Color(0xFFEF9A9A);
+  static const menuVisiteurs = Color(0xFF81C784);
 }
 
 ThemeData buildBrTheme() {
@@ -22,12 +30,18 @@ ThemeData buildBrTheme() {
       secondary: BrColors.gold,
       surface: BrColors.surface,
       onSurface: BrColors.text,
+      error: BrColors.error,
     ),
     appBarTheme: const AppBarTheme(
       backgroundColor: BrColors.surface,
       foregroundColor: BrColors.text,
       elevation: 0,
       centerTitle: false,
+      titleTextStyle: TextStyle(
+        color: BrColors.gold,
+        fontSize: 20,
+        fontWeight: FontWeight.w600,
+      ),
     ),
     cardTheme: CardThemeData(
       color: BrColors.surface,
@@ -53,16 +67,22 @@ ThemeData buildBrTheme() {
         borderSide: const BorderSide(color: BrColors.gold),
       ),
       labelStyle: const TextStyle(color: BrColors.muted),
+      hintStyle: const TextStyle(color: BrColors.muted),
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
         backgroundColor: BrColors.teal,
         foregroundColor: BrColors.text,
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
+    ),
+    textTheme: base.textTheme.copyWith(
+      headlineMedium: base.textTheme.headlineMedium?.copyWith(
+        color: BrColors.gold,
+        fontWeight: FontWeight.bold,
+      ),
+      titleLarge: base.textTheme.titleLarge?.copyWith(color: BrColors.text),
     ),
   );
 }

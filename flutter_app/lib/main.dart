@@ -13,9 +13,7 @@ import 'screens/parvis_screen.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('fr_FR', null);
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const BenouReApp());
 }
 
@@ -29,7 +27,7 @@ class BenouReApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Bénou Ré',
         debugShowCheckedModeBanner: false,
-        theme: buildBrTheme(),
+        theme: buildBrTheme(), // ✅ Le thème est bien centralisé
         locale: const Locale('fr', 'FR'),
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
@@ -49,15 +47,17 @@ class _Root extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
+
+    // Écran de chargement : utilise les couleurs du thème
     if (state.authLoading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: BrColors.backgroundDark,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: BrColors.gold),
-              SizedBox(height: 24),
+              const CircularProgressIndicator(color: BrColors.gold),
+              const SizedBox(height: 24),
               Text(
                 'Chargement du Temple...',
                 style: TextStyle(color: BrColors.muted, letterSpacing: 2),
@@ -67,9 +67,13 @@ class _Root extends StatelessWidget {
         ),
       );
     }
+
+    // Utilisateur non connecté → LoginScreen
     if (state.currentUser == null) {
       return const LoginScreen();
     }
+
+    // Utilisateur connecté → ParvisScreen
     return const ParvisScreen();
   }
 }

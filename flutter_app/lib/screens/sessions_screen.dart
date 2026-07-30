@@ -37,14 +37,17 @@ class SessionsScreen extends StatelessWidget {
         backgroundColor: BrColors.teal,
         icon: const Icon(Icons.add),
         label: const Text('Nouvelle tenue'),
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SessionEditScreen()),
-        ),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const SessionEditScreen())),
       ),
       body: sessions.isEmpty
           ? const Center(
-              child: Text('Aucune tenue planifiée',
-                  style: TextStyle(color: BrColors.muted)))
+              child: Text(
+                'Aucune tenue planifiée',
+                style: TextStyle(color: BrColors.muted),
+              ),
+            )
           : ListView.separated(
               padding: const EdgeInsets.all(12),
               itemCount: sessions.length,
@@ -88,8 +91,10 @@ class _SessionCard extends StatelessWidget {
                 runSpacing: 6,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  _badge(s.typeLabel,
-                      s.typeLabel == 'Banquet' ? BrColors.gold : BrColors.teal),
+                  _badge(
+                    s.typeLabel,
+                    s.typeLabel == 'Banquet' ? BrColors.gold : BrColors.teal,
+                  ),
                   _badge('${s.degreeLabel} ($ord Degré)', BrColors.gold),
                   _badge(s.statut, _statusColor(s.statut)),
                   if (s.chrono != null)
@@ -97,17 +102,21 @@ class _SessionCard extends StatelessWidget {
                   if ((s.driveFolderUrl ?? '').isNotEmpty)
                     _badge('Drive', BrColors.teal, icon: Icons.folder_open),
                   if (s.isValidated)
-                    _badge('Validée', const Color(0xFF34D399),
-                        icon: Icons.verified),
+                    _badge(
+                      'Validée',
+                      const Color(0xFF34D399),
+                      icon: Icons.verified,
+                    ),
                 ],
               ),
               const SizedBox(height: 10),
               Text(
                 _capitalize(formatSessionDate(s)),
                 style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16),
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 6),
               Wrap(
@@ -116,12 +125,15 @@ class _SessionCard extends StatelessWidget {
                 children: [
                   if (heure.isNotEmpty)
                     _iconText(
-                        Icons.schedule,
-                        (s.heureSuspension ?? '').isNotEmpty
-                            ? '$heure → ${s.heureSuspension}'
-                            : heure),
-                  _iconText(Icons.place_outlined,
-                      s.location.isNotEmpty ? s.location : '—'),
+                      Icons.schedule,
+                      (s.heureSuspension ?? '').isNotEmpty
+                          ? '$heure → ${s.heureSuspension}'
+                          : heure,
+                    ),
+                  _iconText(
+                    Icons.place_outlined,
+                    s.location.isNotEmpty ? s.location : '—',
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -129,23 +141,29 @@ class _SessionCard extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 10),
                 decoration: const BoxDecoration(
                   border: Border(
-                      left: BorderSide(color: BrColors.gold, width: 2)),
+                    left: BorderSide(color: BrColors.gold, width: 2),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ORDRE DU JOUR ($points points)',
-                        style: const TextStyle(
-                            color: BrColors.muted,
-                            fontSize: 10,
-                            letterSpacing: 1)),
+                    Text(
+                      'ORDRE DU JOUR ($points points)',
+                      style: const TextStyle(
+                        color: BrColors.muted,
+                        fontSize: 10,
+                        letterSpacing: 1,
+                      ),
+                    ),
                     const SizedBox(height: 2),
                     Text(
                       _agendaSummary(s),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style:
-                          const TextStyle(color: BrColors.muted, fontSize: 12),
+                      style: const TextStyle(
+                        color: BrColors.muted,
+                        fontSize: 12,
+                      ),
                     ),
                   ],
                 ),
@@ -163,28 +181,41 @@ class _SessionCard extends StatelessWidget {
               const Divider(height: 20, color: BrColors.gold),
               Row(
                 children: [
-                  _action(context, Icons.groups_outlined, 'Émargement',
-                      () => Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) =>
-                              EmargementScreen(sessionId: s.id)))),
+                  _action(
+                    context,
+                    Icons.groups_outlined,
+                    'Émargement',
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EmargementScreen(sessionId: s.id),
+                      ),
+                    ),
+                  ),
                   const Spacer(),
                   IconButton(
                     tooltip: 'Modifier',
-                    icon: const Icon(Icons.edit,
-                        size: 20, color: BrColors.muted),
+                    icon: const Icon(
+                      Icons.edit,
+                      size: 20,
+                      color: BrColors.muted,
+                    ),
                     onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                SessionEditScreen(session: s))),
+                      MaterialPageRoute(
+                        builder: (_) => SessionEditScreen(session: s),
+                      ),
+                    ),
                   ),
                   IconButton(
                     tooltip: 'Détail & documents',
-                    icon: const Icon(Icons.chevron_right,
-                        color: BrColors.muted),
+                    icon: const Icon(
+                      Icons.chevron_right,
+                      color: BrColors.muted,
+                    ),
                     onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                SessionDetailScreen(session: s))),
+                      MaterialPageRoute(
+                        builder: (_) => SessionDetailScreen(session: s),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -237,9 +268,14 @@ class _SessionCard extends StatelessWidget {
             Icon(icon, size: 12, color: color),
             const SizedBox(width: 3),
           ],
-          Text(text,
-              style: TextStyle(
-                  color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -252,19 +288,26 @@ class _SessionCard extends StatelessWidget {
         Icon(icon, size: 14, color: color ?? BrColors.teal),
         const SizedBox(width: 4),
         Flexible(
-          child: Text(text,
-              style: TextStyle(color: color ?? BrColors.muted, fontSize: 12)),
+          child: Text(
+            text,
+            style: TextStyle(color: color ?? BrColors.muted, fontSize: 12),
+          ),
         ),
       ],
     );
   }
 
   Widget _action(
-      BuildContext context, IconData icon, String label, VoidCallback onTap) {
+    BuildContext context,
+    IconData icon,
+    String label,
+    VoidCallback onTap,
+  ) {
     return TextButton.icon(
       style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFF34D399),
-          padding: const EdgeInsets.symmetric(horizontal: 8)),
+        foregroundColor: const Color(0xFF34D399),
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+      ),
       onPressed: onTap,
       icon: Icon(icon, size: 16),
       label: Text(label, style: const TextStyle(fontSize: 12)),
@@ -303,7 +346,8 @@ class SessionDetailScreen extends StatelessWidget {
             tooltip: 'Modifier',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                  builder: (_) => SessionEditScreen(session: session)),
+                builder: (_) => SessionEditScreen(session: session),
+              ),
             ),
           ),
           IconButton(
@@ -319,25 +363,40 @@ class SessionDetailScreen extends StatelessWidget {
           _infoRow('Date', formatSessionDate(session)),
           _infoRow('Type', session.type),
           _infoRow('Degré', session.degree),
-          _infoRow('Lieu', session.location.isNotEmpty ? session.location : '—'),
+          _infoRow(
+            'Lieu',
+            session.location.isNotEmpty ? session.location : '—',
+          ),
           _infoRow('Tronc de la Veuve', '${session.troncAmount} €'),
           _infoRow('Clôture', session.closingTime),
           const SizedBox(height: 16),
-          _section('Membres présents (${present.length})',
-              present.map((m) => m.fullName).toList()),
-          _section('Membres excusés (${excused.length})',
-              excused.map((m) => m.fullName).toList()),
-          _section('Visiteurs (${visitors.length})',
-              visitors.map((v) => '${v.fullName} — ${v.lodge}').toList()),
+          _section(
+            'Membres présents (${present.length})',
+            present.map((m) => m.fullName).toList(),
+          ),
+          _section(
+            'Membres excusés (${excused.length})',
+            excused.map((m) => m.fullName).toList(),
+          ),
+          _section(
+            'Visiteurs (${visitors.length})',
+            visitors.map((v) => '${v.fullName} — ${v.lodge}').toList(),
+          ),
           const SizedBox(height: 20),
-          const Text('DOCUMENTS',
-              style: TextStyle(
-                  color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
+          const Text(
+            'DOCUMENTS',
+            style: TextStyle(
+              color: BrColors.gold,
+              fontSize: 12,
+              letterSpacing: 2,
+            ),
+          ),
           const SizedBox(height: 12),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-                foregroundColor: BrColors.goldBright,
-                side: const BorderSide(color: BrColors.gold)),
+              foregroundColor: BrColors.goldBright,
+              side: const BorderSide(color: BrColors.gold),
+            ),
             icon: const Icon(Icons.draw_outlined, size: 18),
             label: const Text('Émargement / signatures'),
             onPressed: () => Navigator.of(context).push(
@@ -371,7 +430,8 @@ class SessionDetailScreen extends StatelessWidget {
           const SizedBox(height: 10),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF701A75)),
+              backgroundColor: const Color(0xFF701A75),
+            ),
             icon: const Icon(Icons.history_edu, size: 18),
             label: const Text('Planche tracée (PDF)'),
             onPressed: () => _openPdf(
@@ -388,8 +448,9 @@ class SessionDetailScreen extends StatelessWidget {
           const SizedBox(height: 10),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF34D399),
-                side: const BorderSide(color: Color(0xFF34D399))),
+              foregroundColor: const Color(0xFF34D399),
+              side: const BorderSide(color: Color(0xFF34D399)),
+            ),
             icon: const Icon(Icons.cloud_upload_outlined, size: 18),
             label: const Text('Archiver sur Google Drive'),
             onPressed: () => _archiveDrive(context, session, state),
@@ -405,25 +466,39 @@ class SessionDetailScreen extends StatelessWidget {
   }
 
   Future<void> _archiveDrive(
-      BuildContext context, Session session, AppState state) async {
+    BuildContext context,
+    Session session,
+    AppState state,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
-    messenger.showSnackBar(const SnackBar(
-        content: Text('Connexion Google et archivage en cours...')));
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Connexion Google et archivage en cours...'),
+      ),
+    );
     try {
       final chrono = _chrono(session);
       final files = <String, Uint8List>{
         'Convocation_Tenue_$chrono.pdf': Uint8List.fromList(
-            await buildConvocationPdf(session, chrono)),
+          await buildConvocationPdf(session, chrono),
+        ),
         'Emargement_Tenue_$chrono.pdf': Uint8List.fromList(
-            await buildEmargementPdf(session, state.members, state.visitors)),
+          await buildEmargementPdf(session, state.members, state.visitors),
+        ),
         'PlancheTracee_Tenue_$chrono.pdf': Uint8List.fromList(
-            await buildPlancheTraceePdf(
-                session, state.members, state.visitors, chrono)),
+          await buildPlancheTraceePdf(
+            session,
+            state.members,
+            state.visitors,
+            chrono,
+          ),
+        ),
       };
       final email = await DriveService.instance.archivePdfs(session, files);
       messenger.hideCurrentSnackBar();
-      messenger.showSnackBar(SnackBar(
-          content: Text('Archivé sur Google Drive ($email).')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Archivé sur Google Drive ($email).')),
+      );
     } catch (e) {
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(SnackBar(content: Text('Drive : $e')));
@@ -431,21 +506,28 @@ class SessionDetailScreen extends StatelessWidget {
   }
 
   Future<void> _confirmDelete(
-      BuildContext context, AppState state, Session session) async {
+    BuildContext context,
+    AppState state,
+    Session session,
+  ) async {
     final navigator = Navigator.of(context);
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: BrColors.surface,
-        title: const Text('Supprimer la tenue ?',
-            style: TextStyle(color: Colors.white)),
+        title: const Text(
+          'Supprimer la tenue ?',
+          style: TextStyle(color: Colors.white),
+        ),
         content: const Text(
-            'Cette action est définitive.',
-            style: TextStyle(color: BrColors.muted)),
+          'Cette action est définitive.',
+          style: TextStyle(color: BrColors.muted),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -462,12 +544,17 @@ class SessionDetailScreen extends StatelessWidget {
 
   int _chrono(Session s) {
     if (s.chrono != null) return s.chrono!.toInt();
-    final n = int.tryParse((s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''));
+    final n = int.tryParse(
+      (s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
+    );
     return n ?? 0;
   }
 
-  Future<void> _openPdf(BuildContext context, String prefix,
-      Future<List<int>> Function() builder) async {
+  Future<void> _openPdf(
+    BuildContext context,
+    String prefix,
+    Future<List<int>> Function() builder,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final bytes = await builder();
@@ -476,9 +563,7 @@ class SessionDetailScreen extends StatelessWidget {
         name: '${prefix}_tenue.pdf',
       );
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Erreur PDF : $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Erreur PDF : $e')));
     }
   }
 
@@ -490,13 +575,17 @@ class SessionDetailScreen extends StatelessWidget {
         children: [
           SizedBox(
             width: 150,
-            child: Text(label,
-                style: const TextStyle(
-                    color: BrColors.gold, fontWeight: FontWeight.w600)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: BrColors.gold,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           Expanded(
-              child: Text(value,
-                  style: const TextStyle(color: BrColors.text))),
+            child: Text(value, style: const TextStyle(color: BrColors.text)),
+          ),
         ],
       ),
     );
@@ -508,22 +597,30 @@ class SessionDetailScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
+            ),
+          ),
           const SizedBox(height: 6),
           if (items.isEmpty)
-            const Text('Néant',
-                style: TextStyle(color: BrColors.muted, fontSize: 13))
+            const Text(
+              'Néant',
+              style: TextStyle(color: BrColors.muted, fontSize: 13),
+            )
           else
-            ...items.map((e) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Text('• $e',
-                      style:
-                          const TextStyle(color: BrColors.text, fontSize: 13)),
-                )),
+            ...items.map(
+              (e) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 2),
+                child: Text(
+                  '• $e',
+                  style: const TextStyle(color: BrColors.text, fontSize: 13),
+                ),
+              ),
+            ),
         ],
       ),
     );

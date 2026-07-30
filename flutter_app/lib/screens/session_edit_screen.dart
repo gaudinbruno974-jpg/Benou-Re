@@ -5,14 +5,22 @@
 // modifiables), ordres du jour complémentaires dynamiques, ligne de clôture
 // numérotée automatiquement, et section Agapes (heure, type de repas, médaille).
 // Le chrono est réservé auprès de config/settings à la création (comme React).
-// Les champs de présence (présents / excusés / visiteurs) restent gérés ici.
+//
+// NOUVEAUTÉ : à la création d'une tenue, on archive automatiquement la
+// convocation PDF dans un dossier Google Drive (nommé "Tenue X jj mm aaaa").
+// Si la connexion Google échoue, on propose le téléchargement local du PDF.
+
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../models/session.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../services/drive_service.dart';
+import '../services/pdf_service.dart';
 
 const _sessionTypes = [
   'Ordinaire',
@@ -22,11 +30,7 @@ const _sessionTypes = [
   'Tenue noire',
 ];
 const _degrees = ['Apprenti', 'Compagnon', 'Maître'];
-const _repasTypes = [
-  'Agape avec médaille',
-  'Agape partage',
-  'Agape offerte',
-];
+const _repasTypes = ['Agape avec médaille', 'Agape partage', 'Agape offerte'];
 
 // ─── Générateurs de textes (portés de SessionsList.tsx) ──────────────────
 Map<String, String> _travauxFixes(String degre, TimeOfDay? heure) {
@@ -61,7 +65,6 @@ class SessionEditScreen extends StatefulWidget {
 class _SessionEditScreenState extends State<SessionEditScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  late final TextEditingController _title;
   late final TextEditingController _location;
   late final TextEditingController _tronc;
   late final TextEditingController _vmName;
@@ -82,23 +85,20 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   bool _hasAgape = false;
   String? _typeRepas;
 
-  late List<String> _presentIds;
-  late List<String> _excusedIds;
-  late List<String> _visitorIds;
-
   bool _saving = false;
 
   @override
   void initState() {
     super.initState();
     final s = widget.session;
-    _title = TextEditingController(text: s?.title ?? '');
     _location = TextEditingController(
-        text: s?.location.isNotEmpty == true
-            ? s!.location
-            : (s?.lieuReunion ?? 'Temple Thérèse Eliseman à Saint-Pierre'));
+      text: s?.location.isNotEmpty == true
+          ? s!.location
+          : (s?.lieuReunion ?? 'Temple Thérèse Eliseman à Saint-Pierre'),
+    );
     _tronc = TextEditingController(
-        text: s != null && s.troncAmount != 0 ? '${s.troncAmount}' : '');
+      text: s != null && s.troncAmount != 0 ? '${s.troncAmount}' : '',
+    );
     _vmName = TextEditingController(text: s?.vmName ?? '');
     _t1 = TextEditingController(text: s?.travail1 ?? '');
     _t2 = TextEditingController(text: s?.travail2 ?? '');
@@ -106,7 +106,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _t4 = TextEditingController(text: s?.travail4 ?? '');
     _cloture = TextEditingController(text: s?.ligneCloture ?? '');
     _medaille = TextEditingController(
-        text: (s?.montantMedaille ?? 0) > 0 ? '${s!.montantMedaille}' : '');
+      text: (s?.montantMedaille ?? 0) > 0 ? '${s!.montantMedaille}' : '',
+    );
 
     final ordres = (s?.ordresJour ?? const <String>[])
         .where((o) => o.trim().isNotEmpty)
@@ -117,8 +118,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     ];
 
     _type = _ensure(s?.typeTenue ?? s?.type, 'Ordinaire');
-    _degree =
-        _ensure(_normalizeDegree(s?.degreTravail ?? s?.degree), 'Apprenti');
+    _degree = _ensure(
+      _normalizeDegree(s?.degreTravail ?? s?.degree),
+      'Apprenti',
+    );
     _date = s?.dateTime;
     _heureReprise = _date != null && (_date!.hour != 0 || _date!.minute != 0)
         ? TimeOfDay(hour: _date!.hour, minute: _date!.minute)
@@ -127,9 +130,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _heureAgape = _parseTime(s?.heureAgape);
     _hasAgape = s?.suitAgapes ?? false;
     _typeRepas = _repasTypes.contains(s?.typeRepas) ? s!.typeRepas : null;
-    _presentIds = List<String>.from(s?.presentIds ?? const []);
-    _excusedIds = List<String>.from(s?.excusedIds ?? const []);
-    _visitorIds = List<String>.from(s?.visitorIds ?? const []);
   }
 
   String _normalizeDegree(String? d) => d == 'Maitre' ? 'Maître' : (d ?? '');
@@ -155,7 +155,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   @override
   void dispose() {
     for (final c in [
-      _title,
       _location,
       _tronc,
       _vmName,
@@ -172,10 +171,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     super.dispose();
   }
 
-  int get _ordresCount =>
-      _ordres.where((c) => c.text.trim().isNotEmpty).length;
+  int get _ordresCount => _ordres.where((c) => c.text.trim().isNotEmpty).length;
 
-  // Régénère les 4 travaux fixes (comme React sur changement degré/date).
   void _regenerateTravaux() {
     final fixes = _travauxFixes(_degree, _heureReprise);
     _t1.text = fixes['t1']!;
@@ -189,6 +186,182 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _cloture.text = _ligneCloture(_degree, _ordresCount);
   }
 
+  // ─── PROPOSER LE TÉLÉCHARGEMENT LOCAL DU PDF ──────────────────────
+  Future<void> _proposeDownloadLocal(Session session, int chrono) async {
+    if (!mounted) return;
+
+    final shouldDownload = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: const Text(
+          'Télécharger la convocation ?',
+          style: TextStyle(color: BrColors.gold),
+        ),
+        content: const Text(
+          'L\'archivage automatique n\'a pas pu être effectué.\n'
+          'Vous pouvez télécharger le PDF de convocation localement '
+          'et le déposer manuellement dans votre Drive plus tard.\n\n'
+          'Voulez-vous le télécharger maintenant ?',
+          style: TextStyle(color: BrColors.text),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Non'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Télécharger'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldDownload == true) {
+      try {
+        final bytes = await buildConvocationPdf(session, chrono);
+        // Utiliser le package `printing` pour télécharger
+        await Printing.sharePdf(
+          bytes: Uint8List.fromList(bytes),
+          filename: 'Convocation_Tenue_$chrono.pdf',
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('PDF téléchargé avec succès'),
+              backgroundColor: BrColors.teal,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur lors du téléchargement : $e'),
+              backgroundColor: BrColors.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  // ─── ARCHIVAGE AUTOMATIQUE AVEC GESTION DE CONNEXION ──────────────
+  Future<void> _autoArchive(Session session, int chrono) async {
+    print('🔍 _autoArchive: Début pour la tenue $chrono');
+
+    // Vérifier si déjà connecté
+    bool isConnected = DriveService.instance.isConnected;
+    print('🔍 Connecté à Google : $isConnected');
+
+    if (!isConnected) {
+      // Proposer la connexion via une boîte de dialogue
+      final shouldConnect = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: BrColors.surface,
+          title: const Text(
+            'Connexion Google requise',
+            style: TextStyle(color: BrColors.gold),
+          ),
+          content: const Text(
+            'Pour archiver automatiquement la convocation sur Google Drive, '
+            'vous devez vous connecter à votre compte Google.\n\n'
+            'Souhaitez-vous vous connecter maintenant ?',
+            style: TextStyle(color: BrColors.text),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Non, plus tard'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Se connecter'),
+            ),
+          ],
+        ),
+      );
+
+      if (shouldConnect != true) {
+        // L'utilisateur refuse la connexion → on propose le téléchargement local
+        await _proposeDownloadLocal(session, chrono);
+        return;
+      }
+
+      // Tenter la connexion
+      try {
+        print('🔍 Tentative de connexion Google...');
+        // On appelle une méthode qui force l'affichage du pop-up OAuth
+        await DriveService.instance.archivePdfs(session, {});
+        // Si on arrive ici, la connexion a réussi
+        isConnected = true;
+        print('✅ Connexion Google réussie');
+      } catch (e) {
+        print('❌ Échec de connexion : $e');
+        // Si la connexion échoue, on propose le téléchargement local
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Connexion Google échouée. Téléchargez le PDF localement.',
+              ),
+              backgroundColor: BrColors.error,
+              duration: Duration(seconds: 4),
+            ),
+          );
+          await _proposeDownloadLocal(session, chrono);
+        }
+        return;
+      }
+    }
+
+    // Maintenant connecté, on peut archiver
+    try {
+      // Générer le PDF
+      print('🔍 Génération du PDF de convocation...');
+      final convocationBytes = await buildConvocationPdf(session, chrono);
+      print('✅ PDF généré (${convocationBytes.length} octets)');
+
+      // Archiver
+      print('🔍 Archivage sur Google Drive...');
+      final files = <String, Uint8List>{
+        'Convocation_Tenue_$chrono.pdf': Uint8List.fromList(convocationBytes),
+      };
+      final email = await DriveService.instance.archivePdfs(session, files);
+      print('✅ Archivage réussi par $email');
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Dossier Drive créé par $email'),
+            backgroundColor: BrColors.teal,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e, stack) {
+      print('❌ ERREUR ARCHIVAGE : $e');
+      print('📚 Stack trace : $stack');
+
+      if (mounted) {
+        // En cas d'échec de l'upload, proposer le téléchargement local
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Échec de l\'archivage : $e'),
+            backgroundColor: BrColors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        await _proposeDownloadLocal(session, chrono);
+      }
+    }
+  }
+
+  // ─── MÉTHODE _save MODIFIÉE AVEC APPEL À _autoArchive ──────────────
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_date == null) {
@@ -205,8 +378,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     final dateReprise = _heureReprise != null
         ? '${dateOnly}T${_heureReprise!.hour.toString().padLeft(2, '0')}:${_heureReprise!.minute.toString().padLeft(2, '0')}'
         : dateOnly;
-    final closing =
-        _heureSuspension != null ? _fmtTime(_heureSuspension!) : '';
+    final closing = _heureSuspension != null ? _fmtTime(_heureSuspension!) : '';
     final ordres = _ordres
         .map((c) => c.text.trim())
         .where((o) => o.isNotEmpty)
@@ -215,7 +387,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     final map = <String, dynamic>{
       if (existing != null) ...existing.toMap(),
       'id': id,
-      'title': _title.text.trim(),
+      'title': '',
       'date': dateOnly,
       'dateReprise': dateReprise,
       'type': _type,
@@ -237,9 +409,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       'hasAgape': _hasAgape,
       'suitAgapes': _hasAgape,
       'status': existing?.statut ?? 'Planifiée',
-      'presentIds': _presentIds,
-      'excusedIds': _excusedIds,
-      'visitorIds': _visitorIds,
     };
 
     if (_hasAgape) {
@@ -264,6 +433,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       int? chrono = existing?.chrono?.toInt();
       if (existing == null) {
         chrono = await state.allocateSessionChrono();
+        print('🔍 Nouveau chrono alloué : $chrono');
       }
       if (chrono != null) {
         map['chrono'] = chrono;
@@ -272,16 +442,32 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       final session = Session.fromMap(id, map);
       if (existing == null) {
         await state.addSession(session);
+        print('✅ Tenue créée avec ID : $id');
       } else {
         await state.updateSession(session);
+        print('✅ Tenue mise à jour : $id');
       }
+
+      // ─── ARCHIVAGE AUTOMATIQUE (uniquement pour une nouvelle tenue) ────
+      if (existing == null && chrono != null) {
+        print('🔍 Lancement de l\'archivage automatique pour la tenue $chrono');
+        // On attend 1 seconde pour laisser le temps à Firestore de synchroniser
+        await Future.delayed(const Duration(seconds: 1));
+        await _autoArchive(session, chrono);
+      } else {
+        print(
+          'ℹ️ Pas d\'archivage automatique (tenue existante ou chrono nul)',
+        );
+      }
+
       if (mounted) Navigator.of(context).pop();
     } catch (e) {
+      print('❌ Erreur lors de l\'enregistrement : $e');
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur enregistrement : $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur enregistrement : $e')));
       }
     }
   }
@@ -291,20 +477,24 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
     final isNew = widget.session == null;
     final ord = Session.degreeOrdinal(_degree);
 
     return Scaffold(
-      appBar:
-          AppBar(title: Text(isNew ? 'Nouvelle tenue' : 'Modifier la tenue')),
+      appBar: AppBar(
+        title: Text(isNew ? 'Nouvelle tenue' : 'Modifier la tenue'),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            _dropdown('Type de Tenue', _type, _itemsWith(_sessionTypes, _type),
-                (v) => setState(() => _type = v)),
+            _dropdown(
+              'Type de Tenue',
+              _type,
+              _itemsWith(_sessionTypes, _type),
+              (v) => setState(() => _type = v),
+            ),
             _dropdown(
               'Degré de Travail',
               _degree,
@@ -313,25 +503,30 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 _degree = v;
                 _regenerateTravaux();
               }),
-              labelBuilder: (d) =>
-                  '$d (${Session.degreeOrdinal(d)} Degré)',
+              labelBuilder: (d) => '$d (${Session.degreeOrdinal(d)} Degré)',
             ),
-            Row(children: [
-              Expanded(child: _dateField()),
-              const SizedBox(width: 8),
-              Expanded(child: _timeField(
-                'Heure de reprise',
-                _heureReprise,
-                (t) => setState(() {
-                  _heureReprise = t;
-                  _regenerateTravaux();
-                }),
-              )),
-            ]),
-            _timeField('Heure de suspension (clôture)', _heureSuspension,
-                (t) => setState(() => _heureSuspension = t)),
+            Row(
+              children: [
+                Expanded(child: _dateField()),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _timeField(
+                    'Heure de reprise',
+                    _heureReprise,
+                    (t) => setState(() {
+                      _heureReprise = t;
+                      _regenerateTravaux();
+                    }),
+                  ),
+                ),
+              ],
+            ),
+            _timeField(
+              'Heure de suspension (clôture)',
+              _heureSuspension,
+              (t) => setState(() => _heureSuspension = t),
+            ),
             _field(_location, 'Lieu de Réunion', icon: Icons.place_outlined),
-            _field(_title, 'Titre / objet (optionnel)'),
 
             const SizedBox(height: 8),
             _Heading('ORDRE DU JOUR — TRAVAUX FIXES ($ord Degré)'),
@@ -341,8 +536,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             _numberedField('4', _t4),
             const Padding(
               padding: EdgeInsets.only(top: 4, left: 4),
-              child: Text('Tous les travaux peuvent être modifiés.',
-                  style: TextStyle(color: BrColors.muted, fontSize: 11)),
+              child: Text(
+                'Tous les travaux peuvent être modifiés.',
+                style: TextStyle(color: BrColors.muted, fontSize: 11),
+              ),
             ),
 
             const SizedBox(height: 12),
@@ -353,11 +550,13 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                   child: _Heading('ORDRES DU JOUR COMPLÉMENTAIRES'),
                 ),
                 TextButton.icon(
-                  onPressed: () => setState(
-                      () => _ordres.add(TextEditingController())),
+                  onPressed: () =>
+                      setState(() => _ordres.add(TextEditingController())),
                   icon: const Icon(Icons.add, size: 16, color: BrColors.teal),
-                  label: const Text('Ajouter',
-                      style: TextStyle(color: BrColors.teal, fontSize: 12)),
+                  label: const Text(
+                    'Ajouter',
+                    style: TextStyle(color: BrColors.teal, fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -369,23 +568,31 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                   children: [
                     SizedBox(
                       width: 24,
-                      child: Text('${5 + i}.',
-                          style: const TextStyle(
-                              color: BrColors.gold, fontSize: 13)),
+                      child: Text(
+                        '${5 + i}.',
+                        style: const TextStyle(
+                          color: BrColors.gold,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                     Expanded(
                       child: TextField(
                         controller: _ordres[i],
                         style: const TextStyle(color: BrColors.text),
                         decoration: const InputDecoration(
-                            hintText: 'ex : Lecture de planche...'),
+                          hintText: 'ex : Lecture de planche...',
+                        ),
                         onChanged: (_) => setState(_regenerateCloture),
                       ),
                     ),
                     if (_ordres.length > 1)
                       IconButton(
-                        icon: const Icon(Icons.delete_outline,
-                            size: 18, color: BrColors.muted),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: BrColors.muted,
+                        ),
                         onPressed: () => setState(() {
                           _ordres.removeAt(i).dispose();
                           _regenerateCloture();
@@ -400,16 +607,19 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 4),
               child: Text(
-                  'Numéro auto-généré : ${4 + _ordresCount + 1}° (texte modifiable).',
-                  style: const TextStyle(color: BrColors.muted, fontSize: 11)),
+                'Numéro auto-généré : ${4 + _ordresCount + 1}° (texte modifiable).',
+                style: const TextStyle(color: BrColors.muted, fontSize: 11),
+              ),
             ),
 
             const SizedBox(height: 12),
             const Divider(color: BrColors.gold),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: const Text("Suit-elle d'Agapes fraternelles ?",
-                  style: TextStyle(color: BrColors.gold, letterSpacing: 1)),
+              title: const Text(
+                "Suit-elle d'Agapes fraternelles ?",
+                style: TextStyle(color: BrColors.gold, letterSpacing: 1),
+              ),
               activeThumbColor: BrColors.teal,
               value: _hasAgape,
               onChanged: (v) => setState(() {
@@ -421,86 +631,72 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               }),
             ),
             if (_hasAgape) ...[
-              Row(children: [
-                Expanded(
-                  child: _timeField("Heure de l'agape", _heureAgape,
-                      (t) => setState(() => _heureAgape = t)),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _dropdown(
-                    'Type de repas',
-                    _typeRepas ?? '',
-                    ['', ..._repasTypes],
-                    (v) => setState(() {
-                      _typeRepas = v.isEmpty ? null : v;
-                      if (_typeRepas != 'Agape avec médaille') {
-                        _medaille.clear();
-                      }
-                    }),
-                    labelBuilder: (v) =>
-                        v.isEmpty ? '-- Sélectionnez --' : v,
+              Row(
+                children: [
+                  Expanded(
+                    child: _timeField(
+                      "Heure de l'agape",
+                      _heureAgape,
+                      (t) => setState(() => _heureAgape = t),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _dropdown(
+                      'Type de repas',
+                      _typeRepas ?? '',
+                      ['', ..._repasTypes],
+                      (v) => setState(() {
+                        _typeRepas = v.isEmpty ? null : v;
+                        if (_typeRepas != 'Agape avec médaille') {
+                          _medaille.clear();
+                        }
+                      }),
+                      labelBuilder: (v) => v.isEmpty ? '-- Sélectionnez --' : v,
+                    ),
+                  ),
+                ],
+              ),
+              if (_typeRepas == 'Agape avec médaille')
+                _field(
+                  _medaille,
+                  'Montant de la médaille (€)',
+                  keyboard: const TextInputType.numberWithOptions(
+                    decimal: true,
                   ),
                 ),
-              ]),
-              if (_typeRepas == 'Agape avec médaille')
-                _field(_medaille, 'Montant de la médaille (€)',
-                    keyboard:
-                        const TextInputType.numberWithOptions(decimal: true)),
             ],
 
             const SizedBox(height: 12),
             const Divider(color: BrColors.gold),
-            _field(_tronc, 'Tronc de la Veuve (€)',
-                keyboard: const TextInputType.numberWithOptions(decimal: true)),
+            _field(
+              _tronc,
+              'Tronc de la Veuve (€)',
+              keyboard: const TextInputType.numberWithOptions(decimal: true),
+            ),
             _field(_vmName, 'Vénérable Maître'),
-
-            const SizedBox(height: 8),
-            _MultiSelect(
-              label: 'Membres présents',
-              options: [for (final m in state.members) (m.id, m.fullName)],
-              selected: _presentIds,
-              onChanged: (ids) => setState(() {
-                _presentIds = ids;
-                _excusedIds =
-                    _excusedIds.where((e) => !ids.contains(e)).toList();
-              }),
-            ),
-            _MultiSelect(
-              label: 'Membres excusés',
-              options: [for (final m in state.members) (m.id, m.fullName)],
-              selected: _excusedIds,
-              onChanged: (ids) => setState(() {
-                _excusedIds = ids;
-                _presentIds =
-                    _presentIds.where((e) => !ids.contains(e)).toList();
-              }),
-            ),
-            _MultiSelect(
-              label: 'Visiteurs',
-              options: [
-                for (final v in state.visitors)
-                  (v.id, '${v.fullName} — ${v.lodge}'),
-              ],
-              selected: _visitorIds,
-              onChanged: (ids) => setState(() => _visitorIds = ids),
-            ),
 
             const SizedBox(height: 24),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                  backgroundColor: BrColors.teal,
-                  padding: const EdgeInsets.symmetric(vertical: 14)),
+                backgroundColor: BrColors.teal,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
               icon: _saving
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : Icon(isNew ? Icons.check_circle : Icons.save),
-              label: Text(_saving
-                  ? 'Traitement...'
-                  : (isNew ? 'PLANIFIER' : 'ENREGISTRER')),
+              label: Text(
+                _saving
+                    ? 'Traitement...'
+                    : (isNew ? 'PLANIFIER' : 'ENREGISTRER'),
+              ),
               onPressed: _saving ? null : _save,
             ),
           ],
@@ -509,8 +705,12 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String label,
-      {TextInputType? keyboard, IconData? icon}) {
+  Widget _field(
+    TextEditingController c,
+    String label, {
+    TextInputType? keyboard,
+    IconData? icon,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: TextFormField(
@@ -535,8 +735,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         children: [
           SizedBox(
             width: 24,
-            child: Text('$num.',
-                style: const TextStyle(color: BrColors.gold, fontSize: 13)),
+            child: Text(
+              '$num.',
+              style: const TextStyle(color: BrColors.gold, fontSize: 13),
+            ),
           ),
           Expanded(
             child: TextField(
@@ -578,7 +780,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 ? 'Choisir'
                 : DateFormat('d MMM y', 'fr_FR').format(_date!),
             style: TextStyle(
-                color: _date == null ? BrColors.muted : BrColors.text),
+              color: _date == null ? BrColors.muted : BrColors.text,
+            ),
           ),
         ),
       ),
@@ -586,7 +789,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   }
 
   Widget _timeField(
-      String label, TimeOfDay? value, ValueChanged<TimeOfDay> onPick) {
+    String label,
+    TimeOfDay? value,
+    ValueChanged<TimeOfDay> onPick,
+  ) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InkWell(
@@ -602,16 +808,21 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
           child: Text(
             value == null ? 'Choisir' : _fmtTime(value),
             style: TextStyle(
-                color: value == null ? BrColors.muted : BrColors.text),
+              color: value == null ? BrColors.muted : BrColors.text,
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _dropdown(String label, String value, List<String> options,
-      ValueChanged<String> onChanged,
-      {String Function(String)? labelBuilder}) {
+  Widget _dropdown(
+    String label,
+    String value,
+    List<String> options,
+    ValueChanged<String> onChanged, {
+    String Function(String)? labelBuilder,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: DropdownButtonFormField<String>(
@@ -623,7 +834,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         items: [
           for (final o in options)
             DropdownMenuItem(
-                value: o, child: Text(labelBuilder != null ? labelBuilder(o) : o)),
+              value: o,
+              child: Text(labelBuilder != null ? labelBuilder(o) : o),
+            ),
         ],
         onChanged: (v) {
           if (v != null) onChanged(v);
@@ -639,72 +852,14 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 8, bottom: 4),
-        child: Text(text,
-            style: const TextStyle(
-                color: BrColors.gold, fontSize: 12, letterSpacing: 1.5)),
-      );
-}
-
-class _MultiSelect extends StatelessWidget {
-  final String label;
-  final List<(String, String)> options;
-  final List<String> selected;
-  final ValueChanged<List<String>> onChanged;
-
-  const _MultiSelect({
-    required this.label,
-    required this.options,
-    required this.selected,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('$label (${selected.length})',
-              style: const TextStyle(
-                  color: BrColors.gold, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          if (options.isEmpty)
-            const Text('Aucun disponible',
-                style: TextStyle(color: BrColors.muted, fontSize: 13))
-          else
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final o in options)
-                  FilterChip(
-                    label: Text(o.$2),
-                    selected: selected.contains(o.$1),
-                    showCheckmark: false,
-                    backgroundColor: BrColors.surface,
-                    selectedColor: BrColors.teal,
-                    labelStyle: TextStyle(
-                      color: selected.contains(o.$1)
-                          ? Colors.white
-                          : BrColors.muted,
-                      fontSize: 12,
-                    ),
-                    onSelected: (sel) {
-                      final next = List<String>.from(selected);
-                      if (sel) {
-                        next.add(o.$1);
-                      } else {
-                        next.remove(o.$1);
-                      }
-                      onChanged(next);
-                    },
-                  ),
-              ],
-            ),
-        ],
+    padding: const EdgeInsets.only(top: 8, bottom: 4),
+    child: Text(
+      text,
+      style: const TextStyle(
+        color: BrColors.gold,
+        fontSize: 12,
+        letterSpacing: 1.5,
       ),
-    );
-  }
+    ),
+  );
 }

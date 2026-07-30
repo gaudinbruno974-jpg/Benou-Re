@@ -42,7 +42,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       await context.read<AppState>().auth.login(email, password);
-      // La navigation est gérée par _Root via authStateChanges.
     } on FirebaseAuthException catch (e) {
       setState(() {
         if (e.code == 'user-not-found' || e.code == 'invalid-credential') {
@@ -78,10 +77,14 @@ class _LoginScreenState extends State<LoginScreen> {
                       shape: BoxShape.circle,
                       color: BrColors.background,
                       border: Border.all(
-                          color: BrColors.gold.withValues(alpha: 0.4)),
+                        color: BrColors.gold.withValues(alpha: 0.4),
+                      ),
                     ),
-                    child: const Icon(Icons.remove_red_eye_outlined,
-                        color: BrColors.gold, size: 40),
+                    child: const Icon(
+                      Icons.remove_red_eye_outlined,
+                      color: BrColors.gold,
+                      size: 40,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -110,24 +113,28 @@ class _LoginScreenState extends State<LoginScreen> {
                             'ORIENT DE SAINT-PIERRE',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                                color: BrColors.gold,
-                                fontSize: 11,
-                                letterSpacing: 2),
+                              color: BrColors.gold,
+                              fontSize: 11,
+                              letterSpacing: 2,
+                            ),
                           ),
                           const SizedBox(height: 20),
                           if (_error != null) ...[
                             Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: Colors.red.withValues(alpha: 0.15),
+                                color: BrColors.error.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(12),
                                 border: Border.all(
-                                    color: Colors.red.withValues(alpha: 0.3)),
+                                  color: BrColors.error.withValues(alpha: 0.3),
+                                ),
                               ),
                               child: Text(
                                 _error!,
-                                style: const TextStyle(
-                                    color: Color(0xFFFFC7C7), fontSize: 13),
+                                style: TextStyle(
+                                  color: BrColors.error,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 16),
@@ -138,8 +145,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: const TextStyle(color: BrColors.text),
                             decoration: const InputDecoration(
                               labelText: 'Email de connexion',
-                              prefixIcon:
-                                  Icon(Icons.mail_outline, color: BrColors.gold),
+                              prefixIcon: Icon(
+                                Icons.mail_outline,
+                                color: BrColors.gold,
+                              ),
                               hintText: 'ex: vm@loge.com',
                             ),
                           ),
@@ -150,8 +159,10 @@ class _LoginScreenState extends State<LoginScreen> {
                             style: const TextStyle(color: BrColors.text),
                             decoration: const InputDecoration(
                               labelText: 'Mot de passe',
-                              prefixIcon:
-                                  Icon(Icons.lock_outline, color: BrColors.gold),
+                              prefixIcon: Icon(
+                                Icons.lock_outline,
+                                color: BrColors.gold,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -159,26 +170,30 @@ class _LoginScreenState extends State<LoginScreen> {
                             onPressed: _loading
                                 ? null
                                 : () => _login(
-                                    _emailCtrl.text, _passwordCtrl.text),
+                                    _emailCtrl.text,
+                                    _passwordCtrl.text,
+                                  ),
                             icon: _loading
                                 ? const SizedBox(
                                     height: 18,
                                     width: 18,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: BrColors.text),
+                                      strokeWidth: 2,
+                                      color: BrColors.text,
+                                    ),
                                   )
                                 : const Icon(Icons.login, size: 18),
                             label: const Text('ENTRER SUR LE PARVIS'),
                           ),
-                          const Divider(height: 32, color: Colors.white12),
+                          const Divider(height: 32, color: BrColors.divider),
                           const Text(
                             'ACCÈS RAPIDE (DÉMO / TEST)',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                                color: BrColors.gold,
-                                fontSize: 10,
-                                letterSpacing: 2),
+                              color: BrColors.gold,
+                              fontSize: 10,
+                              letterSpacing: 2,
+                            ),
                           ),
                           const SizedBox(height: 12),
                           Wrap(
@@ -194,11 +209,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: BrColors.goldBright,
                                     side: BorderSide(
-                                        color: BrColors.muted
-                                            .withValues(alpha: 0.2)),
+                                      color: BrColors.muted.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                    ),
                                   ),
-                                  child: Text(acc.$1,
-                                      style: const TextStyle(fontSize: 11)),
+                                  child: Text(
+                                    acc.$1,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
                                 ),
                             ],
                           ),
@@ -210,7 +229,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Text(
                     'EX CINERIBUS, AD LUCEM PERPETUAM',
                     style: TextStyle(
-                        color: BrColors.muted, fontSize: 10, letterSpacing: 2),
+                      color: BrColors.muted,
+                      fontSize: 10,
+                      letterSpacing: 2,
+                    ),
                   ),
                 ],
               ),
