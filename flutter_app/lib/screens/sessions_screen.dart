@@ -211,16 +211,17 @@ class _SessionCard extends StatelessWidget {
               const Divider(height: 20, color: BrColors.gold),
               Row(
                 children: [
-                  _action(
-                    context,
-                    Icons.groups_outlined,
-                    'Émargement',
-                    () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => EmargementScreen(sessionId: s.id),
+                  if (canEdit)
+                    _action(
+                      context,
+                      Icons.groups_outlined,
+                      'Détails et Documents',
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => EmargementScreen(sessionId: s.id),
+                        ),
                       ),
                     ),
-                  ),
                   const Spacer(),
                   if (canEdit)
                     IconButton(
@@ -416,17 +417,28 @@ class SessionDetailScreen extends StatelessWidget {
             'Visiteurs (${visitors.length})',
             visitors.map((v) => '${v.fullName} — ${v.lodge}').toList(),
           ),
-          if (canEdit) ...[
-            const SizedBox(height: 20),
-            const Text(
-              'DOCUMENTS',
-              style: TextStyle(
-                color: BrColors.gold,
-                fontSize: 12,
-                letterSpacing: 2,
-              ),
+          const SizedBox(height: 20),
+          const Text(
+            'DOCUMENTS',
+            style: TextStyle(
+              color: BrColors.gold,
+              fontSize: 12,
+              letterSpacing: 2,
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 12),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
+            icon: const Icon(Icons.mail_outline, size: 18),
+            label: const Text('Convocation / ordre du jour (PDF)'),
+            onPressed: () => _openPdf(
+              context,
+              'Convocation',
+              () => buildConvocationPdf(session, _chrono(session)),
+            ),
+          ),
+          if (canEdit) ...[
+            const SizedBox(height: 10),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: BrColors.gold,
@@ -479,17 +491,6 @@ class SessionDetailScreen extends StatelessWidget {
                 'Emargement',
                 () =>
                     buildEmargementPdf(session, state.members, state.visitors),
-              ),
-            ),
-            const SizedBox(height: 10),
-            ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
-              icon: const Icon(Icons.mail_outline, size: 18),
-              label: const Text('Convocation / ordre du jour (PDF)'),
-              onPressed: () => _openPdf(
-                context,
-                'Convocation',
-                () => buildConvocationPdf(session, _chrono(session)),
               ),
             ),
             const SizedBox(height: 10),
