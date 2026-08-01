@@ -462,7 +462,7 @@ class SessionDetailScreen extends StatelessWidget {
                 side: const BorderSide(color: BrColors.gold),
               ),
               icon: const Icon(Icons.draw_outlined, size: 18),
-              label: const Text('Émargement / signatures'),
+              label: const Text('Détails et Documents'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => EmargementScreen(sessionId: session.id),

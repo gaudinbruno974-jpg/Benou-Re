@@ -88,7 +88,7 @@ class EmargementScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Émargement / signatures'),
+        title: const Text('Détails et Documents'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(28),
           child: Padding(
