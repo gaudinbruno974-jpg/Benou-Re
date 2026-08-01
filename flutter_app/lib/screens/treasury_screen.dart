@@ -1,12 +1,16 @@
 // Trésorerie — parité avec src/components/TreasuryScreen.tsx.
 // Deux onglets : Cotisations (Loge / Ordre / Grades, encaissé vs à percevoir)
 // et Tronc de la Veuve (total récolté + historique des tenues).
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../models/member.dart';
 import '../models/session.dart';
+import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 
@@ -80,14 +84,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
   int? _selectedYear;
   bool _unpaidOnly = false;
 
-  /// Montant restant dû par [m] pour [year] (0 si tout est réglé).
+  /// Montant restant dû par [m] pour [year] (0 si exonéré ou tout est réglé).
   num _amountDue(Member m, int year) {
-    final d = m.duesFor(year);
-    num due = 0;
-    if (!d.lodgeDuesPaid) due += d.lodgeDues;
-    if (!d.orderDuesPaid) due += d.orderDues;
-    if (d.elevationDues > 0 && !d.elevationDuesPaid) due += d.elevationDues;
-    return due;
+    if (m.isExemptFromDues) return 0;
+    return m.duesFor(year).totalPending;
   }
 
   /// Ensemble des années disponibles (toutes celles enregistrées chez les
@@ -207,6 +207,107 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     elevationCtrl.dispose();
   }
 
+  /// Saisie d'un versement partiel sur une ligne de cotisation.
+  Future<void> _editPayment(
+    Member m,
+    String label,
+    num dues,
+    num paidAmount,
+  ) async {
+    final year = _year;
+    final ctrl = TextEditingController(
+        text: paidAmount > 0 ? _trim(paidAmount) : '');
+
+    final result = await showDialog<num>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: Text('$label $year — ${m.fullName}',
+            style: const TextStyle(color: BrColors.goldBright, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Montant dû : ${_trim(dues)} €',
+                style: const TextStyle(color: BrColors.muted, fontSize: 13)),
+            const SizedBox(height: 12),
+            _amountField(ctrl, 'Montant versé (€)'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Annuler',
+                style: TextStyle(color: BrColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, dues),
+            child: const Text('Solder',
+                style: TextStyle(color: _emerald)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: BrColors.gold),
+            onPressed: () => Navigator.pop(
+                ctx, num.tryParse(ctrl.text.replaceAll(',', '.')) ?? 0),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    ctrl.dispose();
+
+    if (result == null || !mounted) return;
+    final state = context.read<AppState>();
+    final dy = m.duesFor(year);
+    final amount = result < 0 ? 0 : result;
+    final updated = switch (label) {
+      'LOGE' => dy.copyWith(lodgeDuesPaidAmount: amount, lodgeDuesPaid: false),
+      'ORDRE' => dy.copyWith(orderDuesPaidAmount: amount, orderDuesPaid: false),
+      _ => dy.copyWith(
+          elevationDuesPaidAmount: amount, elevationDuesPaid: false),
+    };
+    await state.updateMember(
+        m.withDuesForYear(year, updated.syncPaidFlags()));
+  }
+
+  /// Bascule « soldé / non soldé » en remettant le versement à zéro ou au dû.
+  DuesYear _toggleLine(DuesYear d, String label) {
+    switch (label) {
+      case 'LOGE':
+        final paid = !d.lodgeDuesPaid;
+        return d.copyWith(
+            lodgeDuesPaid: paid,
+            lodgeDuesPaidAmount: paid ? d.lodgeDues : 0);
+      case 'ORDRE':
+        final paid = !d.orderDuesPaid;
+        return d.copyWith(
+            orderDuesPaid: paid,
+            orderDuesPaidAmount: paid ? d.orderDues : 0);
+      default:
+        final paid = !d.elevationDuesPaid;
+        return d.copyWith(
+            elevationDuesPaid: paid,
+            elevationDuesPaidAmount: paid ? d.elevationDues : 0);
+    }
+  }
+
+  Future<void> _exportPdf(List<Member> members) async {
+    final year = _year;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = await buildTreasuryReportPdf(year, members);
+      await Printing.layoutPdf(
+        onLayout: (_) async => Uint8List.fromList(bytes),
+        name: 'bilan_cotisations_$year.pdf',
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur PDF : $e')));
+    }
+  }
+
+  static String _trim(num v) =>
+      v == v.roundToDouble() ? v.toStringAsFixed(0) : '$v';
+
   Widget _amountField(TextEditingController ctrl, String label) {
     return TextField(
       controller: ctrl,
@@ -233,14 +334,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     num collected = 0;
     num pending = 0;
     for (final m in members) {
+      if (m.isExemptFromDues) continue;
       final d = m.duesFor(year);
-      d.lodgeDuesPaid ? collected += d.lodgeDues : pending += d.lodgeDues;
-      d.orderDuesPaid ? collected += d.orderDues : pending += d.orderDues;
-      if (d.elevationDues > 0) {
-        d.elevationDuesPaid
-            ? collected += d.elevationDues
-            : pending += d.elevationDues;
-      }
+      collected += d.totalCollected;
+      pending += d.totalPending;
     }
 
     return ListView(
@@ -264,6 +361,13 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                 onPressed: _createNextYear,
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Nouvelle année'),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Exporter le bilan $year en PDF',
+                onPressed: () => _exportPdf(members),
+                icon: const Icon(Icons.picture_as_pdf_outlined,
+                    color: BrColors.gold),
               ),
             ],
           ],
@@ -396,6 +500,28 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                                 style: const TextStyle(
                                     color: BrColors.muted, fontSize: 12),
                               ),
+                              if (m.isExemptFromDues)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: _emerald.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                      border: Border.all(
+                                          color: _emerald.withValues(
+                                              alpha: 0.4)),
+                                    ),
+                                    child: Text(
+                                      'Exonéré • ${m.status}',
+                                      style: const TextStyle(
+                                          color: _emerald,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                ),
                               if (_unpaidOnly)
                                 Text(
                                   'Reste dû : ${_amountDue(m, year).toStringAsFixed(0)} €',
@@ -407,7 +533,7 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                             ],
                           ),
                         ),
-                        if (canEdit)
+                        if (canEdit && !m.isExemptFromDues)
                           IconButton(
                             tooltip: 'Modifier les montants $year',
                             icon: const Icon(Icons.edit_outlined,
@@ -417,47 +543,71 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _DueChip(
-                          label: 'LOGE',
-                          amount: d.lodgeDues,
-                          paid: d.lodgeDuesPaid,
-                          onTap: canEdit
-                              ? () => state.updateMember(m.withDuesForYear(
-                                  year,
-                                  d.copyWith(
-                                      lodgeDuesPaid: !d.lodgeDuesPaid)))
-                              : null,
-                        ),
-                        _DueChip(
-                          label: 'ORDRE',
-                          amount: d.orderDues,
-                          paid: d.orderDuesPaid,
-                          onTap: canEdit
-                              ? () => state.updateMember(m.withDuesForYear(
-                                  year,
-                                  d.copyWith(
-                                      orderDuesPaid: !d.orderDuesPaid)))
-                              : null,
-                        ),
-                        if (d.elevationDues > 0)
+                    if (m.isExemptFromDues)
+                      const Text(
+                        'Membre exonéré : ses cotisations ne sont pas comptées '
+                        'dans les totaux.',
+                        style:
+                            TextStyle(color: BrColors.muted, fontSize: 12),
+                      )
+                    else
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
                           _DueChip(
-                            label: 'GRADES',
-                            amount: d.elevationDues,
-                            paid: d.elevationDuesPaid,
+                            label: 'LOGE',
+                            amount: d.lodgeDues,
+                            paidAmount: d.lodgeCollected,
+                            paid: d.lodgeDuesPaid,
                             onTap: canEdit
                                 ? () => state.updateMember(m.withDuesForYear(
-                                    year,
-                                    d.copyWith(
-                                        elevationDuesPaid:
-                                            !d.elevationDuesPaid)))
+                                    year, _toggleLine(d, 'LOGE')))
+                                : null,
+                            onLongPress: canEdit
+                                ? () => _editPayment(m, 'LOGE', d.lodgeDues,
+                                    d.lodgeCollected)
                                 : null,
                           ),
-                      ],
-                    ),
+                          _DueChip(
+                            label: 'ORDRE',
+                            amount: d.orderDues,
+                            paidAmount: d.orderCollected,
+                            paid: d.orderDuesPaid,
+                            onTap: canEdit
+                                ? () => state.updateMember(m.withDuesForYear(
+                                    year, _toggleLine(d, 'ORDRE')))
+                                : null,
+                            onLongPress: canEdit
+                                ? () => _editPayment(m, 'ORDRE', d.orderDues,
+                                    d.orderCollected)
+                                : null,
+                          ),
+                          if (d.elevationDues > 0)
+                            _DueChip(
+                              label: 'GRADES',
+                              amount: d.elevationDues,
+                              paidAmount: d.elevationCollected,
+                              paid: d.elevationDuesPaid,
+                              onTap: canEdit
+                                  ? () => state.updateMember(m.withDuesForYear(
+                                      year, _toggleLine(d, 'GRADES')))
+                                  : null,
+                              onLongPress: canEdit
+                                  ? () => _editPayment(m, 'GRADES',
+                                      d.elevationDues, d.elevationCollected)
+                                  : null,
+                            ),
+                        ],
+                      ),
+                    if (canEdit && !m.isExemptFromDues) ...[
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Appui long sur une cotisation : saisir un versement '
+                        'partiel.',
+                        style: TextStyle(color: BrColors.muted, fontSize: 10),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -523,9 +673,16 @@ class _TroncTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final withTronc = sessions.where((s) => s.troncAmount > 0).toList();
-    final total =
-        sessions.fold<num>(0, (acc, s) => acc + (s.troncAmount));
+    // Toutes les tenues sont agrégées, y compris celles dont le tronc a été
+    // saisi depuis l'éditeur de planche tracée.
+    final withTronc = sessions.where((s) => s.troncAmount > 0).toList()
+      ..sort((a, b) {
+        final da = a.dateTime;
+        final db = b.dateTime;
+        if (da == null || db == null) return 0;
+        return db.compareTo(da);
+      });
+    final total = sessions.fold<num>(0, (acc, s) => acc + s.troncAmount);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -666,20 +823,33 @@ class _Counter extends StatelessWidget {
 class _DueChip extends StatelessWidget {
   final String label;
   final num amount;
+  final num paidAmount;
   final bool paid;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   const _DueChip({
     required this.label,
     required this.amount,
+    required this.paidAmount,
     required this.paid,
     this.onTap,
+    this.onLongPress,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = paid ? _emerald : _rose;
+    final partial = !paid && paidAmount > 0;
+    final color = paid
+        ? _emerald
+        : partial
+            ? BrColors.gold
+            : _rose;
+    final text = paid
+        ? '$label : $amount €'
+        : '$label : ${paidAmount % 1 == 0 ? paidAmount.toStringAsFixed(0) : paidAmount} € / $amount €';
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -691,10 +861,16 @@ class _DueChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(paid ? Icons.check_circle : Icons.cancel,
-                size: 15, color: color),
+            Icon(
+                paid
+                    ? Icons.check_circle
+                    : partial
+                        ? Icons.timelapse
+                        : Icons.cancel,
+                size: 15,
+                color: color),
             const SizedBox(width: 5),
-            Text('$label : $amount €',
+            Text(text,
                 style: TextStyle(
                     color: color,
                     fontSize: 12,

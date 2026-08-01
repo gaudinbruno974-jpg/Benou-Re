@@ -5,6 +5,13 @@ List<String> _stringList(dynamic v) {
   return <String>[];
 }
 
+/// Lecture tolérante d'un montant (num, String « 42 » / « 42,50 » ou absent).
+num _num(dynamic v) {
+  if (v is num) return v;
+  if (v is String) return num.tryParse(v.trim().replaceAll(',', '.')) ?? 0;
+  return 0;
+}
+
 Map<String, String> _stringMap(dynamic v) {
   if (v is Map) {
     return v.map((k, val) => MapEntry(k.toString(), val?.toString() ?? ''));
@@ -120,7 +127,7 @@ class Session {
       presentIds: _stringList(map['presentIds']),
       excusedIds: _stringList(map['excusedIds']),
       visitorIds: _stringList(map['visitorIds']),
-      troncAmount: (map['troncAmount'] ?? 0) as num,
+      troncAmount: _num(map['troncAmount']),
       signatures: _stringMap(map['signatures']),
       closingTime: (map['closingTime'] ?? '18:30') as String,
       agenda1: (map['agenda1'] ?? '') as String,
@@ -130,7 +137,7 @@ class Session {
       hasAgape: (map['hasAgape'] ?? false) as bool,
       agapeTime: (map['agapeTime'] ?? '20:00') as String,
       agapeType: (map['agapeType'] ?? 'Agape partage') as String,
-      agapePrice: (map['agapePrice'] ?? 0) as num,
+      agapePrice: _num(map['agapePrice']),
       sessionNumber: map['sessionNumber'] as String?,
       deityName: map['deityName'] as String?,
       egyptianYear: map['egyptianYear'] as String?,

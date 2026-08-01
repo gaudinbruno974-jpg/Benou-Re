@@ -953,3 +953,136 @@ Future<Uint8List> buildPlancheTraceePdf(
 
   return doc.save();
 }
+
+// ══════════════════════════════════════════════════════════════════
+// BILAN DE TRÉSORERIE (cotisations d'une année)
+// ══════════════════════════════════════════════════════════════════
+Future<Uint8List> buildTreasuryReportPdf(
+  int year,
+  List<Member> members,
+) async {
+  final fonts = await _loadLodgeFonts();
+  final logos = await _loadLogos();
+  final doc = pw.Document();
+
+  String euros(num v) => '${v.toStringAsFixed(2)} €';
+
+  pw.Widget cell(String text,
+          {bool bold = false,
+          PdfColor color = PdfColors.black,
+          pw.Alignment align = pw.Alignment.centerLeft}) =>
+      pw.Container(
+        alignment: align,
+        padding: pw.EdgeInsets.symmetric(horizontal: 2 * _mm, vertical: 1.5 * _mm),
+        child: pw.Text(
+          text,
+          style: pw.TextStyle(
+              font: bold ? fonts.bold : fonts.base, fontSize: 9, color: color),
+        ),
+      );
+
+  pw.Widget line(String label, num value, PdfColor color) => pw.Column(
+        children: [
+          pw.Text(label,
+              style: pw.TextStyle(font: fonts.base, fontSize: 9, color: _navy)),
+          pw.SizedBox(height: 1 * _mm),
+          pw.Text(euros(value),
+              style:
+                  pw.TextStyle(font: fonts.bold, fontSize: 14, color: color)),
+        ],
+      );
+
+  num collected = 0;
+  num pending = 0;
+  final rows = <pw.TableRow>[];
+  for (final m in members) {
+    final d = m.duesFor(year);
+    final exempt = m.isExemptFromDues;
+    if (!exempt) {
+      collected += d.totalCollected;
+      pending += d.totalPending;
+    }
+
+    String amount(num dues, num done, bool paid) {
+      if (exempt) return '—';
+      if (dues <= 0) return '—';
+      if (paid || done >= dues) return '${euros(dues)} (soldé)';
+      if (done > 0) return '${euros(done)} / ${euros(dues)}';
+      return '0,00 € / ${euros(dues)}';
+    }
+
+    rows.add(pw.TableRow(children: [
+      cell(m.fullName.isNotEmpty ? m.fullName : '—'),
+      cell(exempt ? '${m.status} (exonéré)' : m.status),
+      cell(amount(d.lodgeDues, d.lodgeCollected, d.lodgeDuesPaid)),
+      cell(amount(d.orderDues, d.orderCollected, d.orderDuesPaid)),
+      cell(amount(d.elevationDues, d.elevationCollected, d.elevationDuesPaid)),
+      cell(exempt ? '—' : euros(d.totalPending),
+          bold: !exempt && d.totalPending > 0,
+          color: !exempt && d.totalPending > 0 ? _violet : PdfColors.black,
+          align: pw.Alignment.centerRight),
+    ]));
+  }
+
+  const headers = ['Membre', 'Statut', 'Loge', 'Ordre', 'Grades', 'Reste dû'];
+
+  doc.addPage(pw.MultiPage(
+    pageFormat: PdfPageFormat.a4,
+    margin: pw.EdgeInsets.all(15 * _mm),
+    footer: (context) => pw.Container(
+      alignment: pw.Alignment.center,
+      child: pw.Text('${context.pageNumber} / ${context.pagesCount}',
+          style: pw.TextStyle(font: fonts.base, fontSize: 9)),
+    ),
+    build: (context) => [
+      _lodgeHeader(fonts, logos[0], logos[1]),
+      pw.Center(
+        child: pw.Text('BILAN DES COTISATIONS $year',
+            style:
+                pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy)),
+      ),
+      pw.SizedBox(height: 6 * _mm),
+      pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+        children: [
+          line('TOTAL ENCAISSÉ', collected, _navy),
+          line('À PERCEVOIR', pending, _violet),
+        ],
+      ),
+      pw.SizedBox(height: 8 * _mm),
+      pw.Table(
+        border: pw.TableBorder.all(color: PdfColors.black, width: 0.4),
+        columnWidths: {
+          0: const pw.FlexColumnWidth(28),
+          1: const pw.FlexColumnWidth(18),
+          2: const pw.FlexColumnWidth(20),
+          3: const pw.FlexColumnWidth(20),
+          4: const pw.FlexColumnWidth(20),
+          5: const pw.FlexColumnWidth(16),
+        },
+        children: [
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: _grey),
+            children: [for (final h in headers) cell(h, bold: true)],
+          ),
+          ...rows,
+        ],
+      ),
+      pw.SizedBox(height: 6 * _mm),
+      pw.Text(
+        'Les membres Honoraires ou En sommeil sont exonérés de cotisation et '
+        'ne sont pas comptés dans les totaux.',
+        style: pw.TextStyle(
+            font: fonts.base, fontSize: 8, color: PdfColors.grey700),
+      ),
+      pw.SizedBox(height: 2 * _mm),
+      pw.Text(
+        'Édité le ${DateFormat('d MMMM y', 'fr_FR').format(DateTime.now())}',
+        style: pw.TextStyle(
+            font: fonts.base, fontSize: 8, color: PdfColors.grey700),
+      ),
+    ],
+  ));
+
+  return doc.save();
+}
