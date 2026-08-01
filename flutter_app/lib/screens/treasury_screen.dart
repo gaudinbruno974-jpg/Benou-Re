@@ -67,29 +67,193 @@ class TreasuryScreen extends StatelessWidget {
   }
 }
 
-class _CotisationsTab extends StatelessWidget {
+class _CotisationsTab extends StatefulWidget {
   final List<Member> members;
   final bool canEdit;
   const _CotisationsTab({required this.members, required this.canEdit});
 
   @override
+  State<_CotisationsTab> createState() => _CotisationsTabState();
+}
+
+class _CotisationsTabState extends State<_CotisationsTab> {
+  int? _selectedYear;
+
+  /// Ensemble des années disponibles (toutes celles enregistrées chez les
+  /// membres + l'année courante), triées de la plus récente à la plus ancienne.
+  List<int> get _availableYears {
+    final years = <int>{DateTime.now().year};
+    for (final m in widget.members) {
+      years.addAll(m.duesByYear.keys);
+    }
+    final list = years.toList()..sort((a, b) => b.compareTo(a));
+    return list;
+  }
+
+  int get _year {
+    final years = _availableYears;
+    if (_selectedYear != null && years.contains(_selectedYear)) {
+      return _selectedYear!;
+    }
+    final now = DateTime.now().year;
+    return years.contains(now) ? now : years.first;
+  }
+
+  Future<void> _createNextYear() async {
+    final years = _availableYears;
+    final latest = years.first;
+    final target = latest + 1;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: Text('Nouvelle année : $target',
+            style: const TextStyle(color: BrColors.goldBright)),
+        content: Text(
+          'Créer les cotisations $target en reprenant les montants de $latest '
+          '(tous marqués non-payés). Les années déjà enregistrées ne sont pas '
+          'modifiées. Vous pourrez ensuite ajuster les montants et pointer les '
+          'paiements.',
+          style: const TextStyle(color: BrColors.muted, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler',
+                style: TextStyle(color: BrColors.muted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: BrColors.gold),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Créer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final state = context.read<AppState>();
+    for (final m in widget.members) {
+      if (m.duesByYear.containsKey(target)) continue;
+      final previous = m.duesFor(latest);
+      await state.updateMember(m.withDuesForYear(target, previous.resetPaid()));
+    }
+    if (mounted) setState(() => _selectedYear = target);
+  }
+
+  Future<void> _editAmounts(Member m) async {
+    final year = _year;
+    final dues = m.duesFor(year);
+    final lodgeCtrl =
+        TextEditingController(text: '${dues.lodgeDues}');
+    final orderCtrl =
+        TextEditingController(text: '${dues.orderDues}');
+    final elevationCtrl =
+        TextEditingController(text: '${dues.elevationDues}');
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: Text('Montants $year — ${m.fullName}',
+            style: const TextStyle(color: BrColors.goldBright, fontSize: 16)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _amountField(lodgeCtrl, 'Cotisation Loge (€)'),
+            const SizedBox(height: 12),
+            _amountField(orderCtrl, 'Cotisation Ordre (€)'),
+            const SizedBox(height: 12),
+            _amountField(elevationCtrl, 'Cotisation Grades / élévation (€)'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler',
+                style: TextStyle(color: BrColors.muted)),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: BrColors.gold),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+
+    if (saved == true && mounted) {
+      final state = context.read<AppState>();
+      final updated = dues.copyWith(
+        lodgeDues: num.tryParse(lodgeCtrl.text) ?? dues.lodgeDues,
+        orderDues: num.tryParse(orderCtrl.text) ?? dues.orderDues,
+        elevationDues: num.tryParse(elevationCtrl.text) ?? dues.elevationDues,
+      );
+      await state.updateMember(m.withDuesForYear(year, updated));
+    }
+    lodgeCtrl.dispose();
+    orderCtrl.dispose();
+    elevationCtrl.dispose();
+  }
+
+  Widget _amountField(TextEditingController ctrl, String label) {
+    return TextField(
+      controller: ctrl,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: const TextStyle(color: BrColors.text),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: BrColors.muted),
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = context.read<AppState>();
+    final members = widget.members;
+    final canEdit = widget.canEdit;
+    final year = _year;
+
     num collected = 0;
     num pending = 0;
     for (final m in members) {
-      m.lodgeDuesPaid ? collected += m.lodgeDues : pending += m.lodgeDues;
-      m.orderDuesPaid ? collected += m.orderDues : pending += m.orderDues;
-      if (m.elevationDues > 0) {
-        m.elevationDuesPaid
-            ? collected += m.elevationDues
-            : pending += m.elevationDues;
+      final d = m.duesFor(year);
+      d.lodgeDuesPaid ? collected += d.lodgeDues : pending += d.lodgeDues;
+      d.orderDuesPaid ? collected += d.orderDues : pending += d.orderDues;
+      if (d.elevationDues > 0) {
+        d.elevationDuesPaid
+            ? collected += d.elevationDues
+            : pending += d.elevationDues;
       }
     }
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Row(
+          children: [
+            Expanded(
+              child: _YearSelector(
+                year: year,
+                years: _availableYears,
+                onChanged: (y) => setState(() => _selectedYear = y),
+              ),
+            ),
+            if (canEdit) ...[
+              const SizedBox(width: 12),
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                    backgroundColor: BrColors.gold,
+                    foregroundColor: Colors.black),
+                onPressed: _createNextYear,
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text('Nouvelle année'),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 16),
         Row(
           children: [
             _Counter(
@@ -128,66 +292,144 @@ class _CotisationsTab extends StatelessWidget {
             ),
           ),
         const SizedBox(height: 16),
-        Text('DÉTAIL DES COMPTES INDIVIDUELS (${members.length})',
+        Text('DÉTAIL DES COMPTES INDIVIDUELS $year (${members.length})',
             style: const TextStyle(
                 color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
         const SizedBox(height: 12),
         for (final m in members)
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(m.fullName.toUpperCase(),
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14)),
-                  Text(
-                    '${m.grade} • ${m.function != 'Aucun' ? m.function : 'Membre'}',
-                    style: const TextStyle(color: BrColors.muted, fontSize: 12),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _DueChip(
-                        label: 'LOGE',
-                        amount: m.lodgeDues,
-                        paid: m.lodgeDuesPaid,
-                        onTap: canEdit
-                            ? () => state.updateMember(
-                                m.copyWith(lodgeDuesPaid: !m.lodgeDuesPaid))
-                            : null,
-                      ),
-                      _DueChip(
-                        label: 'ORDRE',
-                        amount: m.orderDues,
-                        paid: m.orderDuesPaid,
-                        onTap: canEdit
-                            ? () => state.updateMember(
-                                m.copyWith(orderDuesPaid: !m.orderDuesPaid))
-                            : null,
-                      ),
-                      if (m.elevationDues > 0)
+          Builder(builder: (context) {
+            final d = m.duesFor(year);
+            return Card(
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(m.fullName.toUpperCase(),
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14)),
+                              Text(
+                                '${m.grade} • ${m.function != 'Aucun' ? m.function : 'Membre'}',
+                                style: const TextStyle(
+                                    color: BrColors.muted, fontSize: 12),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (canEdit)
+                          IconButton(
+                            tooltip: 'Modifier les montants $year',
+                            icon: const Icon(Icons.edit_outlined,
+                                size: 18, color: BrColors.muted),
+                            onPressed: () => _editAmounts(m),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
                         _DueChip(
-                          label: 'GRADES',
-                          amount: m.elevationDues,
-                          paid: m.elevationDuesPaid,
+                          label: 'LOGE',
+                          amount: d.lodgeDues,
+                          paid: d.lodgeDuesPaid,
                           onTap: canEdit
-                              ? () => state.updateMember(m.copyWith(
-                                  elevationDuesPaid: !m.elevationDuesPaid))
+                              ? () => state.updateMember(m.withDuesForYear(
+                                  year,
+                                  d.copyWith(
+                                      lodgeDuesPaid: !d.lodgeDuesPaid)))
                               : null,
                         ),
-                    ],
-                  ),
+                        _DueChip(
+                          label: 'ORDRE',
+                          amount: d.orderDues,
+                          paid: d.orderDuesPaid,
+                          onTap: canEdit
+                              ? () => state.updateMember(m.withDuesForYear(
+                                  year,
+                                  d.copyWith(
+                                      orderDuesPaid: !d.orderDuesPaid)))
+                              : null,
+                        ),
+                        if (d.elevationDues > 0)
+                          _DueChip(
+                            label: 'GRADES',
+                            amount: d.elevationDues,
+                            paid: d.elevationDuesPaid,
+                            onTap: canEdit
+                                ? () => state.updateMember(m.withDuesForYear(
+                                    year,
+                                    d.copyWith(
+                                        elevationDuesPaid:
+                                            !d.elevationDuesPaid)))
+                                : null,
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+}
+
+class _YearSelector extends StatelessWidget {
+  final int year;
+  final List<int> years;
+  final ValueChanged<int> onChanged;
+  const _YearSelector(
+      {required this.year, required this.years, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: BrColors.gold.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.calendar_today_outlined,
+              size: 16, color: BrColors.gold),
+          const SizedBox(width: 8),
+          const Text('Année',
+              style: TextStyle(color: BrColors.muted, fontSize: 12)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<int>(
+                isExpanded: true,
+                value: year,
+                dropdownColor: BrColors.surface,
+                style: const TextStyle(
+                    color: BrColors.goldBright,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15),
+                items: [
+                  for (final y in years)
+                    DropdownMenuItem(value: y, child: Text('$y')),
                 ],
+                onChanged: (v) {
+                  if (v != null) onChanged(v);
+                },
               ),
             ),
           ),
-      ],
+        ],
+      ),
     );
   }
 }

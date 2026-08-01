@@ -10,6 +10,72 @@ bool canEditSessions(Member? user) {
       fn.contains('Secrétaire');
 }
 
+/// Cotisations d'un membre pour une année donnée.
+class DuesYear {
+  final num lodgeDues;
+  final bool lodgeDuesPaid;
+  final num orderDues;
+  final bool orderDuesPaid;
+  final num elevationDues;
+  final bool elevationDuesPaid;
+
+  const DuesYear({
+    this.lodgeDues = 0,
+    this.lodgeDuesPaid = false,
+    this.orderDues = 0,
+    this.orderDuesPaid = false,
+    this.elevationDues = 0,
+    this.elevationDuesPaid = false,
+  });
+
+  factory DuesYear.fromMap(Map<String, dynamic> map) {
+    return DuesYear(
+      lodgeDues: (map['lodgeDues'] ?? 0) as num,
+      lodgeDuesPaid: (map['lodgeDuesPaid'] ?? false) as bool,
+      orderDues: (map['orderDues'] ?? 0) as num,
+      orderDuesPaid: (map['orderDuesPaid'] ?? false) as bool,
+      elevationDues: (map['elevationDues'] ?? 0) as num,
+      elevationDuesPaid: (map['elevationDuesPaid'] ?? false) as bool,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'lodgeDues': lodgeDues,
+      'lodgeDuesPaid': lodgeDuesPaid,
+      'orderDues': orderDues,
+      'orderDuesPaid': orderDuesPaid,
+      'elevationDues': elevationDues,
+      'elevationDuesPaid': elevationDuesPaid,
+    };
+  }
+
+  DuesYear copyWith({
+    num? lodgeDues,
+    bool? lodgeDuesPaid,
+    num? orderDues,
+    bool? orderDuesPaid,
+    num? elevationDues,
+    bool? elevationDuesPaid,
+  }) {
+    return DuesYear(
+      lodgeDues: lodgeDues ?? this.lodgeDues,
+      lodgeDuesPaid: lodgeDuesPaid ?? this.lodgeDuesPaid,
+      orderDues: orderDues ?? this.orderDues,
+      orderDuesPaid: orderDuesPaid ?? this.orderDuesPaid,
+      elevationDues: elevationDues ?? this.elevationDues,
+      elevationDuesPaid: elevationDuesPaid ?? this.elevationDuesPaid,
+    );
+  }
+
+  /// Une entrée « vierge » : mêmes montants mais tout marqué non-payé.
+  DuesYear resetPaid() => copyWith(
+        lodgeDuesPaid: false,
+        orderDuesPaid: false,
+        elevationDuesPaid: false,
+      );
+}
+
 class Member {
   final String id;
   final String firstName;
@@ -36,6 +102,11 @@ class Member {
   final bool elevationDuesPaid;
   final bool isAdmin;
 
+  /// Cotisations par année (clé = année, ex. 2024). Permet de conserver
+  /// l'historique. Les champs à plat ci-dessus restent synchronisés avec
+  /// l'année courante pour la compatibilité avec la version web.
+  final Map<int, DuesYear> duesByYear;
+
   const Member({
     required this.id,
     this.firstName = '',
@@ -61,9 +132,38 @@ class Member {
     this.elevationDues = 0,
     this.elevationDuesPaid = false,
     this.isAdmin = false,
+    this.duesByYear = const {},
   });
 
   factory Member.fromMap(String id, Map<String, dynamic> map) {
+    // Champs à plat (format historique / web).
+    final flat = DuesYear(
+      lodgeDues: (map['lodgeDues'] ?? 0) as num,
+      lodgeDuesPaid: (map['lodgeDuesPaid'] ?? false) as bool,
+      orderDues: (map['orderDues'] ?? 0) as num,
+      orderDuesPaid: (map['orderDuesPaid'] ?? false) as bool,
+      elevationDues: (map['elevationDues'] ?? 0) as num,
+      elevationDuesPaid: (map['elevationDuesPaid'] ?? false) as bool,
+    );
+
+    // Cotisations par année (nouveau format).
+    final Map<int, DuesYear> byYear = {};
+    final rawByYear = map['duesByYear'];
+    if (rawByYear is Map) {
+      rawByYear.forEach((key, value) {
+        final year = int.tryParse('$key');
+        if (year != null && value is Map) {
+          byYear[year] =
+              DuesYear.fromMap(Map<String, dynamic>.from(value));
+        }
+      });
+    }
+    // Migration : aucun historique par année -> initialiser l'année courante
+    // à partir des anciens champs à plat.
+    if (byYear.isEmpty) {
+      byYear[DateTime.now().year] = flat;
+    }
+
     return Member(
       id: id,
       firstName: (map['firstName'] ?? '') as String,
@@ -89,10 +189,13 @@ class Member {
       elevationDues: (map['elevationDues'] ?? 0) as num,
       elevationDuesPaid: (map['elevationDuesPaid'] ?? false) as bool,
       isAdmin: (map['isAdmin'] ?? false) as bool,
+      duesByYear: byYear,
     );
   }
 
   Map<String, dynamic> toMap() {
+    // Champs à plat synchronisés sur l'année courante (compat web / historique).
+    final flat = duesFor(DateTime.now().year);
     return {
       'id': id,
       'firstName': firstName,
@@ -111,17 +214,37 @@ class Member {
       'initiationDate': initiationDate,
       'entryDate': entryDate,
       'status': status,
-      'lodgeDues': lodgeDues,
-      'lodgeDuesPaid': lodgeDuesPaid,
-      'orderDues': orderDues,
-      'orderDuesPaid': orderDuesPaid,
-      'elevationDues': elevationDues,
-      'elevationDuesPaid': elevationDuesPaid,
+      'lodgeDues': flat.lodgeDues,
+      'lodgeDuesPaid': flat.lodgeDuesPaid,
+      'orderDues': flat.orderDues,
+      'orderDuesPaid': flat.orderDuesPaid,
+      'elevationDues': flat.elevationDues,
+      'elevationDuesPaid': flat.elevationDuesPaid,
       'isAdmin': isAdmin,
+      'duesByYear': {
+        for (final e in duesByYear.entries) '${e.key}': e.value.toMap(),
+      },
     };
   }
 
   String get fullName => '$firstName $lastName'.trim();
+
+  /// Années enregistrées, triées de la plus récente à la plus ancienne.
+  List<int> get years {
+    final list = duesByYear.keys.toList()..sort((a, b) => b.compareTo(a));
+    if (list.isEmpty) list.add(DateTime.now().year);
+    return list;
+  }
+
+  /// Cotisations pour l'année demandée (entrée vierge si absente).
+  DuesYear duesFor(int year) => duesByYear[year] ?? const DuesYear();
+
+  /// Renvoie une copie avec les cotisations de [year] remplacées.
+  Member withDuesForYear(int year, DuesYear dues) {
+    final next = Map<int, DuesYear>.from(duesByYear);
+    next[year] = dues;
+    return copyWith(duesByYear: next);
+  }
 
   Member copyWith({
     String? firstName,
@@ -147,6 +270,7 @@ class Member {
     num? elevationDues,
     bool? elevationDuesPaid,
     bool? isAdmin,
+    Map<int, DuesYear>? duesByYear,
   }) {
     return Member(
       id: id,
@@ -173,6 +297,7 @@ class Member {
       elevationDues: elevationDues ?? this.elevationDues,
       elevationDuesPaid: elevationDuesPaid ?? this.elevationDuesPaid,
       isAdmin: isAdmin ?? this.isAdmin,
+      duesByYear: duesByYear ?? this.duesByYear,
     );
   }
 }
