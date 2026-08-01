@@ -10,32 +10,50 @@ bool canEditSessions(Member? user) {
       fn.contains('Secrétaire');
 }
 
+/// Lecture tolérante d'un montant Firestore (num, String ou absent).
+num _num(dynamic value) {
+  if (value is num) return value;
+  if (value is String) {
+    return num.tryParse(value.trim().replaceAll(',', '.')) ?? 0;
+  }
+  return 0;
+}
+
 /// Cotisations d'un membre pour une année donnée.
 class DuesYear {
   final num lodgeDues;
   final bool lodgeDuesPaid;
+  final num lodgeDuesPaidAmount;
   final num orderDues;
   final bool orderDuesPaid;
+  final num orderDuesPaidAmount;
   final num elevationDues;
   final bool elevationDuesPaid;
+  final num elevationDuesPaidAmount;
 
   const DuesYear({
     this.lodgeDues = 0,
     this.lodgeDuesPaid = false,
+    this.lodgeDuesPaidAmount = 0,
     this.orderDues = 0,
     this.orderDuesPaid = false,
+    this.orderDuesPaidAmount = 0,
     this.elevationDues = 0,
     this.elevationDuesPaid = false,
+    this.elevationDuesPaidAmount = 0,
   });
 
   factory DuesYear.fromMap(Map<String, dynamic> map) {
     return DuesYear(
-      lodgeDues: (map['lodgeDues'] ?? 0) as num,
+      lodgeDues: _num(map['lodgeDues']),
       lodgeDuesPaid: (map['lodgeDuesPaid'] ?? false) as bool,
-      orderDues: (map['orderDues'] ?? 0) as num,
+      lodgeDuesPaidAmount: _num(map['lodgeDuesPaidAmount']),
+      orderDues: _num(map['orderDues']),
       orderDuesPaid: (map['orderDuesPaid'] ?? false) as bool,
-      elevationDues: (map['elevationDues'] ?? 0) as num,
+      orderDuesPaidAmount: _num(map['orderDuesPaidAmount']),
+      elevationDues: _num(map['elevationDues']),
       elevationDuesPaid: (map['elevationDuesPaid'] ?? false) as bool,
+      elevationDuesPaidAmount: _num(map['elevationDuesPaidAmount']),
     );
   }
 
@@ -43,37 +61,80 @@ class DuesYear {
     return {
       'lodgeDues': lodgeDues,
       'lodgeDuesPaid': lodgeDuesPaid,
+      'lodgeDuesPaidAmount': lodgeDuesPaidAmount,
       'orderDues': orderDues,
       'orderDuesPaid': orderDuesPaid,
+      'orderDuesPaidAmount': orderDuesPaidAmount,
       'elevationDues': elevationDues,
       'elevationDuesPaid': elevationDuesPaid,
+      'elevationDuesPaidAmount': elevationDuesPaidAmount,
     };
   }
 
   DuesYear copyWith({
     num? lodgeDues,
     bool? lodgeDuesPaid,
+    num? lodgeDuesPaidAmount,
     num? orderDues,
     bool? orderDuesPaid,
+    num? orderDuesPaidAmount,
     num? elevationDues,
     bool? elevationDuesPaid,
+    num? elevationDuesPaidAmount,
   }) {
     return DuesYear(
       lodgeDues: lodgeDues ?? this.lodgeDues,
       lodgeDuesPaid: lodgeDuesPaid ?? this.lodgeDuesPaid,
+      lodgeDuesPaidAmount: lodgeDuesPaidAmount ?? this.lodgeDuesPaidAmount,
       orderDues: orderDues ?? this.orderDues,
       orderDuesPaid: orderDuesPaid ?? this.orderDuesPaid,
+      orderDuesPaidAmount: orderDuesPaidAmount ?? this.orderDuesPaidAmount,
       elevationDues: elevationDues ?? this.elevationDues,
       elevationDuesPaid: elevationDuesPaid ?? this.elevationDuesPaid,
+      elevationDuesPaidAmount:
+          elevationDuesPaidAmount ?? this.elevationDuesPaidAmount,
     );
   }
 
   /// Une entrée « vierge » : mêmes montants mais tout marqué non-payé.
   DuesYear resetPaid() => copyWith(
         lodgeDuesPaid: false,
+        lodgeDuesPaidAmount: 0,
         orderDuesPaid: false,
+        orderDuesPaidAmount: 0,
         elevationDuesPaid: false,
+        elevationDuesPaidAmount: 0,
       );
+
+  /// Montant réellement encaissé pour une ligne : la totalité si la ligne est
+  /// marquée « soldée », sinon le versement partiel (borné au montant dû).
+  static num _collected(num dues, bool paid, num paidAmount) {
+    if (paid) return dues;
+    if (paidAmount <= 0) return 0;
+    return paidAmount > dues ? dues : paidAmount;
+  }
+
+  num get lodgeCollected =>
+      _collected(lodgeDues, lodgeDuesPaid, lodgeDuesPaidAmount);
+  num get orderCollected =>
+      _collected(orderDues, orderDuesPaid, orderDuesPaidAmount);
+  num get elevationCollected =>
+      _collected(elevationDues, elevationDuesPaid, elevationDuesPaidAmount);
+
+  num get totalDues => lodgeDues + orderDues + elevationDues;
+  num get totalCollected =>
+      lodgeCollected + orderCollected + elevationCollected;
+  num get totalPending => totalDues - totalCollected;
+
+  /// Recalcule les booléens « soldé » à partir des versements enregistrés.
+  DuesYear syncPaidFlags() => copyWith(
+        lodgeDuesPaid: _settled(lodgeDues, lodgeDuesPaidAmount),
+        orderDuesPaid: _settled(orderDues, orderDuesPaidAmount),
+        elevationDuesPaid: _settled(elevationDues, elevationDuesPaidAmount),
+      );
+
+  static bool _settled(num dues, num paidAmount) =>
+      paidAmount > 0 && paidAmount >= dues;
 }
 
 class Member {
@@ -96,10 +157,13 @@ class Member {
   final String status; // 'Actif' | 'Honoraire' | 'En sommeil' | ...
   final num lodgeDues;
   final bool lodgeDuesPaid;
+  final num lodgeDuesPaidAmount;
   final num orderDues;
   final bool orderDuesPaid;
+  final num orderDuesPaidAmount;
   final num elevationDues;
   final bool elevationDuesPaid;
+  final num elevationDuesPaidAmount;
   final bool isAdmin;
 
   /// Cotisations par année (clé = année, ex. 2024). Permet de conserver
@@ -127,24 +191,20 @@ class Member {
     this.status = 'Actif',
     this.lodgeDues = 0,
     this.lodgeDuesPaid = false,
+    this.lodgeDuesPaidAmount = 0,
     this.orderDues = 0,
     this.orderDuesPaid = false,
+    this.orderDuesPaidAmount = 0,
     this.elevationDues = 0,
     this.elevationDuesPaid = false,
+    this.elevationDuesPaidAmount = 0,
     this.isAdmin = false,
     this.duesByYear = const {},
   });
 
   factory Member.fromMap(String id, Map<String, dynamic> map) {
     // Champs à plat (format historique / web).
-    final flat = DuesYear(
-      lodgeDues: (map['lodgeDues'] ?? 0) as num,
-      lodgeDuesPaid: (map['lodgeDuesPaid'] ?? false) as bool,
-      orderDues: (map['orderDues'] ?? 0) as num,
-      orderDuesPaid: (map['orderDuesPaid'] ?? false) as bool,
-      elevationDues: (map['elevationDues'] ?? 0) as num,
-      elevationDuesPaid: (map['elevationDuesPaid'] ?? false) as bool,
-    );
+    final flat = DuesYear.fromMap(map);
 
     // Cotisations par année (nouveau format).
     final Map<int, DuesYear> byYear = {};
@@ -182,12 +242,15 @@ class Member {
       initiationDate: (map['initiationDate'] ?? '') as String,
       entryDate: (map['entryDate'] ?? '') as String,
       status: (map['status'] ?? 'Actif') as String,
-      lodgeDues: (map['lodgeDues'] ?? 0) as num,
-      lodgeDuesPaid: (map['lodgeDuesPaid'] ?? false) as bool,
-      orderDues: (map['orderDues'] ?? 0) as num,
-      orderDuesPaid: (map['orderDuesPaid'] ?? false) as bool,
-      elevationDues: (map['elevationDues'] ?? 0) as num,
-      elevationDuesPaid: (map['elevationDuesPaid'] ?? false) as bool,
+      lodgeDues: flat.lodgeDues,
+      lodgeDuesPaid: flat.lodgeDuesPaid,
+      lodgeDuesPaidAmount: flat.lodgeDuesPaidAmount,
+      orderDues: flat.orderDues,
+      orderDuesPaid: flat.orderDuesPaid,
+      orderDuesPaidAmount: flat.orderDuesPaidAmount,
+      elevationDues: flat.elevationDues,
+      elevationDuesPaid: flat.elevationDuesPaid,
+      elevationDuesPaidAmount: flat.elevationDuesPaidAmount,
       isAdmin: (map['isAdmin'] ?? false) as bool,
       duesByYear: byYear,
     );
@@ -216,10 +279,13 @@ class Member {
       'status': status,
       'lodgeDues': flat.lodgeDues,
       'lodgeDuesPaid': flat.lodgeDuesPaid,
+      'lodgeDuesPaidAmount': flat.lodgeDuesPaidAmount,
       'orderDues': flat.orderDues,
       'orderDuesPaid': flat.orderDuesPaid,
+      'orderDuesPaidAmount': flat.orderDuesPaidAmount,
       'elevationDues': flat.elevationDues,
       'elevationDuesPaid': flat.elevationDuesPaid,
+      'elevationDuesPaidAmount': flat.elevationDuesPaidAmount,
       'isAdmin': isAdmin,
       'duesByYear': {
         for (final e in duesByYear.entries) '${e.key}': e.value.toMap(),
@@ -234,6 +300,12 @@ class Member {
     final list = duesByYear.keys.toList()..sort((a, b) => b.compareTo(a));
     if (list.isEmpty) list.add(DateTime.now().year);
     return list;
+  }
+
+  /// Statuts exonérés de cotisation (Honoraire / En sommeil).
+  bool get isExemptFromDues {
+    final s = status.trim().toLowerCase();
+    return s == 'honoraire' || s == 'en sommeil';
   }
 
   /// Cotisations pour l'année demandée (entrée vierge si absente).
@@ -265,10 +337,13 @@ class Member {
     String? status,
     num? lodgeDues,
     bool? lodgeDuesPaid,
+    num? lodgeDuesPaidAmount,
     num? orderDues,
     bool? orderDuesPaid,
+    num? orderDuesPaidAmount,
     num? elevationDues,
     bool? elevationDuesPaid,
+    num? elevationDuesPaidAmount,
     bool? isAdmin,
     Map<int, DuesYear>? duesByYear,
   }) {
@@ -292,10 +367,14 @@ class Member {
       status: status ?? this.status,
       lodgeDues: lodgeDues ?? this.lodgeDues,
       lodgeDuesPaid: lodgeDuesPaid ?? this.lodgeDuesPaid,
+      lodgeDuesPaidAmount: lodgeDuesPaidAmount ?? this.lodgeDuesPaidAmount,
       orderDues: orderDues ?? this.orderDues,
       orderDuesPaid: orderDuesPaid ?? this.orderDuesPaid,
+      orderDuesPaidAmount: orderDuesPaidAmount ?? this.orderDuesPaidAmount,
       elevationDues: elevationDues ?? this.elevationDues,
       elevationDuesPaid: elevationDuesPaid ?? this.elevationDuesPaid,
+      elevationDuesPaidAmount:
+          elevationDuesPaidAmount ?? this.elevationDuesPaidAmount,
       isAdmin: isAdmin ?? this.isAdmin,
       duesByYear: duesByYear ?? this.duesByYear,
     );
