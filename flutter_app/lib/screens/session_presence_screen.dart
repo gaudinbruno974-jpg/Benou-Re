@@ -18,6 +18,7 @@ import '../models/member.dart';
 import '../models/session.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 
 const _visitorRoleOptions = [
   'Premier Surveillant',
@@ -162,7 +163,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(14, 18, 14, 28),
         children: [
           if (!canEdit)
             const Padding(
@@ -221,10 +222,8 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(text,
-          style: const TextStyle(
-              color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: BrSectionTitle(text, icon: Icons.people_outline),
     );
   }
 }
@@ -247,11 +246,23 @@ class _MemberTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: BrCard(
+        accent: isPresent
+            ? const Color(0xFF34D399)
+            : isExcused
+                ? BrColors.gold
+                : BrColors.muted,
+        padding: const EdgeInsets.all(14),
         child: Row(
           children: [
+            BrAvatar(
+              firstName: name.split(' ').first,
+              lastName: name.split(' ').length > 1 ? name.split(' ').last : '',
+              size: 40,
+            ),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,7 +270,7 @@ class _MemberTile extends StatelessWidget {
                   Text(name,
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 4),
                   Text(role,
                       style: const TextStyle(
                           color: BrColors.muted, fontSize: 12)),
@@ -304,14 +315,24 @@ class _VisitorTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: BrCard(
+        accent: isPresent ? BrColors.teal : BrColors.muted,
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                BrAvatar(
+                  firstName: name.split(' ').first,
+                  lastName:
+                      name.split(' ').length > 1 ? name.split(' ').last : '',
+                  size: 40,
+                  color: const Color(0xFF34D399),
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,7 +342,7 @@ class _VisitorTile extends StatelessWidget {
                               color: Colors.white,
                               fontWeight: FontWeight.bold)),
                       if (subtitle.isNotEmpty) ...[
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 4),
                         Text(subtitle,
                             style: const TextStyle(
                                 color: BrColors.muted, fontSize: 12)),
@@ -384,9 +405,9 @@ class _PresenceButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
         decoration: BoxDecoration(
           color: selected
               ? selectedColor

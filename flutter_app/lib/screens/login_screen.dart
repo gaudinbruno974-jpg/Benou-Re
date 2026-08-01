@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: BrColors.background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -71,22 +72,31 @@ class _LoginScreenState extends State<LoginScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    height: 80,
-                    width: 80,
+                    height: 92,
+                    width: 92,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: BrColors.background,
-                      border: Border.all(
-                        color: BrColors.gold.withValues(alpha: 0.4),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          BrColors.surface.withValues(alpha: 0.9),
+                          BrColors.backgroundDark.withValues(alpha: 0.9),
+                        ],
                       ),
+                      border: Border.all(
+                        color: BrColors.gold.withValues(alpha: 0.5),
+                        width: 1.5,
+                      ),
+                      boxShadow: BrColors.raisedShadow,
                     ),
                     child: const Icon(
                       Icons.remove_red_eye_outlined,
-                      color: BrColors.gold,
-                      size: 40,
+                      color: BrColors.goldBright,
+                      size: 44,
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   const Text(
                     'RL BÉNOU RÉ',
                     style: TextStyle(
@@ -102,20 +112,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(color: BrColors.muted, fontSize: 11),
                   ),
-                  const SizedBox(height: 28),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
+                  const SizedBox(height: 32),
+                  BrCard(
+                    padding: const EdgeInsets.all(26),
+                    child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
                             'ORIENT DE SAINT-PIERRE',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: BrColors.gold,
+                              color: BrColors.goldBright,
                               fontSize: 11,
-                              letterSpacing: 2,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 3,
                             ),
                           ),
                           const SizedBox(height: 20),
@@ -202,30 +212,42 @@ class _LoginScreenState extends State<LoginScreen> {
                             alignment: WrapAlignment.center,
                             children: [
                               for (final acc in _quickAccounts)
-                                OutlinedButton(
+                                OutlinedButton.icon(
                                   onPressed: _loading
                                       ? null
                                       : () => _login(acc.$2, 'password123'),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: BrColors.goldBright,
+                                    backgroundColor: BrColors.backgroundDark
+                                        .withValues(alpha: 0.35),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 14,
+                                      vertical: 10,
+                                    ),
                                     side: BorderSide(
-                                      color: BrColors.muted.withValues(
-                                        alpha: 0.2,
+                                      color: BrColors.gold.withValues(
+                                        alpha: 0.4,
                                       ),
                                     ),
                                   ),
-                                  child: Text(
+                                  icon: const Icon(
+                                    Icons.person_outline,
+                                    size: 14,
+                                  ),
+                                  label: Text(
                                     acc.$1,
-                                    style: const TextStyle(fontSize: 11),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                             ],
                           ),
                         ],
                       ),
-                    ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   const Text(
                     'EX CINERIBUS, AD LUCEM PERPETUAM',
                     style: TextStyle(

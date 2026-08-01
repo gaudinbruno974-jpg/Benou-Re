@@ -13,6 +13,7 @@ import '../services/drive_service.dart';
 import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 import 'emargement_screen.dart';
 import 'planche_tracee_edit_screen.dart';
 import 'session_edit_screen.dart';
@@ -78,9 +79,9 @@ class SessionsScreen extends StatelessWidget {
               ),
             )
           : ListView.separated(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
               itemCount: sessions.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              separatorBuilder: (context, index) => const SizedBox(height: 14),
               itemBuilder: (context, i) => _SessionCard(session: sessions[i]),
             ),
     );
@@ -105,20 +106,18 @@ class _SessionCard extends StatelessWidget {
     final points = 4 + s.ordresJourCount + 1;
     final heure = _timeOf(s);
 
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.of(context).push(
+    return BrCard(
+      accent: _statusColor(s.statut),
+      padding: const EdgeInsets.all(16),
+      onTap: () => Navigator.of(context).push(
           MaterialPageRoute(builder: (_) => SessionDetailScreen(session: s)),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Wrap(
-                spacing: 6,
-                runSpacing: 6,
+                spacing: 7,
+                runSpacing: 7,
                 crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
                   _badge(
@@ -139,16 +138,17 @@ class _SessionCard extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Text(
                 _capitalize(formatSessionDate(s)),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 16.5,
+                  letterSpacing: 0.2,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 16,
                 runSpacing: 4,
@@ -166,12 +166,14 @@ class _SessionCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.only(left: 10),
-                decoration: const BoxDecoration(
-                  border: Border(
-                    left: BorderSide(color: BrColors.gold, width: 2),
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                decoration: BoxDecoration(
+                  color: BrColors.backgroundDark.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(BrColors.radiusS),
+                  border: const Border(
+                    left: BorderSide(color: BrColors.gold, width: 3),
                   ),
                 ),
                 child: Column(
@@ -208,7 +210,10 @@ class _SessionCard extends StatelessWidget {
                   color: BrColors.gold,
                 ),
               ],
-              const Divider(height: 20, color: BrColors.gold),
+              Divider(
+                height: 26,
+                color: BrColors.gold.withValues(alpha: 0.35),
+              ),
               Row(
                 children: [
                   if (canEdit)
@@ -253,8 +258,6 @@ class _SessionCard extends StatelessWidget {
               ),
             ],
           ),
-        ),
-      ),
     );
   }
 
@@ -286,31 +289,7 @@ class _SessionCard extends StatelessWidget {
   }
 
   Widget _badge(String text, Color color, {IconData? icon}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 3),
-          ],
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ],
-      ),
-    );
+    return BrBadge(label: text, color: color, icon: icon);
   }
 
   Widget _iconText(IconData icon, String text, {Color? color}) {
@@ -393,40 +372,46 @@ class SessionDetailScreen extends StatelessWidget {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
         children: [
-          _infoRow('Date', formatSessionDate(session)),
-          _infoRow('Type', session.type),
-          _infoRow('Degré', session.degree),
-          _infoRow(
-            'Lieu',
-            session.location.isNotEmpty ? session.location : '—',
-          ),
-          _infoRow('Tronc de la Veuve', '${session.troncAmount} €'),
-          _infoRow('Clôture', session.closingTime),
-          const SizedBox(height: 16),
-          _section(
-            'Membres présents (${present.length})',
-            present.map((m) => m.fullName).toList(),
-          ),
-          _section(
-            'Membres excusés (${excused.length})',
-            excused.map((m) => m.fullName).toList(),
-          ),
-          _section(
-            'Visiteurs (${visitors.length})',
-            visitors.map((v) => '${v.fullName} — ${v.lodge}').toList(),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'DOCUMENTS',
-            style: TextStyle(
-              color: BrColors.gold,
-              fontSize: 12,
-              letterSpacing: 2,
+          BrCard(
+            child: Column(
+              children: [
+                _infoRow('Date', formatSessionDate(session)),
+                _infoRow('Type', session.type),
+                _infoRow('Degré', session.degree),
+                _infoRow(
+                  'Lieu',
+                  session.location.isNotEmpty ? session.location : '—',
+                ),
+                _infoRow('Tronc de la Veuve', '${session.troncAmount} €'),
+                _infoRow('Clôture', session.closingTime),
+              ],
             ),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
+          BrCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _section(
+                  'Membres présents (${present.length})',
+                  present.map((m) => m.fullName).toList(),
+                ),
+                _section(
+                  'Membres excusés (${excused.length})',
+                  excused.map((m) => m.fullName).toList(),
+                ),
+                _section(
+                  'Visiteurs (${visitors.length})',
+                  visitors.map((v) => '${v.fullName} — ${v.lodge}').toList(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 26),
+          const BrSectionTitle('DOCUMENTS', icon: Icons.folder_outlined),
+          const SizedBox(height: 16),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
             icon: const Icon(Icons.mail_outline, size: 18),

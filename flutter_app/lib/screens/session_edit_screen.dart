@@ -339,7 +339,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
           children: [
             _dropdown(
               'Type de Tenue',
@@ -464,8 +464,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               ),
             ),
 
-            const SizedBox(height: 12),
-            const Divider(color: BrColors.gold),
+            const SizedBox(height: 16),
+            Divider(color: BrColors.gold.withValues(alpha: 0.35), height: 28),
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text(
@@ -519,11 +519,11 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 ),
             ],
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: BrColors.teal,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 16),
               ),
               icon: _saving
                   ? const SizedBox(
@@ -555,7 +555,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     IconData? icon,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: 7),
       child: TextFormField(
         controller: c,
         keyboardType: keyboard,
@@ -695,14 +695,26 @@ class _Heading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(top: 8, bottom: 4),
-    child: Text(
-      text,
-      style: const TextStyle(
-        color: BrColors.gold,
-        fontSize: 12,
-        letterSpacing: 1.5,
-      ),
+    padding: const EdgeInsets.only(top: 16, bottom: 10),
+    child: Row(
+      children: [
+        Text(
+          text,
+          style: const TextStyle(
+            color: BrColors.gold,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.5,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Container(
+            height: 1,
+            color: BrColors.gold.withValues(alpha: 0.2),
+          ),
+        ),
+      ],
     ),
   );
 }

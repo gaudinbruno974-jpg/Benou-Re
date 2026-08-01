@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../services/url_opener.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 
 class _DriveFolder {
   final String grade; // 'Apprenti' | 'Compagnon' | 'Maitre'
@@ -91,41 +92,88 @@ class LibraryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: Text(_typeNameFr(type))),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
         children: [
-          const Text(
-            'Les répertoires ci-dessous sont hébergés sur Google Drive et régis '
-            'par vos droits d\'accès initiatiques.',
-            style: TextStyle(color: BrColors.muted, fontSize: 13),
+          BrCard(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline,
+                    color: BrColors.gold, size: 18),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'Les répertoires ci-dessous sont hébergés sur Google Drive et régis '
+                    'par vos droits d\'accès initiatiques.',
+                    style: TextStyle(
+                      color: BrColors.muted,
+                      fontSize: 13,
+                      height: 1.4,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(height: 24),
+          const BrSectionTitle('RÉPERTOIRES', icon: Icons.folder_outlined),
           const SizedBox(height: 16),
           ...folders.map((f) {
             final allowed = _isGradeAllowed(f.grade, userGrade);
-            return Card(
-              child: ListTile(
-                leading: Icon(
-                  allowed ? Icons.folder_open : Icons.lock_outline,
-                  color: allowed ? _gradeColor(f.grade) : BrColors.muted,
-                ),
-                title: Text(
-                  f.label,
-                  style: TextStyle(
-                    color: allowed ? Colors.white : BrColors.muted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                subtitle: Text(
-                  allowed
-                      ? 'Contenu du grade ${_gradeLabel(f.grade)}'
-                      : 'Réservé au grade ${_gradeLabel(f.grade)}',
-                  style: const TextStyle(color: BrColors.muted, fontSize: 12),
-                ),
-                trailing: allowed
-                    ? const Icon(Icons.open_in_new,
-                        color: BrColors.teal, size: 18)
-                    : null,
-                enabled: allowed,
+            final color = allowed ? _gradeColor(f.grade) : BrColors.muted;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: BrCard(
+                accent: color,
+                padding: const EdgeInsets.all(16),
                 onTap: allowed ? () => _open(context, f.url) : null,
+                child: Row(
+                  children: [
+                    Container(
+                      height: 44,
+                      width: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        borderRadius:
+                            BorderRadius.circular(BrColors.radiusS),
+                        color: color.withValues(alpha: 0.15),
+                        border:
+                            Border.all(color: color.withValues(alpha: 0.4)),
+                      ),
+                      child: Icon(
+                        allowed ? Icons.folder_open : Icons.lock_outline,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            f.label,
+                            style: TextStyle(
+                              color: allowed ? Colors.white : BrColors.muted,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 14.5,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            allowed
+                                ? 'Contenu du grade ${_gradeLabel(f.grade)}'
+                                : 'Réservé au grade ${_gradeLabel(f.grade)}',
+                            style: const TextStyle(
+                                color: BrColors.muted, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (allowed)
+                      const Icon(Icons.open_in_new,
+                          color: BrColors.teal, size: 18),
+                  ],
+                ),
               ),
             );
           }),

@@ -13,6 +13,7 @@ import '../models/member.dart';
 import '../models/session.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 
 class _Signer {
   final String id; // clé de stockage
@@ -104,7 +105,7 @@ class EmargementScreen extends StatelessWidget {
         ),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(14, 18, 14, 28),
         children: [
           const _SectionTitle('MEMBRES PRÉSENTS'),
           if (memberSigners.isEmpty)
@@ -227,10 +228,8 @@ class _SectionTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(text,
-          style: const TextStyle(
-              color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: BrSectionTitle(text, icon: Icons.draw_outlined),
     );
   }
 }
@@ -243,30 +242,37 @@ class _SignerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final signed = (signer.current ?? '').isNotEmpty;
-    return Card(
-      child: ListTile(
-        title: Text(signer.name,
-            style: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
-        subtitle: Text(signer.role,
-            style: const TextStyle(color: BrColors.muted, fontSize: 12)),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
+    final color = signed ? const Color(0xFF34D399) : BrColors.gold;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: BrCard(
+        accent: color,
+        padding: const EdgeInsets.all(14),
+        child: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: (signed ? const Color(0xFF34D399) : BrColors.gold)
-                    .withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(signer.name,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14.5)),
+                  const SizedBox(height: 6),
+                  Text(signer.role,
+                      style: const TextStyle(
+                          color: BrColors.muted, fontSize: 12)),
+                ],
               ),
-              child: Text(signed ? 'Signé' : 'En attente',
-                  style: TextStyle(
-                      color:
-                          signed ? const Color(0xFF34D399) : BrColors.goldBright,
-                      fontSize: 11)),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
+            BrBadge(
+              label: signed ? 'Signé' : 'En attente',
+              color: color,
+              icon: signed ? Icons.check_circle_outline : Icons.schedule,
+            ),
+            const SizedBox(width: 6),
             TextButton(
               onPressed: onSign,
               child: Text(signed ? 'Modifier' : 'Signer',

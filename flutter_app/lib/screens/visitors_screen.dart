@@ -6,6 +6,7 @@ import '../models/member.dart';
 import '../models/visitor.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 
 class VisitorsScreen extends StatelessWidget {
   const VisitorsScreen({super.key});
@@ -32,42 +33,74 @@ class VisitorsScreen extends StatelessWidget {
               child: Text('Aucun visiteur',
                   style: TextStyle(color: BrColors.muted)))
           : ListView.separated(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
               itemCount: visitors.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, i) {
                 final v = visitors[i];
-                return Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.shield_outlined,
-                        color: Color(0xFF34D399)),
-                    title: Text(v.fullName,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold)),
-                    subtitle: Text(
-                      '${v.lodge}${v.orient.isNotEmpty ? ' (${v.orient})' : ''}\n${v.obedience}',
-                      style:
-                          const TextStyle(color: BrColors.muted, fontSize: 12),
-                    ),
-                    isThreeLine: true,
-                    trailing: canEdit
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit,
-                                    color: BrColors.gold, size: 20),
-                                onPressed: () => _openEdit(context, v),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    color: Color(0xFFFB7185), size: 20),
-                                onPressed: () => state.deleteVisitor(v.id),
-                              ),
-                            ],
-                          )
-                        : null,
+                return BrCard(
+                  accent: const Color(0xFF34D399),
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BrAvatar(
+                        firstName: v.firstName,
+                        lastName: v.lastName,
+                        size: 46,
+                        color: const Color(0xFF34D399),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(v.fullName,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15.5,
+                                    fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                BrBadge(
+                                  label:
+                                      '${v.lodge}${v.orient.isNotEmpty ? ' (${v.orient})' : ''}',
+                                  color: BrColors.teal,
+                                  icon: Icons.shield_outlined,
+                                ),
+                                if (v.obedience.isNotEmpty)
+                                  BrBadge(
+                                    label: v.obedience,
+                                    color: BrColors.violet,
+                                    icon: Icons.account_balance_outlined,
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (canEdit)
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.edit,
+                                  color: BrColors.gold, size: 20),
+                              onPressed: () => _openEdit(context, v),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Color(0xFFFB7185), size: 20),
+                              onPressed: () => state.deleteVisitor(v.id),
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
                 );
               },

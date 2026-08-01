@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/member.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 
 class MemberEditScreen extends StatefulWidget {
   final Member? member;
@@ -113,28 +114,57 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
           children: [
-            _field('firstName', 'Prénom', required: true),
-            _field('lastName', 'Nom', required: true),
-            _field('email', 'Email', keyboard: TextInputType.emailAddress),
-            _field('phone', 'Téléphone', keyboard: TextInputType.phone),
-            _field('address', 'Adresse'),
-            _field('matricule', 'Matricule'),
-            _field('function', 'Office / Fonction'),
-            _field('motherLodge', 'Loge mère'),
-            _field('sponsor', 'Parrain'),
-            const SizedBox(height: 8),
-            _dropdown('Grade', _grade, _grades, (v) => setState(() => _grade = v)),
-            const SizedBox(height: 12),
-            _dropdown('Statut', _status, _statuses,
-                (v) => setState(() => _status = v)),
-            const SizedBox(height: 8),
-            _field('lodgeDues', 'Cotisation Loge (€)',
-                keyboard: TextInputType.number),
-            _field('orderDues', 'Cotisation Ordre (€)',
-                keyboard: TextInputType.number),
-            const SizedBox(height: 20),
+            const BrSectionTitle('IDENTITÉ', icon: Icons.badge_outlined),
+            const SizedBox(height: 14),
+            BrCard(
+              child: Column(
+                children: [
+                  _field('firstName', 'Prénom', required: true),
+                  _field('lastName', 'Nom', required: true),
+                  _field('email', 'Email',
+                      keyboard: TextInputType.emailAddress),
+                  _field('phone', 'Téléphone', keyboard: TextInputType.phone),
+                  _field('address', 'Adresse', last: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const BrSectionTitle('PARCOURS MAÇONNIQUE',
+                icon: Icons.auto_awesome),
+            const SizedBox(height: 14),
+            BrCard(
+              child: Column(
+                children: [
+                  _field('matricule', 'Matricule'),
+                  _field('function', 'Office / Fonction'),
+                  _field('motherLodge', 'Loge mère'),
+                  _field('sponsor', 'Parrain', last: true),
+                  const SizedBox(height: 14),
+                  _dropdown('Grade', _grade, _grades,
+                      (v) => setState(() => _grade = v)),
+                  const SizedBox(height: 14),
+                  _dropdown('Statut', _status, _statuses,
+                      (v) => setState(() => _status = v)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            const BrSectionTitle('COTISATIONS',
+                icon: Icons.account_balance_wallet_outlined),
+            const SizedBox(height: 14),
+            BrCard(
+              child: Column(
+                children: [
+                  _field('lodgeDues', 'Cotisation Loge (€)',
+                      keyboard: TextInputType.number),
+                  _field('orderDues', 'Cotisation Ordre (€)',
+                      keyboard: TextInputType.number, last: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 26),
             ElevatedButton.icon(
               onPressed: _saving ? null : _save,
               icon: _saving
@@ -153,9 +183,9 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
   }
 
   Widget _field(String key, String label,
-      {bool required = false, TextInputType? keyboard}) {
+      {bool required = false, TextInputType? keyboard, bool last = false}) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.only(bottom: last ? 0 : 14),
       child: TextFormField(
         controller: _ctrls[key],
         keyboardType: keyboard,

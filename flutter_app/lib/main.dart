@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'state/app_state.dart';
 import 'theme.dart';
+import 'widgets/br_decor.dart';
 import 'screens/login_screen.dart';
 import 'screens/parvis_screen.dart';
 
@@ -35,6 +36,9 @@ class BenouReApp extends StatelessWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: const [Locale('fr', 'FR'), Locale('en')],
+        // Le dégradé et le filigrane sont peints derrière tous les écrans.
+        builder: (context, child) =>
+            BrBackground(child: child ?? const SizedBox.shrink()),
         home: const _Root(),
       ),
     );
@@ -51,7 +55,6 @@ class _Root extends StatelessWidget {
     // Écran de chargement : utilise les couleurs du thème
     if (state.authLoading) {
       return Scaffold(
-        backgroundColor: BrColors.backgroundDark,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,

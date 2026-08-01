@@ -13,6 +13,7 @@ import '../models/session.dart';
 import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 
 const _emerald = Color(0xFF34D399);
 const _rose = Color(0xFFFB7185);
@@ -54,6 +55,7 @@ class TreasuryScreen extends StatelessWidget {
             indicatorColor: BrColors.gold,
             labelColor: BrColors.goldBright,
             unselectedLabelColor: BrColors.muted,
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             tabs: [
               Tab(icon: Icon(Icons.groups_outlined), text: 'Cotisations'),
               Tab(icon: Icon(Icons.savings_outlined), text: 'Tronc de la Veuve'),
@@ -341,7 +343,7 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     }
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
       children: [
         Row(
           children: [
@@ -444,14 +446,13 @@ class _CotisationsTabState extends State<_CotisationsTab> {
               ),
           ],
         ),
-        const SizedBox(height: 16),
-        Text(
+        const SizedBox(height: 24),
+        BrSectionTitle(
             _unpaidOnly
                 ? 'MEMBRES AVEC COTISATIONS IMPAYÉES $year (${unpaidMembers.length})'
                 : 'DÉTAIL DES COMPTES INDIVIDUELS $year (${members.length})',
-            style: const TextStyle(
-                color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
-        const SizedBox(height: 12),
+            icon: Icons.receipt_long_outlined),
+        const SizedBox(height: 16),
         if (visibleMembers.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
@@ -478,14 +479,22 @@ class _CotisationsTabState extends State<_CotisationsTab> {
         for (final m in visibleMembers)
           Builder(builder: (context) {
             final d = m.duesFor(year);
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: BrCard(
+                accent: _amountDue(m, year) > 0 ? _rose : _emerald,
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
+                        BrAvatar(
+                          firstName: m.firstName,
+                          lastName: m.lastName,
+                          size: 42,
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,7 +503,9 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                                   style: const TextStyle(
                                       color: Colors.white,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 14)),
+                                      fontSize: 14,
+                                      letterSpacing: 0.4)),
+                              const SizedBox(height: 4),
                               Text(
                                 '${m.grade} • ${m.function != 'Aucun' ? m.function : 'Membre'}',
                                 style: const TextStyle(
@@ -502,24 +513,11 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                               ),
                               if (m.isExemptFromDues)
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: _emerald.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                          color: _emerald.withValues(
-                                              alpha: 0.4)),
-                                    ),
-                                    child: Text(
-                                      'Exonéré • ${m.status}',
-                                      style: const TextStyle(
-                                          color: _emerald,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.bold),
-                                    ),
+                                  padding: const EdgeInsets.only(top: 6),
+                                  child: BrBadge(
+                                    label: 'Exonéré • ${m.status}',
+                                    color: _emerald,
+                                    icon: Icons.verified_outlined,
                                   ),
                                 ),
                               if (_unpaidOnly)
@@ -628,10 +626,11 @@ class _YearSelector extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: BrColors.gold.withValues(alpha: 0.3)),
+        color: BrColors.backgroundDark.withValues(alpha: 0.4),
+        borderRadius: BorderRadius.circular(BrColors.radiusS),
+        border: Border.all(color: BrColors.gold.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
@@ -685,16 +684,26 @@ class _TroncTab extends StatelessWidget {
     final total = sessions.fold<num>(0, (acc, s) => acc + s.troncAmount);
 
     return ListView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
+        BrCard(
+            padding: const EdgeInsets.all(24),
             child: Column(
               children: [
-                const Icon(Icons.account_balance_wallet,
-                    size: 40, color: BrColors.gold),
-                const SizedBox(height: 8),
+                Container(
+                  height: 66,
+                  width: 66,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: BrColors.gold.withValues(alpha: 0.14),
+                    border: Border.all(
+                        color: BrColors.gold.withValues(alpha: 0.4)),
+                  ),
+                  child: const Icon(Icons.account_balance_wallet,
+                      size: 32, color: BrColors.goldBright),
+                ),
+                const SizedBox(height: 14),
                 const Text('CAISSE GÉNÉRALE DU TRONC',
                     style: TextStyle(
                         color: BrColors.muted,
@@ -703,24 +712,23 @@ class _TroncTab extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text('${total.toStringAsFixed(2)} €',
                     style: const TextStyle(
-                        color: BrColors.gold,
-                        fontSize: 34,
+                        color: BrColors.goldBright,
+                        fontSize: 36,
                         fontWeight: FontWeight.bold)),
-                const SizedBox(height: 6),
+                const SizedBox(height: 10),
                 const Text(
                   "Fonds dédiés aux œuvres de bienfaisance et à l'aide aux veuves et orphelins de l'atelier.",
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: BrColors.muted, fontSize: 12),
+                  style: TextStyle(
+                      color: BrColors.muted, fontSize: 12, height: 1.4),
                 ),
               ],
             ),
-          ),
         ),
+        const SizedBox(height: 26),
+        BrSectionTitle('HISTORIQUE DES TENUES (${withTronc.length})',
+            icon: Icons.history),
         const SizedBox(height: 16),
-        Text('HISTORIQUE DES TENUES (${withTronc.length})',
-            style: const TextStyle(
-                color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
-        const SizedBox(height: 12),
         if (withTronc.isEmpty)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 32),
@@ -735,30 +743,52 @@ class _TroncTab extends StatelessWidget {
           )
         else
           for (final s in withTronc)
-            Card(
-              child: ListTile(
-                title: Text(
-                  s.title.isNotEmpty
-                      ? s.title
-                      : 'Tenue au ${s.degreeLabel}',
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  'Grade : ${s.degreeLabel} • ${_fmtDate(s)}',
-                  style: const TextStyle(color: BrColors.muted, fontSize: 12),
-                ),
-                trailing: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _emerald.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _emerald.withValues(alpha: 0.3)),
-                  ),
-                  child: Text('+ ${s.troncAmount.toStringAsFixed(2)} €',
-                      style: const TextStyle(
-                          color: _emerald, fontWeight: FontWeight.bold)),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: BrCard(
+                accent: _emerald,
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            s.title.isNotEmpty
+                                ? s.title
+                                : 'Tenue au ${s.degreeLabel}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14.5),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            'Grade : ${s.degreeLabel} • ${_fmtDate(s)}',
+                            style: const TextStyle(
+                                color: BrColors.muted, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _emerald.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                            color: _emerald.withValues(alpha: 0.45)),
+                      ),
+                      child: Text('+ ${s.troncAmount.toStringAsFixed(2)} €',
+                          style: const TextStyle(
+                              color: _emerald,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13)),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -788,33 +818,32 @@ class _Counter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+      child: BrCard(
+        accent: color,
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
           child: Column(
             children: [
               Text(label,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                      color: color, fontSize: 10, letterSpacing: 1.5)),
-              const SizedBox(height: 4),
+                      color: color,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.5)),
+              const SizedBox(height: 8),
               FittedBox(
                 child: Text('${value.toStringAsFixed(0)} €',
                     style: TextStyle(
                         color: color,
-                        fontSize: 26,
+                        fontSize: 28,
                         fontWeight: FontWeight.bold)),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 6),
               Text(hint,
                   textAlign: TextAlign.center,
                   style: const TextStyle(color: BrColors.muted, fontSize: 10)),
             ],
           ),
-        ),
       ),
     );
   }
@@ -850,13 +879,13 @@ class _DueChip extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       onLongPress: onLongPress,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(999),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
+          color: color.withValues(alpha: 0.14),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: color.withValues(alpha: 0.45)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,

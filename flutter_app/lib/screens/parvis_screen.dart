@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 import 'members_screen.dart';
 import 'sessions_screen.dart';
 import 'visitors_screen.dart';
@@ -112,9 +113,22 @@ class ParvisScreen extends StatelessWidget {
       appBar: AppBar(
         title: Row(
           children: [
-            const CircleAvatar(
-              backgroundColor: BrColors.background,
-              child: Icon(Icons.auto_awesome, color: BrColors.gold, size: 18),
+            Container(
+              height: 38,
+              width: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: BrColors.backgroundDark.withValues(alpha: 0.8),
+                border: Border.all(
+                  color: BrColors.gold.withValues(alpha: 0.45),
+                ),
+              ),
+              child: const Icon(
+                Icons.auto_awesome,
+                color: BrColors.goldBright,
+                size: 18,
+              ),
             ),
             const SizedBox(width: 12),
             Column(
@@ -142,34 +156,50 @@ class ParvisScreen extends StatelessWidget {
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
+            BrCard(
+              padding: const EdgeInsets.all(20),
+              child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Salutations Fraternelles, mon T. C. F. ${user.firstName}',
-                      style: const TextStyle(
-                        color: BrColors.text,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    BrAvatar(
+                      firstName: user.firstName,
+                      lastName: user.lastName,
+                      size: 52,
                     ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Bienvenue sur le Parvis numérique de la Loge. Retrouvez ici les fiches de vos Frères, le calendrier des travaux, les planches d'architecture et les outils de trésorerie.",
-                      style: TextStyle(color: BrColors.muted, fontSize: 13),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Salutations Fraternelles, mon T. C. F. ${user.firstName}',
+                            style: const TextStyle(
+                              color: BrColors.text,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              height: 1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            "Bienvenue sur le Parvis numérique de la Loge. Retrouvez ici les fiches de vos Frères, le calendrier des travaux, les planches d'architecture et les outils de trésorerie.",
+                            style: TextStyle(
+                              color: BrColors.muted,
+                              fontSize: 13,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),
-              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Row(
               children: [
                 _StatCard(
@@ -191,16 +221,12 @@ class ParvisScreen extends StatelessWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-            const Text(
+            const SizedBox(height: 28),
+            const BrSectionTitle(
               'VOTRE ESPACE DE TRAVAIL',
-              style: TextStyle(
-                color: BrColors.gold,
-                fontSize: 12,
-                letterSpacing: 2,
-              ),
+              icon: Icons.workspaces_outline,
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             LayoutBuilder(
               builder: (context, constraints) {
                 final cols = constraints.maxWidth > 700 ? 2 : 1;
@@ -208,9 +234,9 @@ class ParvisScreen extends StatelessWidget {
                   crossAxisCount: cols,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 4.5,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 14,
+                  childAspectRatio: 4.2,
                   children: [
                     for (final item in visibleItems)
                       _MenuCard(
@@ -223,11 +249,15 @@ class ParvisScreen extends StatelessWidget {
                 );
               },
             ),
-            const SizedBox(height: 24),
-            const Center(
+            const SizedBox(height: 28),
+            Center(
               child: Text(
                 'RL Bénou Ré • RAPMM • v1.0.0',
-                style: TextStyle(color: BrColors.muted, fontSize: 11),
+                style: TextStyle(
+                  color: BrColors.muted.withValues(alpha: 0.7),
+                  fontSize: 11,
+                  letterSpacing: 1,
+                ),
               ),
             ),
           ],
@@ -250,30 +280,44 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+      child: BrCard(
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
           child: Column(
             children: [
-              Icon(icon, color: BrColors.gold, size: 22),
-              const SizedBox(height: 8),
+              Container(
+                height: 38,
+                width: 38,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: BrColors.gold.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: BrColors.gold.withValues(alpha: 0.35),
+                  ),
+                ),
+                child: Icon(icon, color: BrColors.goldBright, size: 20),
+              ),
+              const SizedBox(height: 10),
               Text(
                 value,
                 style: const TextStyle(
                   color: BrColors.text,
-                  fontSize: 20,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 2),
+              const SizedBox(height: 4),
               Text(
                 label,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: BrColors.muted, fontSize: 11),
+                style: const TextStyle(
+                  color: BrColors.muted,
+                  fontSize: 11,
+                  letterSpacing: 0.5,
+                ),
               ),
             ],
           ),
-        ),
       ),
     );
   }
@@ -286,25 +330,31 @@ class _MenuCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return BrCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+      accent: item.color,
+      padding: const EdgeInsets.all(16),
           child: Row(
             children: [
               Container(
-                height: 46,
-                width: 46,
+                height: 50,
+                width: 50,
+                alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: item.color.withValues(alpha: 0.1),
-                  border: Border.all(color: item.color.withValues(alpha: 0.3)),
+                  borderRadius: BorderRadius.circular(BrColors.radiusS),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      item.color.withValues(alpha: 0.28),
+                      item.color.withValues(alpha: 0.08),
+                    ],
+                  ),
+                  border: Border.all(color: item.color.withValues(alpha: 0.45)),
                 ),
-                child: Icon(item.icon, color: item.color),
+                child: Icon(item.icon, color: item.color, size: 24),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,10 +366,12 @@ class _MenuCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: BrColors.text,
-                        fontSize: 15,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.bold,
+                        letterSpacing: 0.3,
                       ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       item.subtitle,
                       maxLines: 1,
@@ -332,11 +384,13 @@ class _MenuCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.arrow_forward, color: BrColors.gold, size: 18),
+              Icon(
+                Icons.arrow_forward_ios,
+                color: BrColors.gold.withValues(alpha: 0.8),
+                size: 15,
+              ),
             ],
           ),
-        ),
-      ),
     );
   }
 }

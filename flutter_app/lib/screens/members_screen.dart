@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/member.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
+import '../widgets/br_decor.dart';
 import 'member_edit_screen.dart';
 
 class MembersScreen extends StatelessWidget {
@@ -39,47 +40,82 @@ class MembersScreen extends StatelessWidget {
               child: Text('Aucun membre',
                   style: TextStyle(color: BrColors.muted)))
           : ListView.separated(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
               itemCount: members.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 8),
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, i) {
                 final m = members[i];
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: BrColors.teal.withValues(alpha: 0.2),
-                      child: Text(
-                        (m.firstName.isNotEmpty ? m.firstName[0] : '?')
-                            .toUpperCase(),
-                        style: const TextStyle(color: BrColors.goldBright),
+                return BrCard(
+                  accent: BrColors.forGrade(m.grade),
+                  padding: const EdgeInsets.all(14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      BrAvatar(
+                        firstName: m.firstName,
+                        lastName: m.lastName,
+                        size: 48,
                       ),
-                    ),
-                    title: Text(m.fullName,
-                        style: const TextStyle(
-                            color: Colors.white, fontWeight: FontWeight.bold)),
-                    subtitle: Text(
-                      '${m.grade} • ${m.function == 'Aucun' ? 'Frère' : m.function}\n${m.email}',
-                      style:
-                          const TextStyle(color: BrColors.muted, fontSize: 12),
-                    ),
-                    isThreeLine: true,
-                    trailing: canEdit
-                        ? Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              IconButton(
-                                icon: const Icon(Icons.edit,
-                                    color: BrColors.gold, size: 20),
-                                onPressed: () => _openEdit(context, m),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              m.fullName,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15.5,
                               ),
-                              IconButton(
-                                icon: const Icon(Icons.delete_outline,
-                                    color: Color(0xFFFB7185), size: 20),
-                                onPressed: () => _confirmDelete(context, m),
+                            ),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                BrGradeBadge(grade: m.grade),
+                                BrBadge(
+                                  label: m.function == 'Aucun'
+                                      ? 'Frère'
+                                      : m.function,
+                                  color: BrColors.teal,
+                                  icon: Icons.workspace_premium_outlined,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              m.email,
+                              style: const TextStyle(
+                                color: BrColors.muted,
+                                fontSize: 12,
                               ),
-                            ],
-                          )
-                        : _StatusChip(status: m.status),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      canEdit
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.edit,
+                                      color: BrColors.gold, size: 20),
+                                  onPressed: () => _openEdit(context, m),
+                                ),
+                                IconButton(
+                                  visualDensity: VisualDensity.compact,
+                                  icon: const Icon(Icons.delete_outline,
+                                      color: Color(0xFFFB7185), size: 20),
+                                  onPressed: () => _confirmDelete(context, m),
+                                ),
+                              ],
+                            )
+                          : _StatusChip(status: m.status),
+                    ],
                   ),
                 );
               },
@@ -127,17 +163,10 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final active = status == 'Actif';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: (active ? BrColors.teal : BrColors.muted)
-            .withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(status,
-          style: TextStyle(
-              color: active ? const Color(0xFF34D399) : BrColors.muted,
-              fontSize: 11)),
+    return BrBadge(
+      label: status,
+      color: active ? const Color(0xFF34D399) : BrColors.muted,
+      icon: active ? Icons.check_circle_outline : Icons.pause_circle_outline,
     );
   }
 }
