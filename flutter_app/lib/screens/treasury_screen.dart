@@ -78,6 +78,17 @@ class _CotisationsTab extends StatefulWidget {
 
 class _CotisationsTabState extends State<_CotisationsTab> {
   int? _selectedYear;
+  bool _unpaidOnly = false;
+
+  /// Montant restant dû par [m] pour [year] (0 si tout est réglé).
+  num _amountDue(Member m, int year) {
+    final d = m.duesFor(year);
+    num due = 0;
+    if (!d.lodgeDuesPaid) due += d.lodgeDues;
+    if (!d.orderDuesPaid) due += d.orderDues;
+    if (d.elevationDues > 0 && !d.elevationDuesPaid) due += d.elevationDues;
+    return due;
+  }
 
   /// Ensemble des années disponibles (toutes celles enregistrées chez les
   /// membres + l'année courante), triées de la plus récente à la plus ancienne.
@@ -215,6 +226,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     final canEdit = widget.canEdit;
     final year = _year;
 
+    final unpaidMembers =
+        members.where((m) => _amountDue(m, year) > 0).toList();
+    final visibleMembers = _unpaidOnly ? unpaidMembers : members;
+
     num collected = 0;
     num pending = 0;
     for (final m in members) {
@@ -292,11 +307,71 @@ class _CotisationsTabState extends State<_CotisationsTab> {
             ),
           ),
         const SizedBox(height: 16),
-        Text('DÉTAIL DES COMPTES INDIVIDUELS $year (${members.length})',
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilterChip(
+              selected: _unpaidOnly,
+              onSelected: (v) => setState(() => _unpaidOnly = v),
+              label: Text('Impayés uniquement (${unpaidMembers.length})'),
+              avatar: Icon(
+                _unpaidOnly ? Icons.filter_alt : Icons.filter_alt_outlined,
+                size: 18,
+                color: _unpaidOnly ? Colors.black : BrColors.gold,
+              ),
+              labelStyle: TextStyle(
+                  color: _unpaidOnly ? Colors.black : BrColors.gold,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold),
+              backgroundColor: BrColors.gold.withValues(alpha: 0.08),
+              selectedColor: BrColors.gold,
+              checkmarkColor: Colors.black,
+              side: BorderSide(color: BrColors.gold.withValues(alpha: 0.4)),
+            ),
+            if (_unpaidOnly && unpaidMembers.isNotEmpty)
+              Chip(
+                label: Text(
+                    'Reste à percevoir : ${pending.toStringAsFixed(0)} €'),
+                labelStyle: const TextStyle(
+                    color: _rose, fontSize: 12, fontWeight: FontWeight.bold),
+                backgroundColor: _rose.withValues(alpha: 0.1),
+                side: BorderSide(color: _rose.withValues(alpha: 0.4)),
+              ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Text(
+            _unpaidOnly
+                ? 'MEMBRES AVEC COTISATIONS IMPAYÉES $year (${unpaidMembers.length})'
+                : 'DÉTAIL DES COMPTES INDIVIDUELS $year (${members.length})',
             style: const TextStyle(
                 color: BrColors.gold, fontSize: 12, letterSpacing: 2)),
         const SizedBox(height: 12),
-        for (final m in members)
+        if (visibleMembers.isEmpty)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 16),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _emerald.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              children: [
+                const Icon(Icons.verified_outlined,
+                    size: 32, color: _emerald),
+                const SizedBox(height: 8),
+                Text(
+                  _unpaidOnly
+                      ? 'Tous les membres sont à jour pour l\'année $year.'
+                      : 'Aucun membre enregistré.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: _emerald, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        for (final m in visibleMembers)
           Builder(builder: (context) {
             final d = m.duesFor(year);
             return Card(
@@ -321,6 +396,14 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                                 style: const TextStyle(
                                     color: BrColors.muted, fontSize: 12),
                               ),
+                              if (_unpaidOnly)
+                                Text(
+                                  'Reste dû : ${_amountDue(m, year).toStringAsFixed(0)} €',
+                                  style: const TextStyle(
+                                      color: _rose,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold),
+                                ),
                             ],
                           ),
                         ),
