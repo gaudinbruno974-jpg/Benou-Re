@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 class BrColors {
-  // ---- PALETTE ÉCLAIRCIE ----
-  static const background = Color(0xFF1A4A55);
-  static const backgroundDark = Color(0xFF143B44);
-  static const surface = Color(0xFF2A5F6B);
+  // ---- PALETTE TURQUOISE (plus bleue) ----
+  static const background = Color(0xFF123A52);
+  static const backgroundDark = Color(0xFF0C2A3E);
+  static const surface = Color(0xFF1C5570);
   static const gold = Color(0xFFD4B36A);
   static const goldBright = Color(0xFFEDCB82);
-  static const teal = Color(0xFF20B2B2);
+  static const teal = Color(0xFF16B6C7);
   static const muted = Color(0xFFC4D8D8);
   static const text = Color(0xFFF8FAFA);
 
@@ -19,6 +19,9 @@ class BrColors {
   static const menuRituels = Color(0xFFCE93D8);
   static const menuTresorerie = Color(0xFFEF9A9A);
   static const menuVisiteurs = Color(0xFF81C784);
+
+  // Couleur complémentaire du rite Memphis-Misraïm (accent de bordure).
+  static const violet = Color(0xFF9B6FC9);
 }
 
 ThemeData buildBrTheme() {
@@ -48,7 +51,7 @@ ThemeData buildBrTheme() {
       elevation: 2,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: BrColors.gold.withValues(alpha: 0.15)),
+        side: BorderSide(color: BrColors.violet.withValues(alpha: 0.35)),
       ),
     ),
     inputDecorationTheme: InputDecorationTheme(
@@ -60,7 +63,7 @@ ThemeData buildBrTheme() {
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide(color: BrColors.muted.withValues(alpha: 0.3)),
+        borderSide: BorderSide(color: BrColors.violet.withValues(alpha: 0.35)),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
