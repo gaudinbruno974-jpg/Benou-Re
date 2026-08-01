@@ -211,6 +211,7 @@ class Session {
   String? get degreTravail => _s('degreTravail');
   String? get lieuReunionExtra => lieuReunion ?? _s('lieuReunion');
   String? get plancheOrateurName => _s('plancheOrateurName');
+  String? get sacPropositions => _s('sacPropositions');
   String? get plancheOrateurSignature => _s('plancheOrateurSignature');
   String? get plancheVMSignature => _s('plancheVMSignature');
   String? get plancheSecretarySignature => _s('plancheSecretarySignature');
