@@ -67,21 +67,31 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     final id = existing?.id ??
         'm_${DateTime.now().millisecondsSinceEpoch}';
     final base = existing ?? Member(id: id);
-    final member = base.copyWith(
-      firstName: _ctrls['firstName']!.text.trim(),
-      lastName: _ctrls['lastName']!.text.trim(),
-      email: _ctrls['email']!.text.trim(),
-      phone: _ctrls['phone']!.text.trim(),
-      address: _ctrls['address']!.text.trim(),
-      matricule: _ctrls['matricule']!.text.trim(),
-      function: _ctrls['function']!.text.trim(),
-      motherLodge: _ctrls['motherLodge']!.text.trim(),
-      sponsor: _ctrls['sponsor']!.text.trim(),
-      grade: _grade,
-      status: _status,
-      lodgeDues: num.tryParse(_ctrls['lodgeDues']!.text) ?? 0,
-      orderDues: num.tryParse(_ctrls['orderDues']!.text) ?? 0,
-    );
+    final lodgeDues = num.tryParse(_ctrls['lodgeDues']!.text) ?? 0;
+    final orderDues = num.tryParse(_ctrls['orderDues']!.text) ?? 0;
+    // Les montants saisis ici concernent l'année courante.
+    final year = DateTime.now().year;
+    final currentDues = base.duesFor(year).copyWith(
+          lodgeDues: lodgeDues,
+          orderDues: orderDues,
+        );
+    final member = base
+        .copyWith(
+          firstName: _ctrls['firstName']!.text.trim(),
+          lastName: _ctrls['lastName']!.text.trim(),
+          email: _ctrls['email']!.text.trim(),
+          phone: _ctrls['phone']!.text.trim(),
+          address: _ctrls['address']!.text.trim(),
+          matricule: _ctrls['matricule']!.text.trim(),
+          function: _ctrls['function']!.text.trim(),
+          motherLodge: _ctrls['motherLodge']!.text.trim(),
+          sponsor: _ctrls['sponsor']!.text.trim(),
+          grade: _grade,
+          status: _status,
+          lodgeDues: lodgeDues,
+          orderDues: orderDues,
+        )
+        .withDuesForYear(year, currentDues);
     try {
       if (existing == null) {
         await state.addMember(member);
