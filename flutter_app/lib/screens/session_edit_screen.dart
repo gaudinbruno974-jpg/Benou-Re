@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../models/member.dart';
 import '../models/session.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -65,7 +66,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _location;
-  late final TextEditingController _tronc;
   late final TextEditingController _t1;
   late final TextEditingController _t2;
   late final TextEditingController _t3;
@@ -93,9 +93,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       text: s?.location.isNotEmpty == true
           ? s!.location
           : (s?.lieuReunion ?? 'Temple Thérèse Eliseman à Saint-Pierre'),
-    );
-    _tronc = TextEditingController(
-      text: s != null && s.troncAmount != 0 ? '${s.troncAmount}' : '',
     );
     _t1 = TextEditingController(text: s?.travail1 ?? '');
     _t2 = TextEditingController(text: s?.travail2 ?? '');
@@ -153,7 +150,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   void dispose() {
     for (final c in [
       _location,
-      _tronc,
       _t1,
       _t2,
       _t3,
@@ -239,7 +235,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       'lieuReunion': _location.text.trim(),
       'closingTime': closing,
       'heureSuspension': closing,
-      'troncAmount': num.tryParse(_tronc.text.trim().replaceAll(',', '.')) ?? 0,
       'travail1': _t1.text.trim(),
       'travail2': _t2.text.trim(),
       'travail3': _t3.text.trim(),
@@ -319,6 +314,23 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   Widget build(BuildContext context) {
     final isNew = widget.session == null;
     final ord = Session.degreeOrdinal(_degree);
+    final canEdit = canEditSessions(context.watch<AppState>().currentUser);
+
+    if (!canEdit) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Tenue')),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(24),
+            child: Text(
+              'Seuls le V∴M∴, le Secrétaire et les administrateurs peuvent créer ou modifier une tenue.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: BrColors.muted),
+            ),
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -506,14 +518,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                   ),
                 ),
             ],
-
-            const SizedBox(height: 12),
-            const Divider(color: BrColors.gold),
-            _field(
-              _tronc,
-              'Tronc de la Veuve (€)',
-              keyboard: const TextInputType.numberWithOptions(decimal: true),
-            ),
 
             const SizedBox(height: 24),
             ElevatedButton.icon(

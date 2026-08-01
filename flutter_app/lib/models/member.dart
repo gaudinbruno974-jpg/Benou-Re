@@ -1,5 +1,15 @@
 // Modèle d'un membre de l'Atelier (porté depuis src/types.ts -> Member).
 
+/// Droit d'édition des tenues : V∴M∴, Secrétaire ou administrateur.
+/// Même critère que le web (`canEdit` dans PlancheTraceeScreen.tsx).
+bool canEditSessions(Member? user) {
+  if (user == null) return false;
+  final fn = user.function.trim();
+  return user.isAdmin ||
+      fn.contains('Vénérable Maître') ||
+      fn.contains('Secrétaire');
+}
+
 class Member {
   final String id;
   final String firstName;

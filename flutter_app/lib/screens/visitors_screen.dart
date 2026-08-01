@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/member.dart';
 import '../models/visitor.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -14,15 +15,18 @@ class VisitorsScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final visitors = [...state.visitors]
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
+    final canEdit = canEditSessions(state.currentUser);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Visiteurs')),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: BrColors.teal,
-        icon: const Icon(Icons.person_add_alt),
-        label: const Text('Ajouter'),
-        onPressed: () => _openEdit(context, null),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              backgroundColor: BrColors.teal,
+              icon: const Icon(Icons.person_add_alt),
+              label: const Text('Ajouter'),
+              onPressed: () => _openEdit(context, null),
+            )
+          : null,
       body: visitors.isEmpty
           ? const Center(
               child: Text('Aucun visiteur',
@@ -47,21 +51,23 @@ class VisitorsScreen extends StatelessWidget {
                           const TextStyle(color: BrColors.muted, fontSize: 12),
                     ),
                     isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.edit,
-                              color: BrColors.gold, size: 20),
-                          onPressed: () => _openEdit(context, v),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline,
-                              color: Color(0xFFFB7185), size: 20),
-                          onPressed: () => state.deleteVisitor(v.id),
-                        ),
-                      ],
-                    ),
+                    trailing: canEdit
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit,
+                                    color: BrColors.gold, size: 20),
+                                onPressed: () => _openEdit(context, v),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Color(0xFFFB7185), size: 20),
+                                onPressed: () => state.deleteVisitor(v.id),
+                              ),
+                            ],
+                          )
+                        : null,
                   ),
                 );
               },

@@ -617,64 +617,81 @@ class _Row {
 // ══════════════════════════════════════════════════════════════════
 // PLANCHE TRACÉE
 // ══════════════════════════════════════════════════════════════════
-Future<Uint8List> buildPlancheTraceePdf(
+
+String _memberFullName(Member m) => '${m.firstName} ${m.lastName}'.trim();
+String _visitorFullName(Visitor v) => '${v.firstName} ${v.lastName}'.trim();
+
+/// Points de l'ordre du jour effectivement traités (utilisé par l'éditeur de
+/// planche pour aligner les notes de travaux sur les points de l'ordre du jour).
+List<String> plancheOrdreDuJour(Session session) =>
+    _collectOrdreDuJour(session);
+
+String plancheVmName(Session session) =>
+    session.vmName?.isNotEmpty == true ? session.vmName! : 'Bruno GAUDIN';
+
+/// Nom de l'Orateur retenu pour la planche : champ explicite, sinon Orateur
+/// présent parmi les membres, sinon visiteur portant l'office d'Orateur.
+String? plancheOrateurName(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
-  int chrono,
-) async {
-  final fonts = await _loadLodgeFonts();
-  final logos = await _loadLogos();
-  final doc = pw.Document();
+) {
+  if (session.plancheOrateurName?.isNotEmpty == true) {
+    return session.plancheOrateurName;
+  }
+  final member = members
+      .where(
+        (m) =>
+            m.function.trim() == 'Orateur' && session.presentIds.contains(m.id),
+      )
+      .firstOrNull;
+  if (member != null) return _memberFullName(member);
+  final visitor = visitors
+      .where(
+        (v) =>
+            session.visitorIds.contains(v.id) &&
+            (session.visitorRoles[v.id] ?? v.function).trim() == 'Orateur',
+      )
+      .firstOrNull;
+  return visitor != null ? _visitorFullName(visitor) : null;
+}
 
-  String memberFullName(Member m) => '${m.firstName} ${m.lastName}'.trim();
-  String visitorFullName(Visitor v) => '${v.firstName} ${v.lastName}'.trim();
-
-  final vmName = session.vmName?.isNotEmpty == true ? session.vmName! : 'Bruno GAUDIN';
+/// Construit le texte intégral de la planche tracée (un paragraphe par ligne).
+///
+/// Cette fonction pure sert à la fois à pré-remplir l'éditeur de planche
+/// (`PlancheTraceeEditScreen`) et à générer le corps du PDF lorsqu'aucun texte
+/// n'a été enregistré dans `session.plancheDraftText`.
+String buildPlancheTraceeText(
+  Session session,
+  List<Member> members,
+  List<Visitor> visitors,
+  int chrono, {
+  num? troncAmount,
+  String? sacPropositions,
+  List<String>? travauxNotes,
+}) {
+  final paras = <String>[];
+  final vmName = plancheVmName(session);
   final dateFR = _formatDateFR(session.dateReprise ?? session.date);
   final degre = _degreOrdinal(session.degreTravail ?? session.degree);
 
-  final content = <pw.Widget>[];
-  content.add(_lodgeHeader(fonts, logos[0], logos[1]));
-
-  pw.Widget para(String text,
-      {double size = 10,
-      bool bold = false,
-      pw.TextAlign align = pw.TextAlign.left,
-      PdfColor color = PdfColors.black,
-      double gap = 4}) {
-    return pw.Padding(
-      padding: pw.EdgeInsets.only(bottom: gap * _mm),
-      child: pw.Text(
-        text,
-        textAlign: align,
-        style: pw.TextStyle(
-            font: bold ? fonts.bold : fonts.base, fontSize: size, color: color),
-      ),
-    );
-  }
-
-  content.add(para(
-      'Planche Tracée de la Tenue Régulière N°$chrono du $dateFR',
-      size: 13, bold: true, align: pw.TextAlign.center, color: _navy, gap: 2));
-  content.add(para(
-      'De la Respectable Loge BENOU RE N°5 à l’Orient Saint-Pierre',
-      size: 11, bold: true, align: pw.TextAlign.center, color: _navy, gap: 8));
-  content.add(para(
-      'Vénérable Maître en chaire et vous tous mes Frères et Sœurs en vos grades et qualités.',
-      size: 10, gap: 6));
-  content.add(para(
-      'Protocole de la Tenue ${session.type == 'Solennelle' ? 'Solennelle' : (session.typeTenue ?? (session.type.isNotEmpty ? session.type : 'Régulière'))} du $dateFR de Ère Vulgaire.',
-      size: 10, bold: true, gap: 6));
-  content.add(para(
-      'Les Membres composant la Respectable Loge BENOU RE N°5 régulièrement Convoqués, sont traditionnellement réunis en un lieu très pur, très saint et très éclairé par la lumière d’Egypte, lieu où règne la Paix, la Joie et l’Harmonie.',
-      size: 10, gap: 6));
-  content.add(para(
-      'Les Sœurs et Frères sont éclairés à l’orient par la sagesse du V∴ M∴ en chaire $vmName.',
-      size: 10, gap: 6));
-  content.add(para(
-      'Les Sœurs et Frères dont le nom figure sur le registre des présences, nous ont fait la joie d’assister à nos travaux.',
-      size: 10, gap: 6));
+  paras.add('Planche Tracée de la Tenue Régulière N°$chrono du $dateFR');
+  paras.add('De la Respectable Loge BENOU RE N°5 à l’Orient Saint-Pierre');
+  paras.add(
+    'Vénérable Maître en chaire et vous tous mes Frères et Sœurs en vos grades et qualités.',
+  );
+  paras.add(
+    'Protocole de la Tenue ${session.type == 'Solennelle' ? 'Solennelle' : (session.typeTenue ?? (session.type.isNotEmpty ? session.type : 'Régulière'))} du $dateFR de Ère Vulgaire.',
+  );
+  paras.add(
+    'Les Membres composant la Respectable Loge BENOU RE N°5 régulièrement Convoqués, sont traditionnellement réunis en un lieu très pur, très saint et très éclairé par la lumière d’Egypte, lieu où règne la Paix, la Joie et l’Harmonie.',
+  );
+  paras.add(
+    'Les Sœurs et Frères sont éclairés à l’orient par la sagesse du V∴ M∴ en chaire $vmName.',
+  );
+  paras.add(
+    'Les Sœurs et Frères dont le nom figure sur le registre des présences, nous ont fait la joie d’assister à nos travaux.',
+  );
 
   // Membres excusés
   final excused = session.excusedIds
@@ -682,13 +699,12 @@ Future<Uint8List> buildPlancheTraceePdf(
       .whereType<Member>()
       .toList();
   if (excused.isNotEmpty) {
-    final noms = excused.map(memberFullName).join(', ');
-    content.add(para(
-        '$noms membre(s) de la R∴ L∴ Bénou Ré sont absents excusés. (Voir la liste des membres excusés)',
-        size: 10, gap: 6));
+    final noms = excused.map(_memberFullName).join(', ');
+    paras.add(
+      '$noms membre(s) de la R∴ L∴ Bénou Ré sont absents excusés. (Voir la liste des membres excusés)',
+    );
   } else {
-    content.add(para('Aucun membre de la R∴ L∴ Bénou Ré n’est absent excusé.',
-        size: 10, gap: 6));
+    paras.add('Aucun membre de la R∴ L∴ Bénou Ré n’est absent excusé.');
   }
 
   // Invités
@@ -713,7 +729,7 @@ Future<Uint8List> buildPlancheTraceePdf(
   }
 
   String placementSentence(Visitor v, String placement, String role) {
-    final who = 'le F∴ S∴ ${visitorFullName(v)} (${v.lodge})';
+    final who = 'le F∴ S∴ ${_visitorFullName(v)} (${v.lodge})';
     final qualite = isOffice(role) ? ' en qualité de $role' : '';
     switch (placement) {
       case 'Colonne du Midi':
@@ -727,34 +743,29 @@ Future<Uint8List> buildPlancheTraceePdf(
     }
   }
 
-  final dignitairesOrient = presentVisitors.where((v) =>
-      placementOf(v) == 'Orient' &&
-      roleOf(v) != 'Orateur' &&
-      isOffice(roleOf(v) ?? '')).toList();
+  final dignitairesOrient = presentVisitors
+      .where(
+        (v) =>
+            placementOf(v) == 'Orient' &&
+            roleOf(v) != 'Orateur' &&
+            isOffice(roleOf(v) ?? ''),
+      )
+      .toList();
   if (dignitairesOrient.isNotEmpty) {
     final liste = dignitairesOrient
-        .map((v) => '${visitorFullName(v)} (${roleOf(v)} – ${v.lodge})')
+        .map((v) => '${_visitorFullName(v)} (${roleOf(v)} – ${v.lodge})')
         .join(', ');
-    content.add(para(
-        'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : $liste.',
-        size: 10, gap: 6));
+    paras.add(
+      'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : $liste.',
+    );
   }
 
-  final orateurMember = members.where((m) =>
-      m.function.trim() == 'Orateur' &&
-      session.presentIds.contains(m.id)).firstOrNull;
-  final orateurVisitor =
-      presentVisitors.where((v) => roleOf(v) == 'Orateur').firstOrNull;
-  final orateurName = session.plancheOrateurName?.isNotEmpty == true
-      ? session.plancheOrateurName
-      : (orateurMember != null
-          ? memberFullName(orateurMember)
-          : (orateurVisitor != null ? visitorFullName(orateurVisitor) : null));
-  content.add(para(
-      orateurName != null
-          ? 'Le poste d’Orateur est occupé par le F∴ S∴ $orateurName.'
-          : 'Le poste d’Orateur est resté vide.',
-      size: 10, gap: 6));
+  final orateurName = plancheOrateurName(session, members, visitors);
+  paras.add(
+    orateurName != null
+        ? 'Le poste d’Orateur est occupé par le F∴ S∴ $orateurName.'
+        : 'Le poste d’Orateur est resté vide.',
+  );
 
   for (final v in presentVisitors) {
     final role = roleOf(v);
@@ -762,110 +773,183 @@ Future<Uint8List> buildPlancheTraceePdf(
     if (role == 'Orateur') continue;
     if (placement == 'Orient' && isOffice(role ?? '')) continue;
     if (placement != null) {
-      content.add(para(placementSentence(v, placement, role as String),
-          size: 10, gap: 3));
+      paras.add(placementSentence(v, placement, role as String));
     } else {
-      content.add(para(
-          'Le F∴ S∴ ${visitorFullName(v)} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.',
-          size: 10, gap: 3));
+      paras.add(
+        'Le F∴ S∴ ${_visitorFullName(v)} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.',
+      );
     }
   }
 
-  content.add(pw.SizedBox(height: 3 * _mm));
-  content.add(
-      para('La planche tracée de nos derniers travaux a été adoptée.', size: 10, gap: 6));
+  paras.add('La planche tracée de nos derniers travaux a été adoptée.');
 
   // Ordre du jour traité
-  content.add(para('L’ordre du jour de la Tenue a appelé :',
-      size: 11, bold: true, gap: 5));
+  paras.add('L’ordre du jour de la Tenue a appelé :');
   final items = _collectOrdreDuJour(session);
-  final notes = session.plancheTravauxNotes;
+  final notes = travauxNotes ?? session.plancheTravauxNotes;
   for (var idx = 0; idx < items.length; idx++) {
-    content.add(pw.Padding(
-      padding: pw.EdgeInsets.only(bottom: 2 * _mm),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text('${idx + 1}. ',
-              style: pw.TextStyle(font: fonts.base, fontSize: 10)),
-          pw.Expanded(
-            child: pw.Text(items[idx],
-                style: pw.TextStyle(font: fonts.base, fontSize: 10)),
-          ),
-        ],
-      ),
-    ));
+    paras.add('${idx + 1}. ${items[idx]}');
     final note = (idx < notes.length ? notes[idx] : '').trim();
-    if (note.isNotEmpty) {
-      content.add(pw.Padding(
-        padding: pw.EdgeInsets.only(left: 6 * _mm, bottom: 3 * _mm),
-        child: pw.Text(note,
-            style: pw.TextStyle(
-                font: fonts.base,
-                fontSize: 9.5,
-                color: const PdfColor.fromInt(0xFF464646))),
-      ));
-    }
+    if (note.isNotEmpty) paras.add(note);
   }
-  content.add(pw.SizedBox(height: 4 * _mm));
 
-  // Tronc de la veuve
-  final tronc = session.troncAmount.toDouble();
+  // Tronc de la veuve et sac aux propositions
+  final tronc = (troncAmount ?? session.troncAmount).toDouble();
   final euros = tronc.floor();
   final centimes = ((tronc - euros) * 100).round();
-  content.add(para(
-      'L’ordre du jour étant épuisé, le V∴ M∴ fait circuler le Tronc de la veuve et le Sac aux Propositions. Ce dernier revient pur et sans tache. Le Tronc revient lourd de $euros Pierre(s) Plate(s) et $centimes Morceau(x) d’éclats, qui ont été pris en charge par le Trésorier.',
-      size: 10, gap: 6));
+  final sac = (sacPropositions ?? session.sacPropositions ?? '').trim();
+  paras.add(
+    'L’ordre du jour étant épuisé, le V∴ M∴ fait circuler le Tronc de la veuve et le Sac aux Propositions. ${sac.isEmpty ? 'Ce dernier revient pur et sans tache.' : 'Sac aux Propositions : $sac'} Le Tronc revient lourd de $euros Pierre(s) Plate(s) et $centimes Morceau(x) d’éclats, qui ont été pris en charge par le Trésorier.',
+  );
 
-  content.add(para(
-      'Les Travaux sont ensuite fermés au $degre degré symbolique. Au cours de ce Cérémonial, les Sœurs et les Frères forment une Chaîne d’Union Fraternelle, selon le Rite, puis se séparent en jurant de garder le Silence sur les Travaux de ce Jour.',
-      size: 10, gap: 8));
-  content.add(para('J’ai dit Vénérable Maître,', size: 10, bold: true, gap: 10));
+  paras.add(
+    'Les Travaux sont ensuite fermés au $degre degré symbolique. Au cours de ce Cérémonial, les Sœurs et les Frères forment une Chaîne d’Union Fraternelle, selon le Rite, puis se séparent en jurant de garder le Silence sur les Travaux de ce Jour.',
+  );
+  paras.add('J’ai dit Vénérable Maître,');
+
+  return paras.join('\n\n');
+}
+
+Future<Uint8List> buildPlancheTraceePdf(
+  Session session,
+  List<Member> members,
+  List<Visitor> visitors,
+  int chrono,
+) async {
+  final fonts = await _loadLodgeFonts();
+  final logos = await _loadLogos();
+  final doc = pw.Document();
+
+  final content = <pw.Widget>[];
+  content.add(_lodgeHeader(fonts, logos[0], logos[1]));
+
+  pw.Widget para(
+    String text, {
+    double size = 10,
+    bool bold = false,
+    pw.TextAlign align = pw.TextAlign.left,
+    PdfColor color = PdfColors.black,
+    double gap = 4,
+  }) {
+    return pw.Padding(
+      padding: pw.EdgeInsets.only(bottom: gap * _mm),
+      child: pw.Text(
+        text,
+        textAlign: align,
+        style: pw.TextStyle(
+          font: bold ? fonts.bold : fonts.base,
+          fontSize: size,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  // Le texte édité et enregistré par le Secrétaire / V∴M∴ prime sur le texte
+  // généré automatiquement.
+  final draft = (session.plancheDraftText ?? '').trim();
+  final body = draft.isNotEmpty
+      ? draft
+      : buildPlancheTraceeText(session, members, visitors, chrono);
+  final paragraphs = body
+      .split('\n')
+      .map((p) => p.trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
+
+  for (var i = 0; i < paragraphs.length; i++) {
+    if (i == 0) {
+      content.add(
+        para(
+          paragraphs[i],
+          size: 13,
+          bold: true,
+          align: pw.TextAlign.center,
+          color: _navy,
+          gap: 2,
+        ),
+      );
+    } else if (i == 1) {
+      content.add(
+        para(
+          paragraphs[i],
+          size: 11,
+          bold: true,
+          align: pw.TextAlign.center,
+          color: _navy,
+          gap: 8,
+        ),
+      );
+    } else {
+      content.add(para(paragraphs[i], size: 10, gap: 4));
+    }
+  }
 
   // Signatures
-  final secretaryMember = members.where((m) =>
-      m.function.trim() == 'Secrétaire' &&
-      session.presentIds.contains(m.id)).firstOrNull;
-  final secretaryName =
-      secretaryMember != null ? memberFullName(secretaryMember) : '';
+  final orateurName = plancheOrateurName(session, members, visitors);
+  final secretaryMember = members
+      .where(
+        (m) =>
+            m.function.trim() == 'Secrétaire' &&
+            session.presentIds.contains(m.id),
+      )
+      .firstOrNull;
+  final secretaryName = secretaryMember != null
+      ? _memberFullName(secretaryMember)
+      : '';
   final sigs = <List<String?>>[
     ['Le Frère Orateur', orateurName, session.plancheOrateurSignature],
-    ['Le Vénérable Maître', vmName, session.plancheVMSignature],
+    ['Le Vénérable Maître', plancheVmName(session), session.plancheVMSignature],
     ['La Sœur Secrétaire', secretaryName, session.plancheSecretarySignature],
   ];
   content.add(pw.SizedBox(height: 6 * _mm));
-  content.add(pw.Row(
-    crossAxisAlignment: pw.CrossAxisAlignment.start,
-    children: [
-      for (final s in sigs)
-        pw.Expanded(
-          child: pw.Column(children: [
-            pw.Text(s[0]!,
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
-                    font: fonts.bold, fontSize: 9.5, color: _navy)),
-            pw.SizedBox(height: 3 * _mm),
-            pw.SizedBox(
-              height: 18 * _mm,
-              child: _decodeSignature(s[2]) == null
-                  ? pw.SizedBox()
-                  : pw.Image(pw.MemoryImage(_decodeSignature(s[2])!),
-                      fit: pw.BoxFit.contain),
+  content.add(
+    pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        for (final s in sigs)
+          pw.Expanded(
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  s[0]!,
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 9.5,
+                    color: _navy,
+                  ),
+                ),
+                pw.SizedBox(height: 3 * _mm),
+                pw.SizedBox(
+                  height: 18 * _mm,
+                  child: _decodeSignature(s[2]) == null
+                      ? pw.SizedBox()
+                      : pw.Image(
+                          pw.MemoryImage(_decodeSignature(s[2])!),
+                          fit: pw.BoxFit.contain,
+                        ),
+                ),
+                pw.SizedBox(height: 3 * _mm),
+                pw.Text(
+                  s[1] ?? '',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fonts.base, fontSize: 9),
+                ),
+              ],
             ),
-            pw.SizedBox(height: 3 * _mm),
-            pw.Text(s[1] ?? '',
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(font: fonts.base, fontSize: 9)),
-          ]),
-        ),
-    ],
-  ));
+          ),
+      ],
+    ),
+  );
 
-  doc.addPage(pw.MultiPage(
-    pageFormat: PdfPageFormat.a4,
-    margin: pw.EdgeInsets.all(15 * _mm),
-    build: (context) => content,
-  ));
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.all(15 * _mm),
+      build: (context) => content,
+    ),
+  );
 
   return doc.save();
 }

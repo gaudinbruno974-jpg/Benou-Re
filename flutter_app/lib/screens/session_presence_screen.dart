@@ -14,6 +14,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/member.dart';
 import '../models/session.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -137,30 +138,40 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       orElse: () => Session(id: widget.sessionId),
     );
     if (!_initialized) _initFrom(session);
+    final canEdit = canEditSessions(state.currentUser);
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Présence'),
         actions: [
-          IconButton(
-            tooltip: 'Enregistrer',
-            icon: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: BrColors.gold,
-                    ),
-                  )
-                : const Icon(Icons.check),
-            onPressed: _saving ? null : () => _save(session),
-          ),
+          if (canEdit)
+            IconButton(
+              tooltip: 'Enregistrer',
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: BrColors.gold,
+                      ),
+                    )
+                  : const Icon(Icons.check),
+              onPressed: _saving ? null : () => _save(session),
+            ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
+          if (!canEdit)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Lecture seule : seuls le V∴M∴, le Secrétaire et les administrateurs peuvent modifier les présences.',
+                style: TextStyle(color: BrColors.muted, fontSize: 12),
+              ),
+            ),
           const _SectionTitle('MEMBRES — PRÉSENTS / EXCUSÉS'),
           if (state.members.isEmpty)
             const Padding(
@@ -174,8 +185,8 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               role: m.function.isNotEmpty ? m.function : 'Membre',
               isPresent: _presentIds.contains(m.id),
               isExcused: _excusedIds.contains(m.id),
-              onPresent: () => _togglePresent(m.id),
-              onExcused: () => _toggleExcused(m.id),
+              onPresent: canEdit ? () => _togglePresent(m.id) : null,
+              onExcused: canEdit ? () => _toggleExcused(m.id) : null,
             ),
           const SizedBox(height: 16),
           const _SectionTitle('VISITEURS — PRÉSENTS'),
@@ -193,8 +204,9 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                   .join(' — '),
               isPresent: _visitorIds.contains(v.id),
               role: _visitorRoles[v.id] ?? '',
-              onToggle: () => _toggleVisitor(v.id),
-              onRoleChanged: (r) => _updateVisitorRole(v.id, r),
+              onToggle: canEdit ? () => _toggleVisitor(v.id) : null,
+              onRoleChanged:
+                  canEdit ? (r) => _updateVisitorRole(v.id, r) : null,
             ),
         ],
       ),
@@ -222,8 +234,8 @@ class _MemberTile extends StatelessWidget {
   final String role;
   final bool isPresent;
   final bool isExcused;
-  final VoidCallback onPresent;
-  final VoidCallback onExcused;
+  final VoidCallback? onPresent;
+  final VoidCallback? onExcused;
   const _MemberTile({
     required this.name,
     required this.role,
@@ -279,8 +291,8 @@ class _VisitorTile extends StatelessWidget {
   final String subtitle;
   final bool isPresent;
   final String role;
-  final VoidCallback onToggle;
-  final ValueChanged<String?> onRoleChanged;
+  final VoidCallback? onToggle;
+  final ValueChanged<String?>? onRoleChanged;
   const _VisitorTile({
     required this.name,
     required this.subtitle,
@@ -360,7 +372,7 @@ class _PresenceButton extends StatelessWidget {
   final String label;
   final bool selected;
   final Color selectedColor;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   const _PresenceButton({
     required this.label,
     required this.selected,

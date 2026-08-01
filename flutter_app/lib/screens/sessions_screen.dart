@@ -7,12 +7,14 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
+import '../models/member.dart';
 import '../models/session.dart';
 import '../services/drive_service.dart';
 import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'emargement_screen.dart';
+import 'planche_tracee_edit_screen.dart';
 import 'session_edit_screen.dart';
 import 'session_presence_screen.dart';
 
@@ -31,17 +33,20 @@ class SessionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final sessions = state.sessions;
+    final canEdit = canEditSessions(state.currentUser);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Tenues')),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: BrColors.teal,
-        icon: const Icon(Icons.add),
-        label: const Text('Nouvelle tenue'),
-        onPressed: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const SessionEditScreen())),
-      ),
+      floatingActionButton: canEdit
+          ? FloatingActionButton.extended(
+              backgroundColor: BrColors.teal,
+              icon: const Icon(Icons.add),
+              label: const Text('Nouvelle tenue'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SessionEditScreen()),
+              ),
+            )
+          : null,
       body: sessions.isEmpty
           ? const Center(
               child: Text(
@@ -72,6 +77,7 @@ class _SessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = session;
+    final canEdit = canEditSessions(context.watch<AppState>().currentUser);
     final ord = Session.degreeOrdinal(s.degreeLabel);
     final points = 4 + s.ordresJourCount + 1;
     final heure = _timeOf(s);
@@ -193,19 +199,20 @@ class _SessionCard extends StatelessWidget {
                     ),
                   ),
                   const Spacer(),
-                  IconButton(
-                    tooltip: 'Modifier',
-                    icon: const Icon(
-                      Icons.edit,
-                      size: 20,
-                      color: BrColors.muted,
-                    ),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => SessionEditScreen(session: s),
+                  if (canEdit)
+                    IconButton(
+                      tooltip: 'Modifier',
+                      icon: const Icon(
+                        Icons.edit,
+                        size: 20,
+                        color: BrColors.muted,
+                      ),
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SessionEditScreen(session: s),
+                        ),
                       ),
                     ),
-                  ),
                   IconButton(
                     tooltip: 'Détail & documents',
                     icon: const Icon(
@@ -337,25 +344,28 @@ class SessionDetailScreen extends StatelessWidget {
     final visitors = state.visitors
         .where((v) => session.visitorIds.contains(v.id))
         .toList();
+    final canEdit = canEditSessions(state.currentUser);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(session.title.isNotEmpty ? session.title : 'Tenue'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            tooltip: 'Modifier',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => SessionEditScreen(session: session),
+          if (canEdit) ...[
+            IconButton(
+              icon: const Icon(Icons.edit),
+              tooltip: 'Modifier',
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SessionEditScreen(session: session),
+                ),
               ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline),
-            tooltip: 'Supprimer',
-            onPressed: () => _confirmDelete(context, state, session),
-          ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Supprimer',
+              onPressed: () => _confirmDelete(context, state, session),
+            ),
+          ],
         ],
       ),
       body: ListView(
@@ -393,6 +403,23 @@ class SessionDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          if (canEdit) ...[
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: BrColors.gold,
+                side: const BorderSide(color: BrColors.gold),
+              ),
+              icon: const Icon(Icons.history_edu_outlined, size: 18),
+              label: const Text('Planche tracée'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PlancheTraceeEditScreen(sessionId: session.id),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: BrColors.violet,
