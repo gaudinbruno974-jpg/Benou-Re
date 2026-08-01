@@ -26,13 +26,36 @@ String formatSessionDate(Session s) {
   return DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
 }
 
+/// Rang hiérarchique d'un degré : Apprenti (1) < Compagnon (2) < Maître (3).
+int _degreeRank(String d) {
+  switch (d) {
+    case 'Compagnon':
+      return 2;
+    case 'Maître':
+    case 'Maitre':
+      return 3;
+    default:
+      return 1;
+  }
+}
+
+/// Tenues visibles selon le grade du membre : un Apprenti ne voit que les
+/// tenues au degré Apprenti, un Compagnon y ajoute le degré Compagnon, un
+/// Maître voit tout. Le V∴M∴, le Secrétaire et les administrateurs
+/// (`canEditSessions`) voient toutes les tenues quel que soit leur grade.
+List<Session> visibleSessionsFor(List<Session> sessions, Member? user) {
+  if (canEditSessions(user)) return sessions;
+  final rank = _degreeRank(user?.grade ?? 'Apprenti');
+  return sessions.where((s) => _degreeRank(s.degree) <= rank).toList();
+}
+
 class SessionsScreen extends StatelessWidget {
   const SessionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final sessions = state.sessions;
+    final sessions = visibleSessionsFor(state.sessions, state.currentUser);
     final canEdit = canEditSessions(state.currentUser);
 
     return Scaffold(
@@ -393,17 +416,17 @@ class SessionDetailScreen extends StatelessWidget {
             'Visiteurs (${visitors.length})',
             visitors.map((v) => '${v.fullName} — ${v.lodge}').toList(),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'DOCUMENTS',
-            style: TextStyle(
-              color: BrColors.gold,
-              fontSize: 12,
-              letterSpacing: 2,
-            ),
-          ),
-          const SizedBox(height: 12),
           if (canEdit) ...[
+            const SizedBox(height: 20),
+            const Text(
+              'DOCUMENTS',
+              style: TextStyle(
+                color: BrColors.gold,
+                fontSize: 12,
+                letterSpacing: 2,
+              ),
+            ),
+            const SizedBox(height: 12),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: BrColors.gold,
@@ -419,89 +442,90 @@ class SessionDetailScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: BrColors.violet,
+                side: const BorderSide(color: BrColors.violet),
+              ),
+              icon: const Icon(Icons.how_to_reg_outlined, size: 18),
+              label: const Text('Présence'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => SessionPresenceScreen(sessionId: session.id),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: BrColors.goldBright,
+                side: const BorderSide(color: BrColors.gold),
+              ),
+              icon: const Icon(Icons.draw_outlined, size: 18),
+              label: const Text('Émargement / signatures'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => EmargementScreen(sessionId: session.id),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: BrColors.teal),
+              icon: const Icon(Icons.people_alt_outlined, size: 18),
+              label: const Text("Feuille de présence (PDF)"),
+              onPressed: () => _openPdf(
+                context,
+                'Emargement',
+                () =>
+                    buildEmargementPdf(session, state.members, state.visitors),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
+              icon: const Icon(Icons.mail_outline, size: 18),
+              label: const Text('Convocation / ordre du jour (PDF)'),
+              onPressed: () => _openPdf(
+                context,
+                'Convocation',
+                () => buildConvocationPdf(session, _chrono(session)),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF701A75),
+              ),
+              icon: const Icon(Icons.history_edu, size: 18),
+              label: const Text('Planche tracée (PDF)'),
+              onPressed: () => _openPdf(
+                context,
+                'PlancheTracee',
+                () => buildPlancheTraceePdf(
+                  session,
+                  state.members,
+                  state.visitors,
+                  _chrono(session),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF34D399),
+                side: const BorderSide(color: Color(0xFF34D399)),
+              ),
+              icon: const Icon(Icons.cloud_upload_outlined, size: 18),
+              label: const Text('Archiver sur Google Drive'),
+              onPressed: () => _archiveDrive(context, session, state),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              "L'archivage envoie les 3 PDF dans le dossier « Tenue … » sur Google Drive. Nécessite la connexion Google (voir README pour la config OAuth).",
+              style: TextStyle(color: BrColors.muted, fontSize: 11),
+            ),
           ],
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: BrColors.violet,
-              side: const BorderSide(color: BrColors.violet),
-            ),
-            icon: const Icon(Icons.how_to_reg_outlined, size: 18),
-            label: const Text('Présence'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => SessionPresenceScreen(sessionId: session.id),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: BrColors.goldBright,
-              side: const BorderSide(color: BrColors.gold),
-            ),
-            icon: const Icon(Icons.draw_outlined, size: 18),
-            label: const Text('Émargement / signatures'),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => EmargementScreen(sessionId: session.id),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: BrColors.teal),
-            icon: const Icon(Icons.people_alt_outlined, size: 18),
-            label: const Text("Feuille de présence (PDF)"),
-            onPressed: () => _openPdf(
-              context,
-              'Emargement',
-              () => buildEmargementPdf(session, state.members, state.visitors),
-            ),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
-            icon: const Icon(Icons.mail_outline, size: 18),
-            label: const Text('Convocation / ordre du jour (PDF)'),
-            onPressed: () => _openPdf(
-              context,
-              'Convocation',
-              () => buildConvocationPdf(session, _chrono(session)),
-            ),
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF701A75),
-            ),
-            icon: const Icon(Icons.history_edu, size: 18),
-            label: const Text('Planche tracée (PDF)'),
-            onPressed: () => _openPdf(
-              context,
-              'PlancheTracee',
-              () => buildPlancheTraceePdf(
-                session,
-                state.members,
-                state.visitors,
-                _chrono(session),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF34D399),
-              side: const BorderSide(color: Color(0xFF34D399)),
-            ),
-            icon: const Icon(Icons.cloud_upload_outlined, size: 18),
-            label: const Text('Archiver sur Google Drive'),
-            onPressed: () => _archiveDrive(context, session, state),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            "L'archivage envoie les 3 PDF dans le dossier « Tenue … » sur Google Drive. Nécessite la connexion Google (voir README pour la config OAuth).",
-            style: TextStyle(color: BrColors.muted, fontSize: 11),
-          ),
         ],
       ),
     );
