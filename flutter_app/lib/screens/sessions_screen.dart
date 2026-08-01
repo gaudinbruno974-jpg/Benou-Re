@@ -14,6 +14,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import 'emargement_screen.dart';
 import 'session_edit_screen.dart';
+import 'session_presence_screen.dart';
 
 const _navyBtn = Color(0xFF0C235C);
 
@@ -392,6 +393,20 @@ class SessionDetailScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: BrColors.violet,
+              side: const BorderSide(color: BrColors.violet),
+            ),
+            icon: const Icon(Icons.how_to_reg_outlined, size: 18),
+            label: const Text('Présence'),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => SessionPresenceScreen(sessionId: session.id),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: BrColors.goldBright,
