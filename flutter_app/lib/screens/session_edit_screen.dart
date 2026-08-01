@@ -66,7 +66,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
   late final TextEditingController _location;
   late final TextEditingController _tronc;
-  late final TextEditingController _vmName;
   late final TextEditingController _t1;
   late final TextEditingController _t2;
   late final TextEditingController _t3;
@@ -98,7 +97,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _tronc = TextEditingController(
       text: s != null && s.troncAmount != 0 ? '${s.troncAmount}' : '',
     );
-    _vmName = TextEditingController(text: s?.vmName ?? '');
     _t1 = TextEditingController(text: s?.travail1 ?? '');
     _t2 = TextEditingController(text: s?.travail2 ?? '');
     _t3 = TextEditingController(text: s?.travail3 ?? '');
@@ -156,7 +154,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     for (final c in [
       _location,
       _tronc,
-      _vmName,
       _t1,
       _t2,
       _t3,
@@ -243,7 +240,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       'closingTime': closing,
       'heureSuspension': closing,
       'troncAmount': num.tryParse(_tronc.text.trim().replaceAll(',', '.')) ?? 0,
-      'vmName': _vmName.text.trim(),
       'travail1': _t1.text.trim(),
       'travail2': _t2.text.trim(),
       'travail3': _t3.text.trim(),
@@ -518,7 +514,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               'Tronc de la Veuve (€)',
               keyboard: const TextInputType.numberWithOptions(decimal: true),
             ),
-            _field(_vmName, 'Vénérable Maître'),
 
             const SizedBox(height: 24),
             ElevatedButton.icon(

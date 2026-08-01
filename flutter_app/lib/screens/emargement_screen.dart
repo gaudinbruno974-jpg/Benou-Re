@@ -40,7 +40,7 @@ class EmargementScreen extends StatelessWidget {
     final presentVisitors =
         state.visitors.where((v) => session.visitorIds.contains(v.id)).toList();
 
-    final attendees = <_Signer>[
+    final memberSigners = <_Signer>[
       for (final m in presentMembers)
         _Signer(
           m.id,
@@ -48,6 +48,8 @@ class EmargementScreen extends StatelessWidget {
           m.function != 'Aucun' && m.function.isNotEmpty ? m.function : 'Membre',
           sigs[m.id],
         ),
+    ];
+    final visitorSigners = <_Signer>[
       for (final v in presentVisitors)
         _Signer(
           v.id,
@@ -57,6 +59,7 @@ class EmargementScreen extends StatelessWidget {
           sigs[v.id],
         ),
     ];
+    final attendees = <_Signer>[...memberSigners, ...visitorSigners];
 
     final missing = attendees.where((a) => (a.current ?? '').isEmpty).length;
 
@@ -103,14 +106,27 @@ class EmargementScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          const _SectionTitle('PRÉSENTS'),
-          if (attendees.isEmpty)
+          const _SectionTitle('MEMBRES PRÉSENTS'),
+          if (memberSigners.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
-              child: Text('Aucun présent enregistré.',
+              child: Text('Aucun membre présent enregistré.',
                   style: TextStyle(color: BrColors.muted)),
             ),
-          for (final a in attendees)
+          for (final a in memberSigners)
+            _SignerTile(
+              signer: a,
+              onSign: () => _sign(context, session, a, isPlanche: false),
+            ),
+          const SizedBox(height: 12),
+          const _SectionTitle('VISITEURS PRÉSENTS'),
+          if (visitorSigners.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Aucun visiteur présent enregistré.',
+                  style: TextStyle(color: BrColors.muted)),
+            ),
+          for (final a in visitorSigners)
             _SignerTile(
               signer: a,
               onSign: () => _sign(context, session, a, isPlanche: false),
