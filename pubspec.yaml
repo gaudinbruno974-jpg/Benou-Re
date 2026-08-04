@@ -1,0 +1,41 @@
+name: benou_re
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  firebase_core: ^4.12.1
+  firebase_auth: ^6.5.6
+  cloud_firestore: ^6.7.1
+  provider: ^6.1.5+1
+  intl: ^0.20.2
+  pdf: ^3.13.0
+  printing: ^5.15.0
+  collection: ^1.19.1
+  signature: ^6.3.0
+  google_sign_in: ^6.2.1
+  http: ^1.2.2
+  web: ^1.1.0
+  shared_preferences: ^2.5.3   # <--- NOUVEAU : indispensable pour la case à cocher
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/GLDB.png
+    - assets/Benou-Re.png
+    - assets/fonts/DejaVuSans.ttf
+    - assets/fonts/DejaVuSans-Bold.ttf
