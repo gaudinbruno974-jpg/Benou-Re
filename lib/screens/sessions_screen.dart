@@ -23,7 +23,7 @@ const _navyBtn = Color(0xFF0C235C);
 
 String formatSessionDate(Session s) {
   final dt = s.dateTime;
-  if (dt == null) return 'Date inconnue';
+  if (dt == null) return 'Date non définie';
   return DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
 }
 
@@ -59,31 +59,78 @@ class SessionsScreen extends StatelessWidget {
     final sessions = visibleSessionsFor(state.sessions, state.currentUser);
     final canEdit = canEditSessions(state.currentUser);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Tenues')),
-      floatingActionButton: canEdit
-          ? FloatingActionButton.extended(
-              backgroundColor: BrColors.teal,
-              icon: const Icon(Icons.add),
-              label: const Text('Nouvelle tenue'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SessionEditScreen()),
-              ),
-            )
-          : null,
-      body: sessions.isEmpty
-          ? const Center(
-              child: Text(
-                'Aucune tenue planifiée',
-                style: TextStyle(color: BrColors.muted),
-              ),
-            )
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
-              itemCount: sessions.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 14),
-              itemBuilder: (context, i) => _SessionCard(session: sessions[i]),
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final upcoming = <Session>[];
+    final past = <Session>[];
+    for (final s in sessions) {
+      final dt = s.dateTime;
+      if (dt != null && dt.isBefore(startOfToday)) {
+        past.add(s);
+      } else {
+        upcoming.add(s);
+      }
+    }
+
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Tenues'),
+          bottom: const TabBar(
+            tabs: [
+              Tab(text: 'Reprise des Travaux'),
+              Tab(text: 'Travaux Suspendus'),
+            ],
+          ),
+        ),
+        floatingActionButton: canEdit
+            ? FloatingActionButton.extended(
+                backgroundColor: BrColors.teal,
+                icon: const Icon(Icons.add),
+                label: const Text('Nouvelle tenue'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SessionEditScreen()),
+                ),
+              )
+            : null,
+        body: TabBarView(
+          children: [
+            _SessionsList(
+              sessions: upcoming,
+              emptyMessage: 'Aucune tenue à venir',
             ),
+            _SessionsList(
+              sessions: past,
+              emptyMessage: 'Aucune tenue suspendue',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SessionsList extends StatelessWidget {
+  final List<Session> sessions;
+  final String emptyMessage;
+  const _SessionsList({required this.sessions, required this.emptyMessage});
+
+  @override
+  Widget build(BuildContext context) {
+    if (sessions.isEmpty) {
+      return Center(
+        child: Text(
+          emptyMessage,
+          style: const TextStyle(color: BrColors.muted),
+        ),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
+      itemCount: sessions.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 14),
+      itemBuilder: (context, i) => _SessionCard(session: sessions[i]),
     );
   }
 }
