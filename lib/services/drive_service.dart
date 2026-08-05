@@ -119,8 +119,37 @@ class DriveService {
     return jsonDecode(createRes.body)['id'] as String;
   }
 
+  /// Identifiant d'un fichier de même nom déjà présent dans [folderId].
+  Future<String?> _findFile(Map<String, String> headers, String folderId,
+      String fileName) async {
+    final escaped = fileName.replaceAll("'", "\\'");
+    final q = "name='$escaped' and '$folderId' in parents and trashed = false";
+    final uri = Uri.parse(
+        'https://www.googleapis.com/drive/v3/files?q=${Uri.encodeQueryComponent(q)}&fields=files(id,name)');
+    final res = await http.get(uri, headers: headers);
+    if (res.statusCode != 200) return null;
+    final files = (jsonDecode(res.body)['files'] as List?) ?? [];
+    if (files.isEmpty) return null;
+    return files.first['id'] as String?;
+  }
+
   Future<void> _uploadPdf(Map<String, String> headers, String folderId,
       String fileName, Uint8List bytes) async {
+    final existingId = await _findFile(headers, folderId, fileName);
+    if (existingId != null) {
+      final res = await http.patch(
+        Uri.parse(
+            'https://www.googleapis.com/upload/drive/v3/files/$existingId?uploadType=media'),
+        headers: {...headers, 'Content-Type': 'application/pdf'},
+        body: bytes,
+      );
+      if (res.statusCode != 200) {
+        throw DriveException(
+            'Erreur mise à jour « $fileName » : ${res.body}');
+      }
+      return;
+    }
+
     const boundary = 'benoure_drive_boundary';
     final meta = jsonEncode({
       'name': fileName,
@@ -163,8 +192,11 @@ class DriveService {
       ensureFolderAndUpload(
           Session session, Map<String, Uint8List> files) async {
     final headers = await _authHeaders();
-    final folderId = await _findOrCreateFolder(
-        headers, folderName(session), kDriveParentFolderId);
+    final knownId = session.driveFolderId;
+    final folderId = (knownId != null && knownId.trim().isNotEmpty)
+        ? knownId.trim()
+        : await _findOrCreateFolder(
+            headers, folderName(session), kDriveParentFolderId);
     for (final entry in files.entries) {
       await _uploadPdf(headers, folderId, entry.key, entry.value);
     }

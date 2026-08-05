@@ -163,6 +163,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     super.dispose();
   }
 
+  /// Une Tenue validée garde sa date : le dossier Drive porte cette date.
+  bool get _dateLocked =>
+      widget.session != null && widget.session!.isValidated;
+
   int get _ordresCount => _ordres.where((c) => c.text.trim().isNotEmpty).length;
 
   void _regenerateTravaux() {
@@ -211,7 +215,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     final state = context.read<AppState>();
     final existing = widget.session;
     final id = existing?.id ?? 's_${DateTime.now().millisecondsSinceEpoch}';
-    final dateOnly = DateFormat('yyyy-MM-dd').format(_date!);
+    final dateOnly = _dateLocked && (existing?.date.isNotEmpty ?? false)
+        ? existing!.date
+        : DateFormat('yyyy-MM-dd').format(_date!);
     final dateReprise = _heureReprise != null
         ? '${dateOnly}T${_heureReprise!.hour.toString().padLeft(2, '0')}:${_heureReprise!.minute.toString().padLeft(2, '0')}'
         : dateOnly;
@@ -597,36 +603,61 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   }
 
   Widget _dateField() {
+    final locked = _dateLocked;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
-      child: InkWell(
-        onTap: () async {
-          final now = DateTime.now();
-          final picked = await showDatePicker(
-            context: context,
-            initialDate: _date ?? now,
-            firstDate: DateTime(now.year - 3),
-            lastDate: DateTime(now.year + 3),
-            locale: const Locale('fr', 'FR'),
-          );
-          if (picked != null) {
-            setState(() {
-              _date = picked;
-              _regenerateTravaux();
-            });
-          }
-        },
-        child: InputDecorator(
-          decoration: const InputDecoration(labelText: 'Date de reprise'),
-          child: Text(
-            _date == null
-                ? 'Choisir'
-                : DateFormat('d MMM y', 'fr_FR').format(_date!),
-            style: TextStyle(
-              color: _date == null ? BrColors.muted : BrColors.text,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: locked
+                ? null
+                : () async {
+                    final now = DateTime.now();
+                    final picked = await showDatePicker(
+                      context: context,
+                      initialDate: _date ?? now,
+                      firstDate: DateTime(now.year - 3),
+                      lastDate: DateTime(now.year + 3),
+                      locale: const Locale('fr', 'FR'),
+                    );
+                    if (picked != null) {
+                      setState(() {
+                        _date = picked;
+                        _regenerateTravaux();
+                      });
+                    }
+                  },
+            child: InputDecorator(
+              decoration: InputDecoration(
+                labelText: 'Date de reprise',
+                enabled: !locked,
+                suffixIcon: locked
+                    ? const Icon(Icons.lock_outline,
+                        size: 18, color: BrColors.muted)
+                    : null,
+              ),
+              child: Text(
+                _date == null
+                    ? 'Choisir'
+                    : DateFormat('d MMM y', 'fr_FR').format(_date!),
+                style: TextStyle(
+                  color: (_date == null || locked)
+                      ? BrColors.muted
+                      : BrColors.text,
+                ),
+              ),
             ),
           ),
-        ),
+          if (locked)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text(
+                'La date ne peut plus être modifiée après validation (le dossier Drive porte cette date).',
+                style: TextStyle(color: BrColors.muted, fontSize: 11),
+              ),
+            ),
+        ],
       ),
     );
   }

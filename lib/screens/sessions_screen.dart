@@ -459,40 +459,14 @@ class SessionDetailScreen extends StatelessWidget {
           const SizedBox(height: 26),
           const BrSectionTitle('DOCUMENTS', icon: Icons.folder_outlined),
           const SizedBox(height: 16),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
-            icon: const Icon(Icons.mail_outline, size: 18),
-            label: const Text('Convocation / ordre du jour (PDF)'),
-            onPressed: () => _openPdf(
-              context,
-              'Convocation',
-              () => buildConvocationPdf(session, _chrono(session)),
-            ),
-          ),
           if (canEdit) ...[
-            const SizedBox(height: 10),
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: BrColors.gold,
-                side: const BorderSide(color: BrColors.gold),
-              ),
-              icon: const Icon(Icons.history_edu_outlined, size: 18),
-              label: const Text('Planche tracée'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      PlancheTraceeEditScreen(sessionId: session.id),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: BrColors.violet,
                 side: const BorderSide(color: BrColors.violet),
               ),
               icon: const Icon(Icons.how_to_reg_outlined, size: 18),
-              label: const Text('Présence'),
+              label: const Text('Présents en tenue'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => SessionPresenceScreen(sessionId: session.id),
@@ -506,13 +480,41 @@ class SessionDetailScreen extends StatelessWidget {
                 side: const BorderSide(color: BrColors.gold),
               ),
               icon: const Icon(Icons.draw_outlined, size: 18),
-              label: const Text('Détails et Documents'),
+              label: const Text('Emargement Présence'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => EmargementScreen(sessionId: session.id),
                 ),
               ),
             ),
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: BrColors.gold,
+                side: const BorderSide(color: BrColors.gold),
+              ),
+              icon: const Icon(Icons.history_edu_outlined, size: 18),
+              label: const Text('Edition Planche Tracée'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      PlancheTraceeEditScreen(sessionId: session.id),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
+            icon: const Icon(Icons.mail_outline, size: 18),
+            label: const Text('Convocation / ordre du jour (PDF)'),
+            onPressed: () => _openPdf(
+              context,
+              'Convocation',
+              () => buildConvocationPdf(session, _chrono(session)),
+            ),
+          ),
+          if (canEdit) ...[
             const SizedBox(height: 10),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(backgroundColor: BrColors.teal),
