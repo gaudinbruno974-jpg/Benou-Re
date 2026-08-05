@@ -456,6 +456,23 @@ class SessionDetailScreen extends StatelessWidget {
               ],
             ),
           ),
+          if (canEdit && !session.isValidated) ...[
+            const SizedBox(height: 26),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF34D399),
+                foregroundColor: Colors.black,
+              ),
+              icon: const Icon(Icons.verified, size: 18),
+              label: const Text('Valider la tenue'),
+              onPressed: () => _confirmValidate(context, state, session),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'La validation fige la date de la tenue (le dossier Drive porte cette date). Les autres champs restent modifiables.',
+              style: TextStyle(color: BrColors.muted, fontSize: 11),
+            ),
+          ],
           const SizedBox(height: 26),
           const BrSectionTitle('DOCUMENTS', icon: Icons.folder_outlined),
           const SizedBox(height: 16),
@@ -603,6 +620,53 @@ class SessionDetailScreen extends StatelessWidget {
     } catch (e) {
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(SnackBar(content: Text('Drive : $e')));
+    }
+  }
+
+  Future<void> _confirmValidate(
+    BuildContext context,
+    AppState state,
+    Session session,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: const Text(
+          'Valider la tenue ?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'La date ne pourra plus être modifiée (le dossier Drive porte cette date). Les autres informations resteront modifiables.',
+          style: TextStyle(color: BrColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF34D399),
+              foregroundColor: Colors.black,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Valider'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final map = session.toMap();
+    map['isValidated'] = true;
+    try {
+      await state.updateSession(Session.fromMap(session.id, map));
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Tenue validée.')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur validation : $e')));
     }
   }
 
