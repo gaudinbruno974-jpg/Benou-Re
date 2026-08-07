@@ -233,6 +233,9 @@ class Session {
   List<String> get ordresJour => _stringList(extra['ordresJour']);
   List<String> get plancheTravauxNotes => _stringList(extra['plancheTravauxNotes']);
 
+  /// Membres annoncés présents aux agapes (réponses au sondage WhatsApp).
+  List<String> get agapeIds => _stringList(extra['agapeIds']);
+
   /// Commentaires ajoutés sous les lignes du texte de la planche tracée
   /// (Tenue suspendue). Clé : index de la ligne.
   Map<String, String> get plancheLineComments =>
