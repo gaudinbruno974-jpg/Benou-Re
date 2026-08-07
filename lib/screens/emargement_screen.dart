@@ -66,8 +66,6 @@ class EmargementScreen extends StatelessWidget {
     ];
     final attendees = <_Signer>[...memberSigners, ...visitorSigners];
 
-    final missing = attendees.where((a) => (a.current ?? '').isEmpty).length;
-
     // Signatures officielles de la planche tracée.
     final vmName = session.vmName?.isNotEmpty == true
         ? session.vmName!
@@ -105,16 +103,11 @@ class EmargementScreen extends StatelessWidget {
       ),
     ];
 
-    final isSuspended =
-        session.dateTime?.isBefore(
-          DateTime(
-            DateTime.now().year,
-            DateTime.now().month,
-            DateTime.now().day,
-          ),
-        ) ==
-        true;
-    final allowAttendanceSigning = !isSuspended;
+    // Tenue suspendue : seules les signatures de la planche tracée restent
+    // affichées et signables.
+    final isSuspended = session.isSuspended;
+    final signers = isSuspended ? plancheSigners : attendees;
+    final missing = signers.where((a) => (a.current ?? '').isEmpty).length;
 
     return Scaffold(
       appBar: AppBar(
@@ -126,7 +119,9 @@ class EmargementScreen extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                '$missing signature(s) manquante(s) sur ${attendees.length} présent(s)',
+                isSuspended
+                    ? '$missing signature(s) manquante(s) sur ${signers.length} signataire(s) de la planche tracée'
+                    : '$missing signature(s) manquante(s) sur ${signers.length} présent(s)',
                 style: const TextStyle(color: BrColors.muted, fontSize: 12),
               ),
             ),
@@ -136,40 +131,46 @@ class EmargementScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 18, 14, 28),
         children: [
-          const _SectionTitle('MEMBRES PRÉSENTS'),
-          if (memberSigners.isEmpty)
+          if (isSuspended)
             const Padding(
-              padding: EdgeInsets.all(12),
+              padding: EdgeInsets.only(bottom: 8),
               child: Text(
-                'Aucun membre présent enregistré.',
-                style: TextStyle(color: BrColors.muted),
+                'Tenue suspendue : seules les signatures de la planche tracée restent disponibles.',
+                style: TextStyle(color: BrColors.muted, fontSize: 12),
               ),
             ),
-          for (final a in memberSigners)
-            _SignerTile(
-              signer: a,
-              onSign: allowAttendanceSigning
-                  ? () => _sign(context, session, a, isPlanche: false)
-                  : null,
-            ),
-          const SizedBox(height: 12),
-          const _SectionTitle('VISITEURS PRÉSENTS'),
-          if (visitorSigners.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text(
-                'Aucun visiteur présent enregistré.',
-                style: TextStyle(color: BrColors.muted),
+          if (!isSuspended) ...[
+            const _SectionTitle('MEMBRES PRÉSENTS'),
+            if (memberSigners.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'Aucun membre présent enregistré.',
+                  style: TextStyle(color: BrColors.muted),
+                ),
               ),
-            ),
-          for (final a in visitorSigners)
-            _SignerTile(
-              signer: a,
-              onSign: allowAttendanceSigning
-                  ? () => _sign(context, session, a, isPlanche: false)
-                  : null,
-            ),
-          const SizedBox(height: 12),
+            for (final a in memberSigners)
+              _SignerTile(
+                signer: a,
+                onSign: () => _sign(context, session, a, isPlanche: false),
+              ),
+            const SizedBox(height: 12),
+            const _SectionTitle('VISITEURS PRÉSENTS'),
+            if (visitorSigners.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'Aucun visiteur présent enregistré.',
+                  style: TextStyle(color: BrColors.muted),
+                ),
+              ),
+            for (final a in visitorSigners)
+              _SignerTile(
+                signer: a,
+                onSign: () => _sign(context, session, a, isPlanche: false),
+              ),
+            const SizedBox(height: 12),
+          ],
           const _SectionTitle('SIGNATURES DE LA PLANCHE TRACÉE'),
           for (final s in plancheSigners)
             _SignerTile(

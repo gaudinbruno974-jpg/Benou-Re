@@ -59,13 +59,10 @@ class SessionsScreen extends StatelessWidget {
     final sessions = visibleSessionsFor(state.sessions, state.currentUser);
     final canEdit = canEditSessions(state.currentUser);
 
-    final now = DateTime.now();
-    final startOfToday = DateTime(now.year, now.month, now.day);
     final upcoming = <Session>[];
     final past = <Session>[];
     for (final s in sessions) {
-      final dt = s.dateTime;
-      if (dt != null && dt.isBefore(startOfToday)) {
+      if (s.isSuspended) {
         past.add(s);
       } else {
         upcoming.add(s);
@@ -384,6 +381,7 @@ class SessionDetailScreen extends StatelessWidget {
         .where((v) => session.visitorIds.contains(v.id))
         .toList();
     final canEdit = canEditSessions(state.currentUser);
+    final isSuspended = session.isSuspended;
 
     return Scaffold(
       appBar: AppBar(
@@ -449,20 +447,23 @@ class SessionDetailScreen extends StatelessWidget {
           const BrSectionTitle('DOCUMENTS', icon: Icons.folder_outlined),
           const SizedBox(height: 16),
           if (canEdit) ...[
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: BrColors.violet,
-                side: const BorderSide(color: BrColors.violet),
-              ),
-              icon: const Icon(Icons.how_to_reg_outlined, size: 18),
-              label: const Text('Présents en tenue'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => SessionPresenceScreen(sessionId: session.id),
+            if (!isSuspended) ...[
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BrColors.violet,
+                  side: const BorderSide(color: BrColors.violet),
+                ),
+                icon: const Icon(Icons.how_to_reg_outlined, size: 18),
+                label: const Text('Présents en tenue'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        SessionPresenceScreen(sessionId: session.id),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
+              const SizedBox(height: 10),
+            ],
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: BrColors.goldBright,
