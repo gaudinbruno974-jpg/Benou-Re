@@ -5,6 +5,10 @@
 // `session.plancheDraftText` et repris tel quel par le PDF.
 // L'édition est réservée au V∴M∴, au Secrétaire et aux administrateurs
 // (`canEditSessions`) ; les autres rôles consultent l'écran en lecture seule.
+//
+// Sur une Tenue suspendue, le texte est figé : il s'affiche ligne par ligne et
+// seul un commentaire peut être ajouté sous chacune (`plancheLineComments`) ;
+// les notes de travaux, le tronc et le sac aux propositions restent éditables.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +33,9 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
   final _tronc = TextEditingController();
   final _sac = TextEditingController();
   final _notes = <TextEditingController>[];
+  final _comments = <TextEditingController>[];
   List<String> _ordreDuJour = const [];
+  List<String> _lines = const [];
   bool _initialized = false;
   bool _saving = false;
 
@@ -43,6 +49,11 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
     _sac.text = session.sacPropositions ?? '';
     final draft = (session.plancheDraftText ?? '').trim();
     _text.text = draft.isNotEmpty ? draft : _generatedText(session, state);
+    _lines = plancheParagraphs(_text.text);
+    final saved = session.plancheLineComments;
+    for (var i = 0; i < _lines.length; i++) {
+      _comments.add(TextEditingController(text: saved['$i'] ?? ''));
+    }
     _initialized = true;
   }
 
@@ -76,6 +87,9 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
     for (final c in _notes) {
       c.dispose();
     }
+    for (final c in _comments) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -85,7 +99,16 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final map = Map<String, dynamic>.from(session.toMap());
-    map['plancheDraftText'] = _text.text.trim();
+    if (session.isSuspended) {
+      final comments = <String, String>{};
+      for (var i = 0; i < _comments.length; i++) {
+        final v = _comments[i].text.trim();
+        if (v.isNotEmpty) comments['$i'] = v;
+      }
+      map['plancheLineComments'] = comments;
+    } else {
+      map['plancheDraftText'] = _text.text.trim();
+    }
     map['troncAmount'] = _troncValue();
     map['sacPropositions'] = _sac.text.trim();
     map['plancheTravauxNotes'] = _notes.map((c) => c.text.trim()).toList();
@@ -117,6 +140,7 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
     );
     if (!_initialized) _initFrom(session, state);
     final canEdit = canEditSessions(state.currentUser);
+    final isSuspended = session.isSuspended;
 
     return Scaffold(
       appBar: AppBar(
@@ -154,7 +178,7 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Expanded(child: _Heading('TEXTE DE LA PLANCHE')),
-              if (canEdit)
+              if (canEdit && !isSuspended)
                 TextButton.icon(
                   onPressed: () => setState(
                     () => _text.text = _generatedText(session, state),
@@ -171,17 +195,58 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
                 ),
             ],
           ),
-          TextField(
-            controller: _text,
-            enabled: canEdit,
-            maxLines: null,
-            minLines: 18,
-            style: const TextStyle(color: BrColors.text, fontSize: 13),
-            decoration: const InputDecoration(
-              hintText: 'Texte de la planche tracée…',
-              alignLabelWithHint: true,
+          if (isSuspended) ...[
+            const Padding(
+              padding: EdgeInsets.only(bottom: 10),
+              child: Text(
+                'Tenue suspendue : le texte de la planche n\'est plus modifiable.',
+                style: TextStyle(color: BrColors.muted, fontSize: 12),
+              ),
             ),
-          ),
+            for (var i = 0; i < _lines.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _lines[i],
+                      style: const TextStyle(
+                        color: BrColors.text,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 14, top: 2),
+                      child: TextField(
+                        controller: _comments[i],
+                        enabled: canEdit,
+                        maxLines: null,
+                        style: const TextStyle(
+                          color: BrColors.teal,
+                          fontSize: 13,
+                        ),
+                        decoration: const InputDecoration(
+                          isDense: true,
+                          hintText: 'Ajouter un commentaire…',
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ] else
+            TextField(
+              controller: _text,
+              enabled: canEdit,
+              maxLines: null,
+              minLines: 18,
+              style: const TextStyle(color: BrColors.text, fontSize: 13),
+              decoration: const InputDecoration(
+                hintText: 'Texte de la planche tracée…',
+                alignLabelWithHint: true,
+              ),
+            ),
           const SizedBox(height: 20),
           const _Heading('TRONC & SAC AUX PROPOSITIONS'),
           Padding(

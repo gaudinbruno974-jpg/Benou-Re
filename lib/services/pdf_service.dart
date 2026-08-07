@@ -810,6 +810,28 @@ String buildPlancheTraceeText(
   return paras.join('\n\n');
 }
 
+/// Découpe le texte de la planche en lignes non vides. Sert d'index commun à
+/// l'éditeur et au PDF pour rattacher les commentaires à leur ligne.
+List<String> plancheParagraphs(String body) => body
+    .split('\n')
+    .map((p) => p.trim())
+    .where((p) => p.isNotEmpty)
+    .toList();
+
+/// Texte de la planche effectivement utilisé : le brouillon enregistré prime
+/// sur le texte généré automatiquement.
+String plancheBodyText(
+  Session session,
+  List<Member> members,
+  List<Visitor> visitors,
+  int chrono,
+) {
+  final draft = (session.plancheDraftText ?? '').trim();
+  return draft.isNotEmpty
+      ? draft
+      : buildPlancheTraceeText(session, members, visitors, chrono);
+}
+
 Future<Uint8List> buildPlancheTraceePdf(
   Session session,
   List<Member> members,
@@ -847,15 +869,10 @@ Future<Uint8List> buildPlancheTraceePdf(
 
   // Le texte édité et enregistré par le Secrétaire / V∴M∴ prime sur le texte
   // généré automatiquement.
-  final draft = (session.plancheDraftText ?? '').trim();
-  final body = draft.isNotEmpty
-      ? draft
-      : buildPlancheTraceeText(session, members, visitors, chrono);
-  final paragraphs = body
-      .split('\n')
-      .map((p) => p.trim())
-      .where((p) => p.isNotEmpty)
-      .toList();
+  final paragraphs = plancheParagraphs(
+    plancheBodyText(session, members, visitors, chrono),
+  );
+  final comments = session.plancheLineComments;
 
   for (var i = 0; i < paragraphs.length; i++) {
     if (i == 0) {
@@ -882,6 +899,22 @@ Future<Uint8List> buildPlancheTraceePdf(
       );
     } else {
       content.add(para(paragraphs[i], size: 10, gap: 4));
+    }
+    final comment = (comments['$i'] ?? '').trim();
+    if (comment.isNotEmpty) {
+      content.add(
+        pw.Padding(
+          padding: pw.EdgeInsets.only(left: 6 * _mm, bottom: 4 * _mm),
+          child: pw.Text(
+            '— $comment',
+            style: pw.TextStyle(
+              font: fonts.base,
+              fontSize: 9.5,
+              color: _navy,
+            ),
+          ),
+        ),
+      );
     }
   }
 
