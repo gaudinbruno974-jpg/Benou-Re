@@ -106,6 +106,14 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
         if (v.isNotEmpty) comments['$i'] = v;
       }
       map['plancheLineComments'] = comments;
+      final body = (session.plancheDraftText ?? '').trim();
+      if (body.isNotEmpty) {
+        map['plancheDraftText'] = plancheTextWithTronc(
+          body,
+          _troncValue(),
+          _sac.text.trim(),
+        );
+      }
     } else {
       map['plancheDraftText'] = _text.text.trim();
     }

@@ -794,12 +794,11 @@ String buildPlancheTraceeText(
   }
 
   // Tronc de la veuve et sac aux propositions
-  final tronc = (troncAmount ?? session.troncAmount).toDouble();
-  final euros = tronc.floor();
-  final centimes = ((tronc - euros) * 100).round();
-  final sac = (sacPropositions ?? session.sacPropositions ?? '').trim();
   paras.add(
-    'L’ordre du jour étant épuisé, le V∴ M∴ fait circuler le Tronc de la veuve et le Sac aux Propositions. ${sac.isEmpty ? 'Ce dernier revient pur et sans tache.' : 'Sac aux Propositions : $sac'} Le Tronc revient lourd de $euros Pierre(s) Plate(s) et $centimes Morceau(x) d’éclats, qui ont été pris en charge par le Trésorier.',
+    plancheTroncSentence(
+      troncAmount ?? session.troncAmount,
+      sacPropositions ?? session.sacPropositions ?? '',
+    ),
   );
 
   paras.add(
@@ -808,6 +807,39 @@ String buildPlancheTraceeText(
   paras.add('J’ai dit Vénérable Maître,');
 
   return paras.join('\n\n');
+}
+
+/// Phrase de clôture décrivant le Tronc de la Veuve et le Sac aux propositions.
+String plancheTroncSentence(num troncAmount, String sacPropositions) {
+  final tronc = troncAmount.toDouble();
+  final euros = tronc.floor();
+  final centimes = ((tronc - euros) * 100).round();
+  final sac = sacPropositions.trim();
+  return 'L’ordre du jour étant épuisé, le V∴ M∴ fait circuler le Tronc de la veuve '
+      'et le Sac aux Propositions. '
+      '${sac.isEmpty ? 'Ce dernier revient pur et sans tache.' : 'Sac aux Propositions : $sac'} '
+      'Le Tronc revient lourd de $euros Pierre(s) Plate(s) et $centimes '
+      'Morceau(x) d’éclats, qui ont été pris en charge par le Trésorier.';
+}
+
+/// Réécrit la phrase du Tronc/Sac dans un texte de planche déjà enregistré.
+/// Les autres lignes sont conservées telles quelles et leur nombre est
+/// inchangé, pour que les index des commentaires restent valides.
+String plancheTextWithTronc(
+  String body,
+  num troncAmount,
+  String sacPropositions,
+) {
+  final sentence = plancheTroncSentence(troncAmount, sacPropositions);
+  final lines = body.split('\n');
+  var found = false;
+  for (var i = 0; i < lines.length; i++) {
+    if (lines[i].contains('Tronc revient lourd de')) {
+      lines[i] = sentence;
+      found = true;
+    }
+  }
+  return found ? lines.join('\n') : body;
 }
 
 /// Découpe le texte de la planche en lignes non vides. Sert d'index commun à
