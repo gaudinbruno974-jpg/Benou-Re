@@ -203,6 +203,13 @@ class Session {
     return DateTime.tryParse(raw);
   }
 
+  /// Tenue « suspendue » : sa date est antérieure au jour courant
+  /// (onglet « Travaux Suspendus »).
+  bool get isSuspended {
+    final now = DateTime.now();
+    return dateTime?.isBefore(DateTime(now.year, now.month, now.day)) == true;
+  }
+
   // ─── Champs additionnels (stockés dans `extra`) utilisés par les PDF ──
   String? _s(String key) {
     final v = extra[key];

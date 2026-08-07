@@ -140,12 +140,14 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     );
     if (!_initialized) _initFrom(session);
     final canEdit = canEditSessions(state.currentUser);
+    final isSuspended = session.isSuspended;
+    final allowEdit = canEdit && !isSuspended;
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Présence'),
         actions: [
-          if (canEdit)
+          if (allowEdit)
             IconButton(
               tooltip: 'Enregistrer',
               icon: _saving
@@ -173,6 +175,14 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                 style: TextStyle(color: BrColors.muted, fontSize: 12),
               ),
             ),
+          if (isSuspended)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Tenue suspendue : les présences ne sont plus modifiables.',
+                style: TextStyle(color: BrColors.muted, fontSize: 12),
+              ),
+            ),
           const _SectionTitle('MEMBRES — PRÉSENTS / EXCUSÉS'),
           if (state.members.isEmpty)
             const Padding(
@@ -186,8 +196,8 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               role: m.function.isNotEmpty ? m.function : 'Membre',
               isPresent: _presentIds.contains(m.id),
               isExcused: _excusedIds.contains(m.id),
-              onPresent: canEdit ? () => _togglePresent(m.id) : null,
-              onExcused: canEdit ? () => _toggleExcused(m.id) : null,
+              onPresent: allowEdit ? () => _togglePresent(m.id) : null,
+              onExcused: allowEdit ? () => _toggleExcused(m.id) : null,
             ),
           const SizedBox(height: 16),
           const _SectionTitle('VISITEURS — PRÉSENTS'),
@@ -205,9 +215,9 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                   .join(' — '),
               isPresent: _visitorIds.contains(v.id),
               role: _visitorRoles[v.id] ?? '',
-              onToggle: canEdit ? () => _toggleVisitor(v.id) : null,
+              onToggle: allowEdit ? () => _toggleVisitor(v.id) : null,
               onRoleChanged:
-                  canEdit ? (r) => _updateVisitorRole(v.id, r) : null,
+                  allowEdit ? (r) => _updateVisitorRole(v.id, r) : null,
             ),
         ],
       ),

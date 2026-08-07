@@ -366,9 +366,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       );
     }
 
-    final readOnly =
-        widget.session != null &&
-        widget.session!.dateTime?.isBefore(DateTime.now()) == true;
+    // Tenue suspendue (classée dans l'onglet « Travaux Suspendus ») :
+    // les travaux ne sont plus modifiables.
+    final readOnly = widget.session?.isSuspended == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -434,11 +434,13 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             _numberedField('2', _t2, enabled: !readOnly),
             _numberedField('3', _t3, enabled: !readOnly),
             _numberedField('4', _t4, enabled: !readOnly),
-            const Padding(
-              padding: EdgeInsets.only(top: 4, left: 4),
+            Padding(
+              padding: const EdgeInsets.only(top: 4, left: 4),
               child: Text(
-                'Tous les travaux peuvent être modifiés.',
-                style: TextStyle(color: BrColors.muted, fontSize: 11),
+                readOnly
+                    ? 'Les travaux ne sont plus modifiables (Tenue suspendue).'
+                    : 'Tous les travaux peuvent être modifiés.',
+                style: const TextStyle(color: BrColors.muted, fontSize: 11),
               ),
             ),
 
@@ -654,6 +656,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             child: TextField(
               controller: c,
               maxLines: null,
+              enabled: enabled,
               style: const TextStyle(color: BrColors.text, fontSize: 13),
               decoration: InputDecoration(hintText: 'Travail $num'),
             ),
