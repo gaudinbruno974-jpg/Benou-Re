@@ -233,6 +233,11 @@ class Session {
   List<String> get ordresJour => _stringList(extra['ordresJour']);
   List<String> get plancheTravauxNotes => _stringList(extra['plancheTravauxNotes']);
 
+  /// Commentaires ajoutés sous les lignes du texte de la planche tracée
+  /// (Tenue suspendue). Clé : index de la ligne.
+  Map<String, String> get plancheLineComments =>
+      _stringMap(extra['plancheLineComments']);
+
   num? get montantMedaille {
     final v = extra['montantMedaille'];
     return v is num ? v : null;
