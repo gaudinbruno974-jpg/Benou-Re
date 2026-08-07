@@ -66,6 +66,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _location;
+  late final TextEditingController _chronoController;
   late final TextEditingController _t1;
   late final TextEditingController _t2;
   late final TextEditingController _t3;
@@ -84,6 +85,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   String? _typeRepas;
 
   bool _saving = false;
+  int? _autoChronoValue;
 
   @override
   void initState() {
@@ -94,6 +96,16 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
           ? s!.location
           : (s?.lieuReunion ?? 'Temple Thérèse Eliseman à Saint-Pierre'),
     );
+    if (s?.chrono != null) {
+      _chronoController = TextEditingController(text: '${s!.chrono!.toInt()}');
+      _autoChronoValue = s.chrono!.toInt();
+    } else {
+      _chronoController = TextEditingController(text: '');
+      _autoChronoValue = null;
+      if (widget.session == null) {
+        _loadAutoChrono();
+      }
+    }
     _t1 = TextEditingController(text: s?.travail1 ?? '');
     _t2 = TextEditingController(text: s?.travail2 ?? '');
     _t3 = TextEditingController(text: s?.travail3 ?? '');
@@ -146,10 +158,27 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     return TimeOfDay(hour: h, minute: m);
   }
 
+  Future<void> _loadAutoChrono() async {
+    try {
+      final state = context.read<AppState>();
+      final chrono = await state.allocateSessionChrono();
+      if (!mounted) return;
+      if (_chronoController.text.isEmpty) {
+        setState(() {
+          _chronoController.text = '$chrono';
+          _autoChronoValue = chrono;
+        });
+      }
+    } catch (_) {
+      // Ignore: le numéro sera généré à l'enregistrement si nécessaire.
+    }
+  }
+
   @override
   void dispose() {
     for (final c in [
       _location,
+      _chronoController,
       _t1,
       _t2,
       _t3,
@@ -163,9 +192,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     super.dispose();
   }
 
-  /// Une Tenue validée garde sa date : le dossier Drive porte cette date.
-  bool get _dateLocked =>
-      widget.session != null && widget.session!.isValidated;
+  /// Une Tenue existante garde sa date : le dossier Drive porte cette date.
+  bool get _dateLocked => widget.session != null;
 
   int get _ordresCount => _ordres.where((c) => c.text.trim().isNotEmpty).length;
 
@@ -185,10 +213,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   // ─── ARCHIVAGE DRIVE À LA CRÉATION (best effort) ──────────────────
   Future<Session> _createDriveFolder(Session session, int chrono) async {
     final pdf = Uint8List.fromList(await buildConvocationPdf(session, chrono));
-    final res = await DriveService.instance.ensureFolderAndUpload(
-      session,
-      {'Convocation_Tenue_$chrono.pdf': pdf},
-    );
+    final res = await DriveService.instance.ensureFolderAndUpload(session, {
+      'Convocation_Tenue_$chrono.pdf': pdf,
+    });
     final map = session.toMap();
     map['driveFolderId'] = res.folderId;
     map['driveFolderUrl'] = res.folderUrl;
@@ -271,8 +298,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     }
 
     try {
-      int? chrono = existing?.chrono?.toInt();
-      if (existing == null) {
+      int? chrono = existing?.chrono?.toInt() ?? _autoChronoValue;
+      if (existing == null && chrono == null) {
         chrono = await state.allocateSessionChrono();
       }
       if (chrono != null) {
@@ -286,7 +313,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         if (chrono != null) {
           try {
             await state.updateSession(
-                await _createDriveFolder(session, chrono));
+              await _createDriveFolder(session, chrono),
+            );
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -338,6 +366,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       );
     }
 
+    final readOnly =
+        widget.session != null &&
+        widget.session!.dateTime?.isBefore(DateTime.now()) == true;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(isNew ? 'Nouvelle tenue' : 'Modifier la tenue'),
@@ -352,6 +384,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               _type,
               _itemsWith(_sessionTypes, _type),
               (v) => setState(() => _type = v),
+              enabled: !readOnly,
             ),
             _dropdown(
               'Degré de Travail',
@@ -362,7 +395,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 _regenerateTravaux();
               }),
               labelBuilder: (d) => '$d (${Session.degreeOrdinal(d)} Degré)',
+              enabled: !readOnly,
             ),
+            _field(_chronoController, 'Chrono réservé', enabled: false),
             Row(
               children: [
                 Expanded(child: _dateField()),
@@ -375,6 +410,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                       _heureReprise = t;
                       _regenerateTravaux();
                     }),
+                    enabled: !readOnly,
                   ),
                 ),
               ],
@@ -383,15 +419,21 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               'Heure de suspension (clôture)',
               _heureSuspension,
               (t) => setState(() => _heureSuspension = t),
+              enabled: !readOnly,
             ),
-            _field(_location, 'Lieu de Réunion', icon: Icons.place_outlined),
+            _field(
+              _location,
+              'Lieu de Réunion',
+              icon: Icons.place_outlined,
+              enabled: !readOnly,
+            ),
 
             const SizedBox(height: 8),
             _Heading('ORDRE DU JOUR — TRAVAUX FIXES ($ord Degré)'),
-            _numberedField('1', _t1),
-            _numberedField('2', _t2),
-            _numberedField('3', _t3),
-            _numberedField('4', _t4),
+            _numberedField('1', _t1, enabled: !readOnly),
+            _numberedField('2', _t2, enabled: !readOnly),
+            _numberedField('3', _t3, enabled: !readOnly),
+            _numberedField('4', _t4, enabled: !readOnly),
             const Padding(
               padding: EdgeInsets.only(top: 4, left: 4),
               child: Text(
@@ -408,8 +450,11 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                   child: _Heading('ORDRES DU JOUR COMPLÉMENTAIRES'),
                 ),
                 TextButton.icon(
-                  onPressed: () =>
-                      setState(() => _ordres.add(TextEditingController())),
+                  onPressed: readOnly
+                      ? null
+                      : () => setState(
+                          () => _ordres.add(TextEditingController()),
+                        ),
                   icon: const Icon(Icons.add, size: 16, color: BrColors.teal),
                   label: const Text(
                     'Ajouter',
@@ -441,7 +486,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                         decoration: const InputDecoration(
                           hintText: 'ex : Lecture de planche...',
                         ),
-                        onChanged: (_) => setState(_regenerateCloture),
+                        onChanged: readOnly
+                            ? null
+                            : (_) => setState(_regenerateCloture),
+                        enabled: !readOnly,
                       ),
                     ),
                     if (_ordres.length > 1)
@@ -451,17 +499,19 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                           size: 18,
                           color: BrColors.muted,
                         ),
-                        onPressed: () => setState(() {
-                          _ordres.removeAt(i).dispose();
-                          _regenerateCloture();
-                        }),
+                        onPressed: readOnly
+                            ? null
+                            : () => setState(() {
+                                _ordres.removeAt(i).dispose();
+                                _regenerateCloture();
+                              }),
                       ),
                   ],
                 ),
               ),
 
             const SizedBox(height: 8),
-            _field(_cloture, 'Ligne de clôture'),
+            _field(_cloture, 'Ligne de clôture', enabled: !readOnly),
             Padding(
               padding: const EdgeInsets.only(left: 4),
               child: Text(
@@ -480,13 +530,15 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               ),
               activeThumbColor: BrColors.teal,
               value: _hasAgape,
-              onChanged: (v) => setState(() {
-                _hasAgape = v;
-                if (!v) {
-                  _typeRepas = null;
-                  _heureAgape = null;
-                }
-              }),
+              onChanged: readOnly
+                  ? null
+                  : (v) => setState(() {
+                      _hasAgape = v;
+                      if (!v) {
+                        _typeRepas = null;
+                        _heureAgape = null;
+                      }
+                    }),
             ),
             if (_hasAgape) ...[
               Row(
@@ -496,6 +548,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                       "Heure de l'agape",
                       _heureAgape,
                       (t) => setState(() => _heureAgape = t),
+                      enabled: !readOnly,
                     ),
                   ),
                   const SizedBox(width: 8),
@@ -511,6 +564,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                         }
                       }),
                       labelBuilder: (v) => v.isEmpty ? '-- Sélectionnez --' : v,
+                      enabled: !readOnly,
                     ),
                   ),
                 ],
@@ -522,6 +576,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                   keyboard: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
+                  enabled: !readOnly,
                 ),
             ],
 
@@ -559,6 +614,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     String label, {
     TextInputType? keyboard,
     IconData? icon,
+    bool enabled = true,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 7),
@@ -572,11 +628,16 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               ? Icon(icon, size: 18, color: BrColors.muted)
               : null,
         ),
+        enabled: enabled,
       ),
     );
   }
 
-  Widget _numberedField(String num, TextEditingController c) {
+  Widget _numberedField(
+    String num,
+    TextEditingController c, {
+    bool enabled = true,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
@@ -633,8 +694,11 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                 labelText: 'Date de reprise',
                 enabled: !locked,
                 suffixIcon: locked
-                    ? const Icon(Icons.lock_outline,
-                        size: 18, color: BrColors.muted)
+                    ? const Icon(
+                        Icons.lock_outline,
+                        size: 18,
+                        color: BrColors.muted,
+                      )
                     : null,
               ),
               child: Text(
@@ -665,24 +729,27 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   Widget _timeField(
     String label,
     TimeOfDay? value,
-    ValueChanged<TimeOfDay> onPick,
-  ) {
+    ValueChanged<TimeOfDay> onPick, {
+    bool enabled = true,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: InkWell(
-        onTap: () async {
-          final picked = await showTimePicker(
-            context: context,
-            initialTime: value ?? const TimeOfDay(hour: 20, minute: 0),
-          );
-          if (picked != null) onPick(picked);
-        },
+        onTap: !enabled
+            ? null
+            : () async {
+                final picked = await showTimePicker(
+                  context: context,
+                  initialTime: value ?? const TimeOfDay(hour: 20, minute: 0),
+                );
+                if (picked != null) onPick(picked);
+              },
         child: InputDecorator(
-          decoration: InputDecoration(labelText: label),
+          decoration: InputDecoration(labelText: label, enabled: enabled),
           child: Text(
             value == null ? 'Choisir' : _fmtTime(value),
             style: TextStyle(
-              color: value == null ? BrColors.muted : BrColors.text,
+              color: value == null || !enabled ? BrColors.muted : BrColors.text,
             ),
           ),
         ),
@@ -696,6 +763,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     List<String> options,
     ValueChanged<String> onChanged, {
     String Function(String)? labelBuilder,
+    bool enabled = true,
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
@@ -704,7 +772,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         dropdownColor: BrColors.surface,
         isExpanded: true,
         style: const TextStyle(color: BrColors.text),
-        decoration: InputDecoration(labelText: label),
+        decoration: InputDecoration(labelText: label, enabled: enabled),
         items: [
           for (final o in options)
             DropdownMenuItem(
@@ -712,9 +780,11 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               child: Text(labelBuilder != null ? labelBuilder(o) : o),
             ),
         ],
-        onChanged: (v) {
-          if (v != null) onChanged(v);
-        },
+        onChanged: enabled
+            ? (v) {
+                if (v != null) onChanged(v);
+              }
+            : null,
       ),
     );
   }

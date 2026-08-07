@@ -157,154 +157,143 @@ class _SessionCard extends StatelessWidget {
       accent: _statusColor(s.statut),
       padding: const EdgeInsets.all(16),
       onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => SessionDetailScreen(session: s)),
-        ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        MaterialPageRoute(builder: (_) => SessionDetailScreen(session: s)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 7,
+            runSpacing: 7,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Wrap(
-                spacing: 7,
-                runSpacing: 7,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  _badge(
-                    s.typeLabel,
-                    s.typeLabel == 'Banquet' ? BrColors.gold : BrColors.teal,
-                  ),
-                  _badge('${s.degreeLabel} ($ord Degré)', BrColors.gold),
-                  _badge(s.statut, _statusColor(s.statut)),
-                  if (s.chrono != null)
-                    _badge('Tenue n°${s.chrono!.toInt()}', BrColors.gold),
-                  if ((s.driveFolderUrl ?? '').isNotEmpty)
-                    _badge('Drive', BrColors.teal, icon: Icons.folder_open),
-                  if (s.isValidated)
-                    _badge(
-                      'Validée',
-                      const Color(0xFF34D399),
-                      icon: Icons.verified,
-                    ),
-                ],
+              _badge(
+                s.typeLabel,
+                s.typeLabel == 'Banquet' ? BrColors.gold : BrColors.teal,
               ),
-              const SizedBox(height: 14),
-              Text(
-                _capitalize(formatSessionDate(s)),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16.5,
-                  letterSpacing: 0.2,
+              _badge('${s.degreeLabel} ($ord Degré)', BrColors.gold),
+              _badge(s.statut, _statusColor(s.statut)),
+              if (s.chrono != null)
+                _badge('Tenue n°${s.chrono!.toInt()}', BrColors.gold),
+              if ((s.driveFolderUrl ?? '').isNotEmpty)
+                _badge('Drive', BrColors.teal, icon: Icons.folder_open),
+              if (s.isValidated)
+                _badge(
+                  'Validée',
+                  const Color(0xFF34D399),
+                  icon: Icons.verified,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 16,
-                runSpacing: 4,
-                children: [
-                  if (heure.isNotEmpty)
-                    _iconText(
-                      Icons.schedule,
-                      (s.heureSuspension ?? '').isNotEmpty
-                          ? '$heure → ${s.heureSuspension}'
-                          : heure,
-                    ),
-                  _iconText(
-                    Icons.place_outlined,
-                    s.location.isNotEmpty ? s.location : '—',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                decoration: BoxDecoration(
-                  color: BrColors.backgroundDark.withValues(alpha: 0.35),
-                  borderRadius: BorderRadius.circular(BrColors.radiusS),
-                  border: const Border(
-                    left: BorderSide(color: BrColors.gold, width: 3),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'ORDRE DU JOUR ($points points)',
-                      style: const TextStyle(
-                        color: BrColors.muted,
-                        fontSize: 10,
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _agendaSummary(s),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: BrColors.muted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (s.suitAgapes && (s.typeRepas ?? '').isNotEmpty) ...[
-                const SizedBox(height: 8),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            s.chrono != null && s.dateTime != null
+                ? 'Tenue n°${s.chrono!.toInt()} — ${DateFormat('d MMM y', 'fr_FR').format(s.dateTime!)}'
+                : _capitalize(formatSessionDate(s)),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 16.5,
+              letterSpacing: 0.2,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 16,
+            runSpacing: 4,
+            children: [
+              if (heure.isNotEmpty)
                 _iconText(
-                  Icons.restaurant,
-                  (s.montantMedaille ?? 0) > 0
-                      ? '${s.typeRepas} — ${s.montantMedaille} €'
-                      : s.typeRepas!,
-                  color: BrColors.gold,
+                  Icons.schedule,
+                  (s.heureSuspension ?? '').isNotEmpty
+                      ? '$heure → ${s.heureSuspension}'
+                      : heure,
                 ),
-              ],
-              Divider(
-                height: 26,
-                color: BrColors.gold.withValues(alpha: 0.35),
-              ),
-              Row(
-                children: [
-                  if (canEdit)
-                    _action(
-                      context,
-                      Icons.groups_outlined,
-                      'Détails et Documents',
-                      () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => EmargementScreen(sessionId: s.id),
-                        ),
-                      ),
-                    ),
-                  const Spacer(),
-                  if (canEdit)
-                    IconButton(
-                      tooltip: 'Modifier',
-                      icon: const Icon(
-                        Icons.edit,
-                        size: 20,
-                        color: BrColors.muted,
-                      ),
-                      onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => SessionEditScreen(session: s),
-                        ),
-                      ),
-                    ),
-                  IconButton(
-                    tooltip: 'Détail & documents',
-                    icon: const Icon(
-                      Icons.chevron_right,
-                      color: BrColors.muted,
-                    ),
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => SessionDetailScreen(session: s),
-                      ),
-                    ),
-                  ),
-                ],
+              _iconText(
+                Icons.place_outlined,
+                s.location.isNotEmpty ? s.location : '—',
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            decoration: BoxDecoration(
+              color: BrColors.backgroundDark.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(BrColors.radiusS),
+              border: const Border(
+                left: BorderSide(color: BrColors.gold, width: 3),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'ORDRE DU JOUR ($points points)',
+                  style: const TextStyle(
+                    color: BrColors.muted,
+                    fontSize: 10,
+                    letterSpacing: 1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _agendaSummary(s),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: BrColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          if (s.suitAgapes && (s.typeRepas ?? '').isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _iconText(
+              Icons.restaurant,
+              (s.montantMedaille ?? 0) > 0
+                  ? '${s.typeRepas} — ${s.montantMedaille} €'
+                  : s.typeRepas!,
+              color: BrColors.gold,
+            ),
+          ],
+          Divider(height: 26, color: BrColors.gold.withValues(alpha: 0.35)),
+          Row(
+            children: [
+              if (canEdit)
+                _action(
+                  context,
+                  Icons.groups_outlined,
+                  'Emargement',
+                  () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => EmargementScreen(sessionId: s.id),
+                    ),
+                  ),
+                ),
+              const Spacer(),
+              if (canEdit)
+                IconButton(
+                  tooltip: 'Modifier',
+                  icon: const Icon(Icons.edit, size: 20, color: BrColors.muted),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => SessionEditScreen(session: s),
+                    ),
+                  ),
+                ),
+              IconButton(
+                tooltip: 'Détail & documents',
+                icon: const Icon(Icons.chevron_right, color: BrColors.muted),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SessionDetailScreen(session: s),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

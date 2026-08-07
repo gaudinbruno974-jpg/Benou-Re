@@ -31,11 +31,18 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: "^0.13.1"
+
+flutter_launcher_icons:
+  image_path: "assets/icon/LogoApkBenou.png"
+  android: true
+  ios: true
 
 flutter:
   uses-material-design: true
   assets:
     - assets/GLDB.png
     - assets/Benou-Re.png
+    - assets/icon/LogoApkBenou.png
     - assets/fonts/DejaVuSans.ttf
     - assets/fonts/DejaVuSans-Bold.ttf

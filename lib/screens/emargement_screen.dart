@@ -36,17 +36,21 @@ class EmargementScreen extends StatelessWidget {
     );
     final sigs = session.signatures;
 
-    final presentMembers =
-        state.members.where((m) => session.presentIds.contains(m.id)).toList();
-    final presentVisitors =
-        state.visitors.where((v) => session.visitorIds.contains(v.id)).toList();
+    final presentMembers = state.members
+        .where((m) => session.presentIds.contains(m.id))
+        .toList();
+    final presentVisitors = state.visitors
+        .where((v) => session.visitorIds.contains(v.id))
+        .toList();
 
     final memberSigners = <_Signer>[
       for (final m in presentMembers)
         _Signer(
           m.id,
           m.fullName,
-          m.function != 'Aucun' && m.function.isNotEmpty ? m.function : 'Membre',
+          m.function != 'Aucun' && m.function.isNotEmpty
+              ? m.function
+              : 'Membre',
           sigs[m.id],
         ),
     ];
@@ -65,31 +69,56 @@ class EmargementScreen extends StatelessWidget {
     final missing = attendees.where((a) => (a.current ?? '').isEmpty).length;
 
     // Signatures officielles de la planche tracée.
-    final vmName = session.vmName?.isNotEmpty == true ? session.vmName! : 'Bruno GAUDIN';
+    final vmName = session.vmName?.isNotEmpty == true
+        ? session.vmName!
+        : 'Bruno GAUDIN';
     final orateur = state.members.firstWhere(
-      (m) => m.function.trim() == 'Orateur' && session.presentIds.contains(m.id),
+      (m) =>
+          m.function.trim() == 'Orateur' && session.presentIds.contains(m.id),
       orElse: () => const Member(id: ''),
     );
     final secretaire = state.members.firstWhere(
-      (m) => m.function.trim() == 'Secrétaire' && session.presentIds.contains(m.id),
+      (m) =>
+          m.function.trim() == 'Secrétaire' &&
+          session.presentIds.contains(m.id),
       orElse: () => const Member(id: ''),
     );
     final plancheSigners = <_Signer>[
-      _Signer('plancheOrateurSignature',
-          session.plancheOrateurName ?? (orateur.id.isNotEmpty ? orateur.fullName : 'Orateur'),
-          'Le Frère Orateur', session.plancheOrateurSignature),
-      _Signer('plancheVMSignature', vmName, 'Le Vénérable Maître',
-          session.plancheVMSignature),
       _Signer(
-          'plancheSecretarySignature',
-          secretaire.id.isNotEmpty ? secretaire.fullName : 'Secrétaire',
-          'La Sœur Secrétaire',
-          session.plancheSecretarySignature),
+        'plancheOrateurSignature',
+        session.plancheOrateurName ??
+            (orateur.id.isNotEmpty ? orateur.fullName : 'Orateur'),
+        'Le Frère Orateur',
+        session.plancheOrateurSignature,
+      ),
+      _Signer(
+        'plancheVMSignature',
+        vmName,
+        'Le Vénérable Maître',
+        session.plancheVMSignature,
+      ),
+      _Signer(
+        'plancheSecretarySignature',
+        secretaire.id.isNotEmpty ? secretaire.fullName : 'Secrétaire',
+        'La Sœur Secrétaire',
+        session.plancheSecretarySignature,
+      ),
     ];
+
+    final isSuspended =
+        session.dateTime?.isBefore(
+          DateTime(
+            DateTime.now().year,
+            DateTime.now().month,
+            DateTime.now().day,
+          ),
+        ) ==
+        true;
+    final allowAttendanceSigning = !isSuspended;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Détails et Documents'),
+        title: const Text('Emargement'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(28),
           child: Padding(
@@ -111,26 +140,34 @@ class EmargementScreen extends StatelessWidget {
           if (memberSigners.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
-              child: Text('Aucun membre présent enregistré.',
-                  style: TextStyle(color: BrColors.muted)),
+              child: Text(
+                'Aucun membre présent enregistré.',
+                style: TextStyle(color: BrColors.muted),
+              ),
             ),
           for (final a in memberSigners)
             _SignerTile(
               signer: a,
-              onSign: () => _sign(context, session, a, isPlanche: false),
+              onSign: allowAttendanceSigning
+                  ? () => _sign(context, session, a, isPlanche: false)
+                  : null,
             ),
           const SizedBox(height: 12),
           const _SectionTitle('VISITEURS PRÉSENTS'),
           if (visitorSigners.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
-              child: Text('Aucun visiteur présent enregistré.',
-                  style: TextStyle(color: BrColors.muted)),
+              child: Text(
+                'Aucun visiteur présent enregistré.',
+                style: TextStyle(color: BrColors.muted),
+              ),
             ),
           for (final a in visitorSigners)
             _SignerTile(
               signer: a,
-              onSign: () => _sign(context, session, a, isPlanche: false),
+              onSign: allowAttendanceSigning
+                  ? () => _sign(context, session, a, isPlanche: false)
+                  : null,
             ),
           const SizedBox(height: 12),
           const _SectionTitle('SIGNATURES DE LA PLANCHE TRACÉE'),
@@ -144,8 +181,12 @@ class EmargementScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _sign(BuildContext context, Session session, _Signer signer,
-      {required bool isPlanche}) async {
+  Future<void> _sign(
+    BuildContext context,
+    Session session,
+    _Signer signer, {
+    required bool isPlanche,
+  }) async {
     final state = context.read<AppState>();
     final dataUrl = await _captureSignature(context, signer.name);
     if (dataUrl == null) return;
@@ -155,7 +196,8 @@ class EmargementScreen extends StatelessWidget {
       map[signer.id] = dataUrl;
     } else {
       final sigs = Map<String, dynamic>.from(
-          (map['signatures'] as Map?) ?? <String, dynamic>{});
+        (map['signatures'] as Map?) ?? <String, dynamic>{},
+      );
       sigs[signer.id] = dataUrl;
       map['signatures'] = sigs;
     }
@@ -173,8 +215,10 @@ Future<String?> _captureSignature(BuildContext context, String name) async {
     context: context,
     builder: (ctx) => AlertDialog(
       backgroundColor: BrColors.surface,
-      title: Text('Signature — $name',
-          style: const TextStyle(color: Colors.white, fontSize: 16)),
+      title: Text(
+        'Signature — $name',
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+      ),
       content: SizedBox(
         width: 400,
         child: Container(
@@ -236,8 +280,8 @@ class _SectionTitle extends StatelessWidget {
 
 class _SignerTile extends StatelessWidget {
   final _Signer signer;
-  final VoidCallback onSign;
-  const _SignerTile({required this.signer, required this.onSign});
+  final VoidCallback? onSign;
+  const _SignerTile({required this.signer, this.onSign});
 
   @override
   Widget build(BuildContext context) {
@@ -254,15 +298,19 @@ class _SignerTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(signer.name,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14.5)),
+                  Text(
+                    signer.name,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14.5,
+                    ),
+                  ),
                   const SizedBox(height: 6),
-                  Text(signer.role,
-                      style: const TextStyle(
-                          color: BrColors.muted, fontSize: 12)),
+                  Text(
+                    signer.role,
+                    style: const TextStyle(color: BrColors.muted, fontSize: 12),
+                  ),
                 ],
               ),
             ),
@@ -275,8 +323,10 @@ class _SignerTile extends StatelessWidget {
             const SizedBox(width: 6),
             TextButton(
               onPressed: onSign,
-              child: Text(signed ? 'Modifier' : 'Signer',
-                  style: const TextStyle(color: BrColors.teal)),
+              child: Text(
+                signed ? 'Modifier' : 'Signer',
+                style: const TextStyle(color: BrColors.teal),
+              ),
             ),
           ],
         ),
