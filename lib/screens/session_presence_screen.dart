@@ -48,6 +48,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
   late List<String> _excusedIds;
   late List<String> _visitorIds;
   late Map<String, String> _visitorRoles;
+  late List<String> _agapeIds;
   bool _initialized = false;
   bool _saving = false;
 
@@ -56,6 +57,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     _excusedIds = List<String>.from(session.excusedIds);
     _visitorIds = List<String>.from(session.visitorIds);
     _visitorRoles = Map<String, String>.from(session.visitorRoles);
+    _agapeIds = List<String>.from(session.agapeIds);
     _initialized = true;
   }
 
@@ -67,6 +69,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         _presentIds.add(memberId);
       }
       _excusedIds.remove(memberId);
+      if (!_presentIds.contains(memberId)) _agapeIds.remove(memberId);
     });
   }
 
@@ -78,6 +81,17 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         _excusedIds.add(memberId);
       }
       _presentIds.remove(memberId);
+      _agapeIds.remove(memberId);
+    });
+  }
+
+  void _toggleAgape(String memberId) {
+    setState(() {
+      if (_agapeIds.contains(memberId)) {
+        _agapeIds.remove(memberId);
+      } else {
+        _agapeIds.add(memberId);
+      }
     });
   }
 
@@ -110,6 +124,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     map['excusedIds'] = _excusedIds;
     map['visitorIds'] = _visitorIds;
     map['visitorRoles'] = _visitorRoles;
+    map['agapeIds'] = _agapeIds;
     try {
       await state.updateSession(Session.fromMap(session.id, map));
       if (mounted) {
@@ -183,7 +198,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                 style: TextStyle(color: BrColors.muted, fontSize: 12),
               ),
             ),
-          const _SectionTitle('MEMBRES — PRÉSENTS / EXCUSÉS'),
+          const _SectionTitle('MEMBRES — PRÉSENTS / EXCUSÉS / AGAPES'),
           if (state.members.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
@@ -196,8 +211,10 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               role: m.function.isNotEmpty ? m.function : 'Membre',
               isPresent: _presentIds.contains(m.id),
               isExcused: _excusedIds.contains(m.id),
+              isAgape: _agapeIds.contains(m.id),
               onPresent: allowEdit ? () => _togglePresent(m.id) : null,
               onExcused: allowEdit ? () => _toggleExcused(m.id) : null,
+              onAgape: allowEdit ? () => _toggleAgape(m.id) : null,
             ),
           const SizedBox(height: 16),
           const _SectionTitle('VISITEURS — PRÉSENTS'),
@@ -243,15 +260,19 @@ class _MemberTile extends StatelessWidget {
   final String role;
   final bool isPresent;
   final bool isExcused;
+  final bool isAgape;
   final VoidCallback? onPresent;
   final VoidCallback? onExcused;
+  final VoidCallback? onAgape;
   const _MemberTile({
     required this.name,
     required this.role,
     required this.isPresent,
     required this.isExcused,
+    required this.isAgape,
     required this.onPresent,
     required this.onExcused,
+    required this.onAgape,
   });
 
   @override
@@ -265,41 +286,62 @@ class _MemberTile extends StatelessWidget {
                 ? BrColors.gold
                 : BrColors.muted,
         padding: const EdgeInsets.all(14),
-        child: Row(
+        child: Column(
           children: [
-            BrAvatar(
-              firstName: name.split(' ').first,
-              lastName: name.split(' ').length > 1 ? name.split(' ').last : '',
-              size: 40,
+            Row(
+              children: [
+                BrAvatar(
+                  firstName: name.split(' ').first,
+                  lastName:
+                      name.split(' ').length > 1 ? name.split(' ').last : '',
+                  size: 40,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Text(role,
+                          style: const TextStyle(
+                              color: BrColors.muted, fontSize: 12)),
+                    ],
+                  ),
+                ),
+                _PresenceButton(
+                  label: 'Présent',
+                  selected: isPresent,
+                  selectedColor: const Color(0xFF34D399),
+                  onTap: onPresent,
+                ),
+                const SizedBox(width: 8),
+                _PresenceButton(
+                  label: 'Excusé',
+                  selected: isExcused,
+                  selectedColor: BrColors.gold,
+                  onTap: onExcused,
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(name,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  Text(role,
-                      style: const TextStyle(
-                          color: BrColors.muted, fontSize: 12)),
-                ],
+            if (isPresent)
+              Padding(
+                padding: const EdgeInsets.only(top: 10),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _PresenceButton(
+                      label: 'Agapes',
+                      selected: isAgape,
+                      selectedColor: BrColors.teal,
+                      onTap: onAgape,
+                    ),
+                  ],
+                ),
               ),
-            ),
-            _PresenceButton(
-              label: 'Présent',
-              selected: isPresent,
-              selectedColor: const Color(0xFF34D399),
-              onTap: onPresent,
-            ),
-            const SizedBox(width: 8),
-            _PresenceButton(
-              label: 'Excusé',
-              selected: isExcused,
-              selectedColor: BrColors.gold,
-              onTap: onExcused,
-            ),
           ],
         ),
       ),

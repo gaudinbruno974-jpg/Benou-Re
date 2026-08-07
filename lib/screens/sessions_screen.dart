@@ -17,6 +17,7 @@ import '../widgets/br_decor.dart';
 import 'emargement_screen.dart';
 import 'planche_tracee_edit_screen.dart';
 import 'session_edit_screen.dart';
+import 'session_invitations_screen.dart';
 import 'session_presence_screen.dart';
 
 const _navyBtn = Color(0xFF0C235C);
@@ -448,6 +449,21 @@ class SessionDetailScreen extends StatelessWidget {
           const SizedBox(height: 16),
           if (canEdit) ...[
             if (!isSuspended) ...[
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BrColors.teal,
+                  side: const BorderSide(color: BrColors.teal),
+                ),
+                icon: const Icon(Icons.send_outlined, size: 18),
+                label: const Text('Invitations'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        SessionInvitationsScreen(sessionId: session.id),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: BrColors.violet,
