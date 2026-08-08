@@ -11,6 +11,7 @@ import 'sessions_screen.dart';
 import 'visitors_screen.dart';
 import 'treasury_screen.dart';
 import 'library_screen.dart';
+import 'agape_payment_sessions_screen.dart';
 
 class _MenuItem {
   final String title;
@@ -95,6 +96,14 @@ class ParvisScreen extends StatelessWidget {
         BrColors.menuTresorerie,
         isTreasury,
         () => const TreasuryScreen(),
+      ),
+      _MenuItem(
+        'Paiement des Agapes',
+        'Médailles & signatures',
+        Icons.restaurant_outlined,
+        BrColors.menuTresorerie,
+        isTreasury,
+        () => const AgapePaymentSessionsScreen(),
       ),
     ];
     final visibleItems = items.where((i) => i.visible).toList();

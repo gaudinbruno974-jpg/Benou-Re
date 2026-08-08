@@ -237,6 +237,14 @@ class Session {
   /// Membres annoncés présents aux agapes (réponses au sondage WhatsApp).
   List<String> get agapeIds => _stringList(extra['agapeIds']);
 
+  /// Visiteurs annoncés présents aux agapes.
+  List<String> get visitorAgapeIds => _stringList(extra['visitorAgapeIds']);
+
+  /// Signatures de paiement des agapes (data URL). Clé : id du membre ou du
+  /// visiteur qui a payé sa médaille.
+  Map<String, String> get agapePaymentSignatures =>
+      _stringMap(extra['agapePaymentSignatures']);
+
   /// Commentaires ajoutés sous les lignes du texte de la planche tracée
   /// (Tenue suspendue). Clé : index de la ligne.
   Map<String, String> get plancheLineComments =>

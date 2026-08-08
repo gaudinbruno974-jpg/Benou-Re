@@ -3,11 +3,8 @@
 // Chaque présent signe ; les signatures (data URL base64) sont enregistrées
 // dans session.signatures. Les signatures de la planche (Orateur / V∴M∴ /
 // Secrétaire) sont enregistrées dans les champs planche* de la tenue.
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:signature/signature.dart';
 
 import '../models/member.dart';
 import '../models/session.dart';
@@ -15,6 +12,7 @@ import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/signature_dialog.dart';
 
 class _Signer {
   final String id; // clé de stockage
@@ -192,7 +190,7 @@ class EmargementScreen extends StatelessWidget {
     required bool isPlanche,
   }) async {
     final state = context.read<AppState>();
-    final dataUrl = await _captureSignature(context, signer.name);
+    final dataUrl = await captureSignature(context, signer.name);
     if (dataUrl == null) return;
 
     final map = Map<String, dynamic>.from(session.toMap());
@@ -207,66 +205,6 @@ class EmargementScreen extends StatelessWidget {
     }
     await state.updateSession(Session.fromMap(session.id, map));
   }
-}
-
-Future<String?> _captureSignature(BuildContext context, String name) async {
-  final controller = SignatureController(
-    penStrokeWidth: 3,
-    penColor: Colors.black,
-    exportBackgroundColor: Colors.white,
-  );
-  final result = await showDialog<String>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      backgroundColor: BrColors.surface,
-      title: Text(
-        'Signature — $name',
-        style: const TextStyle(color: Colors.white, fontSize: 16),
-      ),
-      content: SizedBox(
-        width: 400,
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Signature(
-            controller: controller,
-            height: 220,
-            backgroundColor: Colors.white,
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => controller.clear(),
-          child: const Text('Effacer'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(ctx),
-          child: const Text('Annuler'),
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            if (controller.isEmpty) {
-              Navigator.pop(ctx);
-              return;
-            }
-            final bytes = await controller.toPngBytes();
-            if (bytes == null) {
-              if (ctx.mounted) Navigator.pop(ctx);
-              return;
-            }
-            final dataUrl = 'data:image/png;base64,${base64Encode(bytes)}';
-            if (ctx.mounted) Navigator.pop(ctx, dataUrl);
-          },
-          child: const Text('Valider'),
-        ),
-      ],
-    ),
-  );
-  controller.dispose();
-  return result;
 }
 
 class _SectionTitle extends StatelessWidget {

@@ -49,6 +49,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
   late List<String> _visitorIds;
   late Map<String, String> _visitorRoles;
   late List<String> _agapeIds;
+  late List<String> _visitorAgapeIds;
   bool _initialized = false;
   bool _saving = false;
 
@@ -58,6 +59,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     _visitorIds = List<String>.from(session.visitorIds);
     _visitorRoles = Map<String, String>.from(session.visitorRoles);
     _agapeIds = List<String>.from(session.agapeIds);
+    _visitorAgapeIds = List<String>.from(session.visitorAgapeIds);
     _initialized = true;
   }
 
@@ -100,8 +102,19 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       if (_visitorIds.contains(visitorId)) {
         _visitorIds.remove(visitorId);
         _visitorRoles.remove(visitorId);
+        _visitorAgapeIds.remove(visitorId);
       } else {
         _visitorIds.add(visitorId);
+      }
+    });
+  }
+
+  void _toggleVisitorAgape(String visitorId) {
+    setState(() {
+      if (_visitorAgapeIds.contains(visitorId)) {
+        _visitorAgapeIds.remove(visitorId);
+      } else {
+        _visitorAgapeIds.add(visitorId);
       }
     });
   }
@@ -125,6 +138,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     map['visitorIds'] = _visitorIds;
     map['visitorRoles'] = _visitorRoles;
     map['agapeIds'] = _agapeIds;
+    map['visitorAgapeIds'] = _visitorAgapeIds;
     try {
       await state.updateSession(Session.fromMap(session.id, map));
       if (mounted) {
@@ -241,8 +255,10 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                   .where((e) => e.isNotEmpty)
                   .join(' — '),
               isPresent: _visitorIds.contains(v.id),
+              isAgape: _visitorAgapeIds.contains(v.id),
               role: _visitorRoles[v.id] ?? '',
               onToggle: allowEdit ? () => _toggleVisitor(v.id) : null,
+              onAgape: allowEdit ? () => _toggleVisitorAgape(v.id) : null,
               onRoleChanged:
                   allowEdit ? (r) => _updateVisitorRole(v.id, r) : null,
             ),
@@ -363,15 +379,19 @@ class _VisitorTile extends StatelessWidget {
   final String name;
   final String subtitle;
   final bool isPresent;
+  final bool isAgape;
   final String role;
   final VoidCallback? onToggle;
+  final VoidCallback? onAgape;
   final ValueChanged<String?>? onRoleChanged;
   const _VisitorTile({
     required this.name,
     required this.subtitle,
     required this.isPresent,
+    required this.isAgape,
     required this.role,
     required this.onToggle,
+    required this.onAgape,
     required this.onRoleChanged,
   });
 
@@ -442,6 +462,18 @@ class _VisitorTile extends StatelessWidget {
                     ),
                 ],
                 onChanged: onRoleChanged,
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _PresenceButton(
+                    label: 'Agapes',
+                    selected: isAgape,
+                    selectedColor: BrColors.teal,
+                    onTap: onAgape,
+                  ),
+                ],
               ),
             ],
           ],
