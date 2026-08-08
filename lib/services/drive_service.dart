@@ -48,9 +48,18 @@ class DriveService {
 
   /// Connexion Google (interactive) et récupération des en-têtes d'auth.
   Future<Map<String, String>> _authHeaders() async {
-    GoogleSignInAccount? account = _gsi.currentUser;
-    account ??= await _gsi.signInSilently();
-    account ??= await _gsi.signIn();
+    GoogleSignInAccount? account;
+    try {
+      account = _gsi.currentUser ??
+          await _gsi.signInSilently() ??
+          await _gsi.signIn();
+    } on DriveException {
+      rethrow;
+    } catch (e) {
+      // Sur le web, une configuration OAuth absente ou un domaine non autorisé
+      // remontent sous forme d'erreurs techniques peu lisibles.
+      throw DriveException('Connexion Google impossible : $e');
+    }
     if (account == null) {
       throw DriveException('Connexion Google annulée.');
     }
