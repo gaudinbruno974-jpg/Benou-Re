@@ -14,7 +14,9 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart';
 import 'package:http/http.dart' as http;
 
 import '../models/session.dart';
@@ -33,12 +35,12 @@ class DriveService {
   DriveService._();
   static final DriveService instance = DriveService._();
 
-  final GoogleSignIn _gsi = GoogleSignIn(
-    scopes: const [
-      'https://www.googleapis.com/auth/drive',
-      'email',
-    ],
-  );
+  static const List<String> _scopes = [
+    'https://www.googleapis.com/auth/drive',
+    'email',
+  ];
+
+  final GoogleSignIn _gsi = GoogleSignIn(scopes: _scopes);
 
   String? get currentEmail => _gsi.currentUser?.email;
 
@@ -48,6 +50,7 @@ class DriveService {
 
   /// Connexion Google (interactive) et récupération des en-têtes d'auth.
   Future<Map<String, String>> _authHeaders() async {
+    if (kIsWeb) return _webAuthHeaders();
     GoogleSignInAccount? account;
     try {
       account = _gsi.currentUser ??
@@ -68,6 +71,29 @@ class DriveService {
       throw DriveException("Impossible d'obtenir le jeton d'accès Google.");
     }
     return headers;
+  }
+
+  /// Sur le web, `signIn()` reconstitue l'identité de l'utilisateur via l'API
+  /// People, qui n'est pas activée sur ce projet : la réponse vide provoquait un
+  /// « Null check operator used on a null value ». On demande donc seulement
+  /// l'autorisation Drive, puis le jeton d'accès associé, sans passer par
+  /// l'identité.
+  Future<Map<String, String>> _webAuthHeaders() async {
+    final bool granted;
+    try {
+      granted = await _gsi.requestScopes(_scopes);
+    } catch (e) {
+      throw DriveException('Autorisation Google Drive impossible : $e');
+    }
+    if (!granted) {
+      throw DriveException('Accès Google Drive refusé.');
+    }
+    final tokens = await GoogleSignInPlatform.instance.getTokens(email: '');
+    final token = tokens.accessToken;
+    if (token == null || token.isEmpty) {
+      throw DriveException("Impossible d'obtenir le jeton d'accès Google.");
+    }
+    return {'Authorization': 'Bearer $token', 'X-Goog-AuthUser': '0'};
   }
 
   /// Nom du dossier de la tenue : « Tenue {chrono} {jj} {mm} {annee} ».
