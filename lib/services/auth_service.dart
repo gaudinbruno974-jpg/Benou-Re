@@ -4,7 +4,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 class AuthService {
   final FirebaseAuth _auth;
 
-  AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance;
+  AuthService({FirebaseAuth? auth}) : _auth = auth ?? FirebaseAuth.instance {
+    // Les e-mails Firebase (mot de passe oublié, invitation) partent en
+    // français quelle que soit la langue du navigateur ou du projet.
+    _auth.setLanguageCode('fr');
+  }
 
   Stream<User?> authStateChanges() => _auth.authStateChanges();
   User? get currentUser => _auth.currentUser;
