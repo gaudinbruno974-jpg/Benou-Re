@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/member.dart';
+import '../services/member_account_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -21,6 +22,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
   late String _grade;
   late String _status;
   bool _saving = false;
+  bool _inviting = false;
 
   static const _grades = kGrades;
   static const _statuses = [
@@ -93,21 +95,79 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           orderDues: orderDues,
         )
         .withDuesForYear(year, currentDues);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     try {
       if (existing == null) {
         await state.addMember(member);
+        // Compte de connexion « best effort » : son échec ne doit pas empêcher
+        // l'enregistrement de la fiche.
+        if (member.email.isNotEmpty) {
+          try {
+            final result =
+                await MemberAccountService.instance.invite(member.email);
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                  result == MemberAccountResult.created
+                      ? 'Invitation envoyée à ${member.email} : le membre définit son mot de passe par e-mail.'
+                      : '${member.email} avait déjà un compte : e-mail de mot de passe renvoyé.',
+                ),
+                backgroundColor: BrColors.teal,
+              ),
+            );
+          } catch (e) {
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('Invitation non envoyée : $e'),
+                backgroundColor: BrColors.error,
+              ),
+            );
+          }
+        }
       } else {
         await state.updateMember(member);
       }
-      if (mounted) Navigator.pop(context);
+      if (mounted) navigator.pop();
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _resendInvitation(String email) async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _inviting = true);
+    try {
+      final result = await MemberAccountService.instance.invite(email);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            result == MemberAccountResult.created
+                ? 'Compte créé et invitation envoyée à $email.'
+                : 'Invitation renvoyée à $email.',
+          ),
+          backgroundColor: BrColors.teal,
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Invitation non envoyée : $e'),
+          backgroundColor: BrColors.error,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _inviting = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final isNew = widget.member == null;
+    final email = widget.member?.email.trim() ?? '';
+    final canInvite = !isNew &&
+        email.isNotEmpty &&
+        canEditSessions(context.watch<AppState>().currentUser);
     return Scaffold(
       appBar: AppBar(
           title: Text(isNew ? 'Nouveau membre' : 'Modifier le membre')),
@@ -176,6 +236,27 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                   : const Icon(Icons.save),
               label: const Text('Enregistrer'),
             ),
+            if (canInvite) ...[
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: _inviting ? null : () => _resendInvitation(email),
+                icon: _inviting
+                    ? const SizedBox(
+                        height: 18,
+                        width: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: BrColors.text))
+                    : const Icon(Icons.mail_outline),
+                label: const Text("Renvoyer l'invitation"),
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  "Envoie au membre un e-mail lui permettant de définir son mot de passe de connexion.",
+                  style: TextStyle(color: BrColors.muted, fontSize: 11),
+                ),
+              ),
+            ],
           ],
         ),
       ),
