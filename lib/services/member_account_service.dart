@@ -35,6 +35,8 @@ class MemberAccountService {
       throw ArgumentError('Adresse e-mail vide.');
     }
     final auth = FirebaseAuth.instanceFor(app: await _adminApp());
+    // L'e-mail d'invitation part en français, comme ceux de l'app principale.
+    await auth.setLanguageCode('fr');
     var result = MemberAccountResult.created;
     try {
       await auth.createUserWithEmailAndPassword(
