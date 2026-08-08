@@ -210,7 +210,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
   // ─── ARCHIVAGE DRIVE À LA CRÉATION (best effort) ──────────────────
   Future<Session> _createDriveFolder(Session session, int chrono) async {
-    final pdf = Uint8List.fromList(await buildConvocationPdf(session, chrono));
+    final pdf = await driveStep(
+      'PDF de convocation',
+      () async => Uint8List.fromList(await buildConvocationPdf(session, chrono)),
+    );
     final res = await DriveService.instance.ensureFolderAndUpload(session, {
       'Convocation_Tenue_$chrono.pdf': pdf,
     });
@@ -310,9 +313,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         // Archivage Drive « best effort » : ne doit pas bloquer la création.
         if (chrono != null) {
           try {
-            await state.updateSession(
-              await _createDriveFolder(session, chrono),
-            );
+            final withFolder = await _createDriveFolder(session, chrono);
+            await driveStep('Enregistrement de la Tenue',
+                () => state.updateSession(withFolder));
           } catch (e) {
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(

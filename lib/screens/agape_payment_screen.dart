@@ -170,8 +170,12 @@ class AgapePaymentScreen extends StatelessWidget {
           int.tryParse((session.sessionNumber ?? '')
               .replaceAll(RegExp(r'[^\d]'), '')) ??
           0;
+      final pdf = await driveStep(
+        'PDF Paiement des Agapes',
+        () => _buildPdf(state, session),
+      );
       final email = await DriveService.instance.archivePdfs(session, {
-        'PaiementAgapes_Tenue_$chrono.pdf': await _buildPdf(state, session),
+        'PaiementAgapes_Tenue_$chrono.pdf': pdf,
       });
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(

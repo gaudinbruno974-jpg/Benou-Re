@@ -573,23 +573,26 @@ class SessionDetailScreen extends StatelessWidget {
     );
     try {
       final chrono = _chrono(session);
-      final files = <String, Uint8List>{
-        'Convocation_Tenue_$chrono.pdf': Uint8List.fromList(
-          await buildConvocationPdf(session, chrono),
-        ),
-        'Emargement_Tenue_$chrono.pdf': Uint8List.fromList(
-          await buildEmargementPdf(session, state.members, state.visitors),
-        ),
-        'PlancheTracee_Tenue_$chrono.pdf': Uint8List.fromList(
-          await buildPlancheTraceePdf(
-            session,
-            state.members,
-            state.visitors,
-            chrono,
-            lodgeVmName: state.lodgeVmName,
+      final files = await driveStep(
+        'Génération des PDF',
+        () async => <String, Uint8List>{
+          'Convocation_Tenue_$chrono.pdf': Uint8List.fromList(
+            await buildConvocationPdf(session, chrono),
           ),
-        ),
-      };
+          'Emargement_Tenue_$chrono.pdf': Uint8List.fromList(
+            await buildEmargementPdf(session, state.members, state.visitors),
+          ),
+          'PlancheTracee_Tenue_$chrono.pdf': Uint8List.fromList(
+            await buildPlancheTraceePdf(
+              session,
+              state.members,
+              state.visitors,
+              chrono,
+              lodgeVmName: state.lodgeVmName,
+            ),
+          ),
+        },
+      );
       final email = await DriveService.instance.archivePdfs(session, files);
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(

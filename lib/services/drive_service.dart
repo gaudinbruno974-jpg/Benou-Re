@@ -33,6 +33,19 @@ class DriveException implements Exception {
   String toString() => message;
 }
 
+/// Exécute [action] en rattachant [label] à toute erreur inattendue : les
+/// messages affichés désignent ainsi l'étape fautive plutôt qu'une erreur
+/// technique nue.
+Future<T> driveStep<T>(String label, Future<T> Function() action) async {
+  try {
+    return await action();
+  } on DriveException {
+    rethrow;
+  } catch (e) {
+    throw DriveException('$label : $e (${e.runtimeType})');
+  }
+}
+
 class DriveService {
   DriveService._();
   static final DriveService instance = DriveService._();
@@ -272,14 +285,18 @@ class DriveService {
 
   Future<({String folderId, String folderUrl, String email})> _archive(
       Session session, Map<String, Uint8List> files) async {
-    final headers = await _authHeaders();
+    final headers =
+        await driveStep('Autorisation Google', () => _authHeaders());
     final knownId = session.driveFolderId;
     final folderId = (knownId != null && knownId.trim().isNotEmpty)
         ? knownId.trim()
-        : await _findOrCreateFolder(
-            headers, folderName(session), kDriveParentFolderId);
+        : await driveStep(
+            'Dossier Drive',
+            () => _findOrCreateFolder(
+                headers, folderName(session), kDriveParentFolderId));
     for (final entry in files.entries) {
-      await _uploadPdf(headers, folderId, entry.key, entry.value);
+      await driveStep('Envoi de ${entry.key}',
+          () => _uploadPdf(headers, folderId, entry.key, entry.value));
     }
     return (
       folderId: folderId,
