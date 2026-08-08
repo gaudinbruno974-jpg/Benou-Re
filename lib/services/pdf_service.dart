@@ -103,11 +103,12 @@ List<String> _collectOrdreDuJour(Session s) {
     s.ligneCloture,
   ];
   final fallback = <String?>[s.agenda1, s.agenda2, s.agenda3, s.agenda4];
-  final source =
-      raw.any((r) => (r ?? '').trim().isNotEmpty) ? raw : fallback;
+  final source = raw.any((r) => (r ?? '').trim().isNotEmpty) ? raw : fallback;
   return source
-      .map((item) =>
-          (item ?? '').replaceFirst(RegExp(r'^\s*\d+\s*[.)]\s*'), '').trim())
+      .map(
+        (item) =>
+            (item ?? '').replaceFirst(RegExp(r'^\s*\d+\s*[.)]\s*'), '').trim(),
+      )
       .where((item) => item.isNotEmpty)
       .toList();
 }
@@ -148,13 +149,19 @@ String getMasonicDate(DateTime? date) {
   if (offset >= 360) {
     final idx = (offset - 360).clamp(0, _egEpagomenes.length - 1);
     final ord = idx + 1;
-    final ordStr = ord == 1 ? '1er' : '$ord' 'ème';
+    final ordStr = ord == 1
+        ? '1er'
+        : '$ord'
+              'ème';
     return 'Le $ordStr jour épagomène (Naissance de ${_egEpagomenes[idx]}) De l’an $egYear $suffixe';
   }
   final monthIndex = (offset ~/ 30).clamp(0, _egMonths.length - 1);
   final dayInMonth = (offset % 30) + 1;
   final month = _egMonths[monthIndex];
-  final dayStr = dayInMonth == 1 ? '1er' : '$dayInMonth' 'ème';
+  final dayStr = dayInMonth == 1
+      ? '1er'
+      : '$dayInMonth'
+            'ème';
   return 'Le $dayStr jour du mois de ${month[0]} de la saison ${month[1]} De l’an $egYear $suffixe';
 }
 
@@ -184,9 +191,12 @@ class _PdfFonts {
 
 // Police DejaVu Sans embarquée (identique à la version React : rend les « ∴ »).
 Future<_PdfFonts> _loadLodgeFonts() async {
-  final base = pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSans.ttf'));
-  final bold =
-      pw.Font.ttf(await rootBundle.load('assets/fonts/DejaVuSans-Bold.ttf'));
+  final base = pw.Font.ttf(
+    await rootBundle.load('assets/fonts/DejaVuSans.ttf'),
+  );
+  final bold = pw.Font.ttf(
+    await rootBundle.load('assets/fonts/DejaVuSans-Bold.ttf'),
+  );
   return _PdfFonts(base, bold);
 }
 
@@ -215,69 +225,91 @@ pw.Widget _lodgeHeader(
   pw.ImageProvider? logoBenou,
 ) {
   pw.Widget logoBox(pw.ImageProvider? img) => pw.SizedBox(
-        width: 26 * _mm,
-        height: 26 * _mm,
-        child:
-            img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
-      );
-  return pw.Column(children: [
-    pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        logoBox(logoGldb),
-        pw.Expanded(
-          child: pw.Column(children: [
-            pw.Text('GRANDE LOGE DE BOURBON',
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
-                    font: fonts.bold, fontSize: 16, color: _navy)),
-            pw.SizedBox(height: 2 * _mm),
-            pw.Text(
-                'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(font: fonts.base, fontSize: 7.5)),
-          ]),
-        ),
-        logoBox(logoBenou),
-      ],
-    ),
-    pw.SizedBox(height: 8 * _mm),
-    pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        for (final r in _rites)
+    width: 26 * _mm,
+    height: 26 * _mm,
+    child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
+  );
+  return pw.Column(
+    children: [
+      pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          logoBox(logoGldb),
           pw.Expanded(
-            child: pw.Column(children: [
-              pw.Text(r[0],
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  'GRANDE LOGE DE BOURBON',
                   textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(font: fonts.bold, fontSize: 7.5)),
-              pw.SizedBox(height: 1 * _mm),
-              pw.Text(r[1],
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 16,
+                    color: _navy,
+                  ),
+                ),
+                pw.SizedBox(height: 2 * _mm),
+                pw.Text(
+                  'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
                   textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(font: fonts.base, fontSize: 7)),
-            ]),
+                  style: pw.TextStyle(font: fonts.base, fontSize: 7.5),
+                ),
+              ],
+            ),
           ),
-      ],
-    ),
-    pw.SizedBox(height: 10 * _mm),
-    for (final f in _filiations)
-      pw.Padding(
-        padding: pw.EdgeInsets.only(bottom: 1 * _mm),
-        child: pw.Text(f,
+          logoBox(logoBenou),
+        ],
+      ),
+      pw.SizedBox(height: 8 * _mm),
+      pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          for (final r in _rites)
+            pw.Expanded(
+              child: pw.Column(
+                children: [
+                  pw.Text(
+                    r[0],
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 7.5),
+                  ),
+                  pw.SizedBox(height: 1 * _mm),
+                  pw.Text(
+                    r[1],
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(font: fonts.base, fontSize: 7),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+      pw.SizedBox(height: 10 * _mm),
+      for (final f in _filiations)
+        pw.Padding(
+          padding: pw.EdgeInsets.only(bottom: 1 * _mm),
+          child: pw.Text(
+            f,
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
-                font: fonts.base,
-                fontSize: 8,
-                color: const PdfColor.fromInt(0xFF505050))),
+              font: fonts.base,
+              fontSize: 8,
+              color: const PdfColor.fromInt(0xFF505050),
+            ),
+          ),
+        ),
+      pw.SizedBox(height: 7 * _mm),
+      pw.Text(
+        'R∴ L∴ Bénou Ré N°5',
+        style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
       ),
-    pw.SizedBox(height: 7 * _mm),
-    pw.Text('R∴ L∴ Bénou Ré N°5',
-        style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy)),
-    pw.SizedBox(height: 2 * _mm),
-    pw.Text('O∴ de Saint Pierre – Île de la Réunion',
-        style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy)),
-    pw.SizedBox(height: 12 * _mm),
-  ]);
+      pw.SizedBox(height: 2 * _mm),
+      pw.Text(
+        'O∴ de Saint Pierre – Île de la Réunion',
+        style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
+      ),
+      pw.SizedBox(height: 12 * _mm),
+    ],
+  );
 }
 
 Future<List<pw.ImageProvider?>> _loadLogos() async {
@@ -304,8 +336,10 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
   final dateFormatted = _formatDateConvoc(dateSource);
   final degreLong = _degreToOrdinalLong(session.degreTravail ?? session.degree);
   final typeTenue =
-      session.typeTenue ?? (session.type.isNotEmpty ? session.type : 'Ordinaire');
-  final lieu = session.lieuReunionExtra ??
+      session.typeTenue ??
+      (session.type.isNotEmpty ? session.type : 'Ordinaire');
+  final lieu =
+      session.lieuReunionExtra ??
       (session.location.isNotEmpty
           ? session.location
           : 'Temple Thérèse Eliseman à Saint-Pierre');
@@ -315,68 +349,93 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
       ? ' La médaille est de ${session.montantMedaille} euros.'
       : '';
 
-  doc.addPage(pw.MultiPage(
-    pageFormat: PdfPageFormat.a4,
-    margin: pw.EdgeInsets.all(15 * _mm),
-    build: (context) => [
-      _lodgeHeader(fonts, logos[0], logos[1]),
-      pw.Container(
-        width: double.infinity,
-        decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.black, width: 0.4)),
-        padding: pw.EdgeInsets.symmetric(vertical: 3 * _mm, horizontal: 4 * _mm),
-        child: pw.Text(
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.all(15 * _mm),
+      build: (context) => [
+        _lodgeHeader(fonts, logos[0], logos[1]),
+        pw.Container(
+          width: double.infinity,
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.black, width: 0.4),
+          ),
+          padding: pw.EdgeInsets.symmetric(
+            vertical: 3 * _mm,
+            horizontal: 4 * _mm,
+          ),
+          child: pw.Text(
             'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted.toUpperCase()} E∴V∴',
             textAlign: pw.TextAlign.center,
-            style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
-      ),
-      pw.SizedBox(height: 12 * _mm),
-      pw.Center(
-          child: pw.Text('A la Gloire Du Grand Architecte De l\'Univers,',
-              style: pw.TextStyle(font: fonts.base, fontSize: 11))),
-      pw.SizedBox(height: 6 * _mm),
-      pw.Center(
-          child: pw.Text('Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,',
-              style: pw.TextStyle(font: fonts.base, fontSize: 11))),
-      pw.SizedBox(height: 9 * _mm),
-      pw.Text(
-          'La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.base, fontSize: 11, color: _violet)),
-      pw.SizedBox(height: 6 * _mm),
-      pw.Text(masonicDate,
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy)),
-      pw.SizedBox(height: 12 * _mm),
-      pw.Text("L'ordre du jour appellera :",
-          style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
-      pw.SizedBox(height: 8 * _mm),
-      for (var i = 0; i < items.length; i++)
-        pw.Padding(
-          padding: pw.EdgeInsets.only(bottom: 2.5 * _mm),
-          child: pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text('${i + 1}. ',
-                  style: pw.TextStyle(font: fonts.base, fontSize: 11)),
-              pw.Expanded(
-                  child: pw.Text(items[i],
-                      style: pw.TextStyle(font: fonts.base, fontSize: 11))),
-            ],
+            style: pw.TextStyle(font: fonts.bold, fontSize: 11),
           ),
         ),
-      pw.SizedBox(height: 12 * _mm),
-      pw.Text(
+        pw.SizedBox(height: 12 * _mm),
+        pw.Center(
+          child: pw.Text(
+            'A la Gloire Du Grand Architecte De l\'Univers,',
+            style: pw.TextStyle(font: fonts.base, fontSize: 11),
+          ),
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Center(
+          child: pw.Text(
+            'Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,',
+            style: pw.TextStyle(font: fonts.base, fontSize: 11),
+          ),
+        ),
+        pw.SizedBox(height: 9 * _mm),
+        pw.Text(
+          'La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(font: fonts.base, fontSize: 11, color: _violet),
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Text(
+          masonicDate,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
+        ),
+        pw.SizedBox(height: 12 * _mm),
+        pw.Text(
+          "L'ordre du jour appellera :",
+          style: pw.TextStyle(font: fonts.bold, fontSize: 12),
+        ),
+        pw.SizedBox(height: 8 * _mm),
+        for (var i = 0; i < items.length; i++)
+          pw.Padding(
+            padding: pw.EdgeInsets.only(bottom: 2.5 * _mm),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text(
+                  '${i + 1}. ',
+                  style: pw.TextStyle(font: fonts.base, fontSize: 11),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    items[i],
+                    style: pw.TextStyle(font: fonts.base, fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        pw.SizedBox(height: 12 * _mm),
+        pw.Text(
           "Les Travaux seront suivis d'Agapes au nom de la Fraternité en Salle Humide.$medaille",
           textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy)),
-      pw.SizedBox(height: 3 * _mm),
-      pw.Text(
+          style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy),
+        ),
+        pw.SizedBox(height: 3 * _mm),
+        pw.Text(
           "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
           textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy)),
-    ],
-  ));
+          style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy),
+        ),
+      ],
+    ),
+  );
 
   return doc.save();
 }
@@ -399,106 +458,124 @@ Future<Uint8List> buildEmargementPdf(
   final signatures = session.signatures;
   final type = session.type.isNotEmpty ? session.type : 'Ordinaire';
   final degree = session.degree.isNotEmpty ? session.degree : 'Apprenti';
-  final sessionNumber = session.sessionNumber ??
+  final sessionNumber =
+      session.sessionNumber ??
       (session.chrono != null ? '${session.chrono}' : '');
   final location = session.location.isNotEmpty
       ? session.location
       : (session.lieuReunionExtra ?? '');
-  final dateStr = session.date.isNotEmpty ? session.date : (session.dateReprise ?? '');
+  final dateStr = session.date.isNotEmpty
+      ? session.date
+      : (session.dateReprise ?? '');
 
   final memberRows = members
       .where((m) => session.presentIds.contains(m.id))
-      .map((m) => _Row(
-            m.lastName,
-            m.firstName,
-            m.function != 'Aucun' && m.function.isNotEmpty
-                ? m.function
-                : 'Membre',
-            _lodgeName,
-            signatures[m.id],
-          ))
+      .map(
+        (m) => _Row(
+          m.lastName,
+          m.firstName,
+          m.function != 'Aucun' && m.function.isNotEmpty
+              ? m.function
+              : 'Membre',
+          _lodgeName,
+          signatures[m.id],
+        ),
+      )
       .toList();
   final visitorRows = visitors
       .where((v) => session.visitorIds.contains(v.id))
-      .map((v) => _Row(
-            v.lastName,
-            v.firstName,
-            session.visitorRoles[v.id] ??
-                (v.function.isNotEmpty ? v.function : 'Visiteur'),
-            v.lodge,
-            signatures[v.id],
-          ))
+      .map(
+        (v) => _Row(
+          v.lastName,
+          v.firstName,
+          session.visitorRoles[v.id] ??
+              (v.function.isNotEmpty ? v.function : 'Visiteur'),
+          v.lodge,
+          signatures[v.id],
+        ),
+      )
       .toList();
 
-  pw.Widget header() => pw.Column(children: [
-        if (logo != null)
-          pw.Center(
-            child: pw.SizedBox(
-              height: 32 * _mm,
-              child: pw.Image(logo, fit: pw.BoxFit.contain),
-            ),
-          ),
-        pw.SizedBox(height: 4 * _mm),
-        pw.Text('Respectable Loge Benou Ré',
-            style: pw.TextStyle(
-                font: fonts.bold, fontSize: 18, color: _violet)),
-        pw.SizedBox(height: 3 * _mm),
-        pw.Container(
-          width: double.infinity,
-          decoration: const pw.BoxDecoration(
-            border:
-                pw.Border(bottom: pw.BorderSide(color: PdfColors.black, width: 0.4)),
+  pw.Widget header() => pw.Column(
+    children: [
+      if (logo != null)
+        pw.Center(
+          child: pw.SizedBox(
+            height: 32 * _mm,
+            child: pw.Image(logo, fit: pw.BoxFit.contain),
           ),
         ),
-        pw.SizedBox(height: 10 * _mm),
-        pw.Text('FEUILLE DE PRÉSENCE',
-            style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 22,
-                color: _violet,
-                letterSpacing: 1)),
-        pw.SizedBox(height: 1 * _mm),
-        pw.Container(
-          width: 92 * _mm,
-          decoration: const pw.BoxDecoration(
-            border: pw.Border(bottom: pw.BorderSide(color: _violet, width: 1)),
+      pw.SizedBox(height: 4 * _mm),
+      pw.Text(
+        'Respectable Loge Benou Ré',
+        style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: _violet),
+      ),
+      pw.SizedBox(height: 3 * _mm),
+      pw.Container(
+        width: double.infinity,
+        decoration: const pw.BoxDecoration(
+          border: pw.Border(
+            bottom: pw.BorderSide(color: PdfColors.black, width: 0.4),
           ),
         ),
-        pw.SizedBox(height: 10 * _mm),
-      ]);
+      ),
+      pw.SizedBox(height: 10 * _mm),
+      pw.Text(
+        'FEUILLE DE PRÉSENCE',
+        style: pw.TextStyle(
+          font: fonts.bold,
+          fontSize: 22,
+          color: _violet,
+          letterSpacing: 1,
+        ),
+      ),
+      pw.SizedBox(height: 1 * _mm),
+      pw.Container(
+        width: 92 * _mm,
+        decoration: const pw.BoxDecoration(
+          border: pw.Border(bottom: pw.BorderSide(color: _violet, width: 1)),
+        ),
+      ),
+      pw.SizedBox(height: 10 * _mm),
+    ],
+  );
 
   pw.Widget metaLine(String label, String value) => pw.Padding(
-        padding: pw.EdgeInsets.symmetric(vertical: 2 * _mm),
-        child: pw.RichText(
-          text: pw.TextSpan(
-            children: [
-              pw.TextSpan(
-                  text: label,
-                  style: pw.TextStyle(font: fonts.bold, fontSize: 14)),
-              pw.TextSpan(
-                  text: value,
-                  style: pw.TextStyle(font: fonts.base, fontSize: 14)),
-            ],
-          ),
-        ),
-      );
-
-  pw.Table sectionTable(String label) => pw.Table(
-        border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+    padding: pw.EdgeInsets.symmetric(vertical: 2 * _mm),
+    child: pw.RichText(
+      text: pw.TextSpan(
         children: [
-          pw.TableRow(
-            decoration: const pw.BoxDecoration(color: _grey),
-            children: [
-              pw.Container(
-                alignment: pw.Alignment.center,
-                height: 9 * _mm,
-                child: pw.Text(label,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 12)),
-              ),
-            ],
+          pw.TextSpan(
+            text: label,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 14),
+          ),
+          pw.TextSpan(
+            text: value,
+            style: pw.TextStyle(font: fonts.base, fontSize: 14),
           ),
         ],
-      );
+      ),
+    ),
+  );
+
+  pw.Table sectionTable(String label) => pw.Table(
+    border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+    children: [
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: _grey),
+        children: [
+          pw.Container(
+            alignment: pw.Alignment.center,
+            height: 9 * _mm,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
+    ],
+  );
 
   const headers = ['Nom', 'Prénom', 'Fonction', 'Loge', 'Signature'];
   final colWidths = {
@@ -521,18 +598,20 @@ Future<Uint8List> buildEmargementPdf(
               pw.Container(
                 alignment: pw.Alignment.center,
                 height: 9 * _mm,
-                child: pw.Text(h,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 11)),
+                child: pw.Text(
+                  h,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+                ),
               ),
           ],
         ),
         for (final row in rows)
           pw.TableRow(
             children: [
-              _cell(fonts, row?.lastName, rowHeight),
-              _cell(fonts, row?.firstName, rowHeight),
-              _cell(fonts, row?.role, rowHeight),
-              _cell(fonts, row?.lodge, rowHeight),
+              _cell(fonts, row?.lastName, rowHeight, maxLines: 2),
+              _cell(fonts, row?.firstName, rowHeight, maxLines: 2),
+              _cell(fonts, row?.role, rowHeight, maxLines: 2),
+              _cell(fonts, row?.lodge, rowHeight, maxLines: 2),
               _signatureCell(_decodeSignature(row?.signature), rowHeight),
             ],
           ),
@@ -541,37 +620,42 @@ Future<Uint8List> buildEmargementPdf(
   }
 
   final memberSlots = List<_Row?>.generate(
-      20, (i) => i < memberRows.length ? memberRows[i] : null);
-  final visitorSlots = List<_Row?>.generate(
-      5, (i) => i < visitorRows.length ? visitorRows[i] : null);
+    20,
+    (i) => i < memberRows.length ? memberRows[i] : null,
+  );
+  final visitorSlots = visitorRows;
 
-  doc.addPage(pw.MultiPage(
-    pageFormat: PdfPageFormat.a4,
-    margin: pw.EdgeInsets.fromLTRB(20 * _mm, 12 * _mm, 20 * _mm, 18 * _mm),
-    theme: pw.ThemeData.withFont(
-      base: fonts.base,
-      bold: fonts.bold,
-      fontFallback: [fallback.base, fallback.bold],
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.fromLTRB(20 * _mm, 12 * _mm, 20 * _mm, 18 * _mm),
+      theme: pw.ThemeData.withFont(
+        base: fonts.base,
+        bold: fonts.bold,
+        fontFallback: [fallback.base, fallback.bold],
+      ),
+      footer: (context) => pw.Container(
+        alignment: pw.Alignment.center,
+        child: pw.Text(
+          '${context.pageNumber}',
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+        ),
+      ),
+      build: (context) => [
+        header(),
+        metaLine('Objet : ', "Tenue $type – Grade d'$degree"),
+        metaLine('Fiche N° : ', sessionNumber),
+        metaLine('Date : ', _formatDateFrench(dateStr)),
+        metaLine('Lieu : ', location),
+        pw.SizedBox(height: 8 * _mm),
+        sectionTable('MEMBRES DE LA LOGE'),
+        dataTable(memberSlots, 8 * _mm),
+        pw.NewPage(),
+        sectionTable('INVITÉS'),
+        dataTable(visitorSlots, 8 * _mm),
+      ],
     ),
-    footer: (context) => pw.Container(
-      alignment: pw.Alignment.center,
-      child: pw.Text('${context.pageNumber}',
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
-    ),
-    build: (context) => [
-      header(),
-      metaLine('Objet : ', "Tenue $type – Grade d'$degree"),
-      metaLine('Fiche N° : ', sessionNumber),
-      metaLine('Date : ', _formatDateFrench(dateStr)),
-      metaLine('Lieu : ', location),
-      pw.SizedBox(height: 8 * _mm),
-      sectionTable('MEMBRES DE LA LOGE'),
-      dataTable(memberSlots, 6 * _mm),
-      pw.NewPage(),
-      sectionTable('INVITÉS'),
-      dataTable(visitorSlots, 9 * _mm),
-    ],
-  ));
+  );
 
   return doc.save();
 }
@@ -579,27 +663,29 @@ Future<Uint8List> buildEmargementPdf(
 pw.Widget _cell(
   _PdfFonts fonts,
   String? value,
-  double height, {
+  double minHeight, {
   int maxLines = 1,
-}) =>
-    pw.Container(
-      height: height,
-      alignment: pw.Alignment.centerLeft,
-      padding: pw.EdgeInsets.symmetric(horizontal: 2 * _mm),
-      child: pw.Text(value ?? '',
-          maxLines: maxLines,
-          overflow: pw.TextOverflow.clip,
-          style: pw.TextStyle(font: fonts.base, fontSize: 11)),
-    );
+}) => pw.Container(
+  constraints: pw.BoxConstraints(minHeight: minHeight),
+  alignment: pw.Alignment.centerLeft,
+  padding: pw.EdgeInsets.symmetric(horizontal: 2 * _mm),
+  child: pw.Text(
+    value ?? '',
+    softWrap: true,
+    maxLines: maxLines,
+    overflow: pw.TextOverflow.clip,
+    style: pw.TextStyle(font: fonts.base, fontSize: 11),
+  ),
+);
 
-pw.Widget _signatureCell(Uint8List? bytes, double height) => pw.Container(
-      height: height,
-      alignment: pw.Alignment.center,
-      padding: pw.EdgeInsets.all(1 * _mm),
-      child: bytes == null
-          ? pw.SizedBox()
-          : pw.Image(pw.MemoryImage(bytes), fit: pw.BoxFit.contain),
-    );
+pw.Widget _signatureCell(Uint8List? bytes, double minHeight) => pw.Container(
+  constraints: pw.BoxConstraints(minHeight: minHeight),
+  alignment: pw.Alignment.center,
+  padding: pw.EdgeInsets.all(1 * _mm),
+  child: bytes == null
+      ? pw.SizedBox()
+      : pw.Image(pw.MemoryImage(bytes), fit: pw.BoxFit.contain),
+);
 
 // ══════════════════════════════════════════════════════════════════
 // PAIEMENT DES AGAPES
@@ -620,12 +706,21 @@ Future<Uint8List> buildAgapePaymentPdf(
   final signatures = session.agapePaymentSignatures;
   final amount = agapeMedailleAmount(session);
   final total = agapeCollectedTotal(session, members, visitors);
-  final sessionNumber = session.sessionNumber ??
+  final sessionNumber =
+      session.sessionNumber ??
       (session.chrono != null ? '${session.chrono}' : '');
-  final dateStr =
-      session.date.isNotEmpty ? session.date : (session.dateReprise ?? '');
+  final dateStr = session.date.isNotEmpty
+      ? session.date
+      : (session.dateReprise ?? '');
 
-  const headers = ['Nom', 'Prénom', 'Obédience', 'Loge', 'Montant', 'Signature'];
+  const headers = [
+    'Nom',
+    'Prénom',
+    'Obédience',
+    'Loge',
+    'Montant',
+    'Signature',
+  ];
   final colWidths = {
     0: const pw.FlexColumnWidth(26),
     1: const pw.FlexColumnWidth(22),
@@ -635,76 +730,87 @@ Future<Uint8List> buildAgapePaymentPdf(
     5: const pw.FlexColumnWidth(30),
   };
 
-  doc.addPage(pw.MultiPage(
-    pageFormat: PdfPageFormat.a4,
-    margin: pw.EdgeInsets.fromLTRB(18 * _mm, 12 * _mm, 18 * _mm, 18 * _mm),
-    theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
-    build: (context) => [
-      if (logo != null)
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.fromLTRB(18 * _mm, 12 * _mm, 18 * _mm, 18 * _mm),
+      theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+      build: (context) => [
+        if (logo != null)
+          pw.Center(
+            child: pw.SizedBox(
+              height: 30 * _mm,
+              child: pw.Image(logo, fit: pw.BoxFit.contain),
+            ),
+          ),
+        pw.SizedBox(height: 4 * _mm),
         pw.Center(
-          child: pw.SizedBox(
-            height: 30 * _mm,
-            child: pw.Image(logo, fit: pw.BoxFit.contain),
+          child: pw.Text(
+            'R∴ L∴ Bénou Ré N°5',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
           ),
         ),
-      pw.SizedBox(height: 4 * _mm),
-      pw.Center(
-        child: pw.Text('R∴ L∴ Bénou Ré N°5',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy)),
-      ),
-      pw.SizedBox(height: 8 * _mm),
-      pw.Center(
-        child: pw.Text('PAIEMENT DES AGAPES',
+        pw.SizedBox(height: 8 * _mm),
+        pw.Center(
+          child: pw.Text(
+            'PAIEMENT DES AGAPES',
             style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 20,
-                color: _violet,
-                letterSpacing: 1)),
-      ),
-      pw.SizedBox(height: 6 * _mm),
-      pw.Text(
-        'Tenue N° $sessionNumber du ${_formatDateFrench(dateStr)}'
-        ' — médaille : ${_formatAmount(amount)}',
-        style: pw.TextStyle(font: fonts.base, fontSize: 12),
-      ),
-      pw.SizedBox(height: 6 * _mm),
-      pw.Table(
-        columnWidths: colWidths,
-        border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
-        children: [
-          pw.TableRow(
-            decoration: const pw.BoxDecoration(color: _grey),
-            children: [
-              for (final h in headers)
-                pw.Container(
-                  alignment: pw.Alignment.center,
-                  height: 9 * _mm,
-                  child: pw.Text(h,
-                      style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
-                ),
-            ],
+              font: fonts.bold,
+              fontSize: 20,
+              color: _violet,
+              letterSpacing: 1,
+            ),
           ),
-          for (final p in payers)
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Text(
+          'Tenue N° $sessionNumber du ${_formatDateFrench(dateStr)}'
+          ' — médaille : ${_formatAmount(amount)}',
+          style: pw.TextStyle(font: fonts.base, fontSize: 12),
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Table(
+          columnWidths: colWidths,
+          border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+          children: [
             pw.TableRow(
+              decoration: const pw.BoxDecoration(color: _grey),
               children: [
-                _cell(fonts, p.lastName, 10 * _mm),
-                _cell(fonts, p.firstName, 10 * _mm),
-                _cell(fonts, p.obedience, 10 * _mm, maxLines: 2),
-                _cell(fonts, p.lodge, 10 * _mm, maxLines: 2),
-                _cell(fonts, _formatAmount(amount), 10 * _mm),
-                _signatureCell(_decodeSignature(signatures[p.id]), 10 * _mm),
+                for (final h in headers)
+                  pw.Container(
+                    alignment: pw.Alignment.center,
+                    height: 9 * _mm,
+                    child: pw.Text(
+                      h,
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+                    ),
+                  ),
               ],
             ),
-        ],
-      ),
-      pw.SizedBox(height: 6 * _mm),
-      pw.Align(
-        alignment: pw.Alignment.centerRight,
-        child: pw.Text('Total encaissé : ${_formatAmount(total)}',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 13)),
-      ),
-    ],
-  ));
+            for (final p in payers)
+              pw.TableRow(
+                children: [
+                  _cell(fonts, p.lastName, 10 * _mm),
+                  _cell(fonts, p.firstName, 10 * _mm),
+                  _cell(fonts, p.obedience, 10 * _mm, maxLines: 2),
+                  _cell(fonts, p.lodge, 10 * _mm, maxLines: 2),
+                  _cell(fonts, _formatAmount(amount), 10 * _mm),
+                  _signatureCell(_decodeSignature(signatures[p.id]), 10 * _mm),
+                ],
+              ),
+          ],
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            'Total encaissé : ${_formatAmount(total)}',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 13),
+          ),
+        ),
+      ],
+    ),
+  );
 
   return doc.save();
 }
@@ -968,11 +1074,8 @@ String plancheTextWithTronc(
 
 /// Découpe le texte de la planche en lignes non vides. Sert d'index commun à
 /// l'éditeur et au PDF pour rattacher les commentaires à leur ligne.
-List<String> plancheParagraphs(String body) => body
-    .split('\n')
-    .map((p) => p.trim())
-    .where((p) => p.isNotEmpty)
-    .toList();
+List<String> plancheParagraphs(String body) =>
+    body.split('\n').map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
 
 /// Texte de la planche effectivement utilisé : le brouillon enregistré prime
 /// sur le texte généré automatiquement.
@@ -1077,11 +1180,7 @@ Future<Uint8List> buildPlancheTraceePdf(
           padding: pw.EdgeInsets.only(left: 6 * _mm, bottom: 4 * _mm),
           child: pw.Text(
             '— $comment',
-            style: pw.TextStyle(
-              font: fonts.base,
-              fontSize: 9.5,
-              color: _navy,
-            ),
+            style: pw.TextStyle(font: fonts.base, fontSize: 9.5, color: _navy),
           ),
         ),
       );
@@ -1164,40 +1263,44 @@ Future<Uint8List> buildPlancheTraceePdf(
 // ══════════════════════════════════════════════════════════════════
 // BILAN DE TRÉSORERIE (cotisations d'une année)
 // ══════════════════════════════════════════════════════════════════
-Future<Uint8List> buildTreasuryReportPdf(
-  int year,
-  List<Member> members,
-) async {
+Future<Uint8List> buildTreasuryReportPdf(int year, List<Member> members) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
   final doc = pw.Document();
 
   String euros(num v) => '${v.toStringAsFixed(2)} €';
 
-  pw.Widget cell(String text,
-          {bool bold = false,
-          PdfColor color = PdfColors.black,
-          pw.Alignment align = pw.Alignment.centerLeft}) =>
-      pw.Container(
-        alignment: align,
-        padding: pw.EdgeInsets.symmetric(horizontal: 2 * _mm, vertical: 1.5 * _mm),
-        child: pw.Text(
-          text,
-          style: pw.TextStyle(
-              font: bold ? fonts.bold : fonts.base, fontSize: 9, color: color),
-        ),
-      );
+  pw.Widget cell(
+    String text, {
+    bool bold = false,
+    PdfColor color = PdfColors.black,
+    pw.Alignment align = pw.Alignment.centerLeft,
+  }) => pw.Container(
+    alignment: align,
+    padding: pw.EdgeInsets.symmetric(horizontal: 2 * _mm, vertical: 1.5 * _mm),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(
+        font: bold ? fonts.bold : fonts.base,
+        fontSize: 9,
+        color: color,
+      ),
+    ),
+  );
 
   pw.Widget line(String label, num value, PdfColor color) => pw.Column(
-        children: [
-          pw.Text(label,
-              style: pw.TextStyle(font: fonts.base, fontSize: 9, color: _navy)),
-          pw.SizedBox(height: 1 * _mm),
-          pw.Text(euros(value),
-              style:
-                  pw.TextStyle(font: fonts.bold, fontSize: 14, color: color)),
-        ],
-      );
+    children: [
+      pw.Text(
+        label,
+        style: pw.TextStyle(font: fonts.base, fontSize: 9, color: _navy),
+      ),
+      pw.SizedBox(height: 1 * _mm),
+      pw.Text(
+        euros(value),
+        style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: color),
+      ),
+    ],
+  );
 
   num collected = 0;
   num pending = 0;
@@ -1218,78 +1321,97 @@ Future<Uint8List> buildTreasuryReportPdf(
       return '0,00 € / ${euros(dues)}';
     }
 
-    rows.add(pw.TableRow(children: [
-      cell(m.fullName.isNotEmpty ? m.fullName : '—'),
-      cell(exempt ? '${m.status} (exonéré)' : m.status),
-      cell(amount(d.lodgeDues, d.lodgeCollected, d.lodgeDuesPaid)),
-      cell(amount(d.orderDues, d.orderCollected, d.orderDuesPaid)),
-      cell(amount(d.elevationDues, d.elevationCollected, d.elevationDuesPaid)),
-      cell(exempt ? '—' : euros(d.totalPending),
-          bold: !exempt && d.totalPending > 0,
-          color: !exempt && d.totalPending > 0 ? _violet : PdfColors.black,
-          align: pw.Alignment.centerRight),
-    ]));
+    rows.add(
+      pw.TableRow(
+        children: [
+          cell(m.fullName.isNotEmpty ? m.fullName : '—'),
+          cell(exempt ? '${m.status} (exonéré)' : m.status),
+          cell(amount(d.lodgeDues, d.lodgeCollected, d.lodgeDuesPaid)),
+          cell(amount(d.orderDues, d.orderCollected, d.orderDuesPaid)),
+          cell(
+            amount(d.elevationDues, d.elevationCollected, d.elevationDuesPaid),
+          ),
+          cell(
+            exempt ? '—' : euros(d.totalPending),
+            bold: !exempt && d.totalPending > 0,
+            color: !exempt && d.totalPending > 0 ? _violet : PdfColors.black,
+            align: pw.Alignment.centerRight,
+          ),
+        ],
+      ),
+    );
   }
 
   const headers = ['Membre', 'Statut', 'Loge', 'Ordre', 'Grades', 'Reste dû'];
 
-  doc.addPage(pw.MultiPage(
-    pageFormat: PdfPageFormat.a4,
-    margin: pw.EdgeInsets.all(15 * _mm),
-    footer: (context) => pw.Container(
-      alignment: pw.Alignment.center,
-      child: pw.Text('${context.pageNumber} / ${context.pagesCount}',
-          style: pw.TextStyle(font: fonts.base, fontSize: 9)),
-    ),
-    build: (context) => [
-      _lodgeHeader(fonts, logos[0], logos[1]),
-      pw.Center(
-        child: pw.Text('BILAN DES COTISATIONS $year',
-            style:
-                pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy)),
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.all(15 * _mm),
+      footer: (context) => pw.Container(
+        alignment: pw.Alignment.center,
+        child: pw.Text(
+          '${context.pageNumber} / ${context.pagesCount}',
+          style: pw.TextStyle(font: fonts.base, fontSize: 9),
+        ),
       ),
-      pw.SizedBox(height: 6 * _mm),
-      pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
-        children: [
-          line('TOTAL ENCAISSÉ', collected, _navy),
-          line('À PERCEVOIR', pending, _violet),
-        ],
-      ),
-      pw.SizedBox(height: 8 * _mm),
-      pw.Table(
-        border: pw.TableBorder.all(color: PdfColors.black, width: 0.4),
-        columnWidths: {
-          0: const pw.FlexColumnWidth(28),
-          1: const pw.FlexColumnWidth(18),
-          2: const pw.FlexColumnWidth(20),
-          3: const pw.FlexColumnWidth(20),
-          4: const pw.FlexColumnWidth(20),
-          5: const pw.FlexColumnWidth(16),
-        },
-        children: [
-          pw.TableRow(
-            decoration: const pw.BoxDecoration(color: _grey),
-            children: [for (final h in headers) cell(h, bold: true)],
+      build: (context) => [
+        _lodgeHeader(fonts, logos[0], logos[1]),
+        pw.Center(
+          child: pw.Text(
+            'BILAN DES COTISATIONS $year',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
           ),
-          ...rows,
-        ],
-      ),
-      pw.SizedBox(height: 6 * _mm),
-      pw.Text(
-        'Les membres Honoraires ou En sommeil sont exonérés de cotisation et '
-        'ne sont pas comptés dans les totaux.',
-        style: pw.TextStyle(
-            font: fonts.base, fontSize: 8, color: PdfColors.grey700),
-      ),
-      pw.SizedBox(height: 2 * _mm),
-      pw.Text(
-        'Édité le ${DateFormat('d MMMM y', 'fr_FR').format(DateTime.now())}',
-        style: pw.TextStyle(
-            font: fonts.base, fontSize: 8, color: PdfColors.grey700),
-      ),
-    ],
-  ));
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceEvenly,
+          children: [
+            line('TOTAL ENCAISSÉ', collected, _navy),
+            line('À PERCEVOIR', pending, _violet),
+          ],
+        ),
+        pw.SizedBox(height: 8 * _mm),
+        pw.Table(
+          border: pw.TableBorder.all(color: PdfColors.black, width: 0.4),
+          columnWidths: {
+            0: const pw.FlexColumnWidth(28),
+            1: const pw.FlexColumnWidth(18),
+            2: const pw.FlexColumnWidth(20),
+            3: const pw.FlexColumnWidth(20),
+            4: const pw.FlexColumnWidth(20),
+            5: const pw.FlexColumnWidth(16),
+          },
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: _grey),
+              children: [for (final h in headers) cell(h, bold: true)],
+            ),
+            ...rows,
+          ],
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Text(
+          'Les membres Honoraires ou En sommeil sont exonérés de cotisation et '
+          'ne sont pas comptés dans les totaux.',
+          style: pw.TextStyle(
+            font: fonts.base,
+            fontSize: 8,
+            color: PdfColors.grey700,
+          ),
+        ),
+        pw.SizedBox(height: 2 * _mm),
+        pw.Text(
+          'Édité le ${DateFormat('d MMMM y', 'fr_FR').format(DateTime.now())}',
+          style: pw.TextStyle(
+            font: fonts.base,
+            fontSize: 8,
+            color: PdfColors.grey700,
+          ),
+        ),
+      ],
+    ),
+  );
 
   return doc.save();
 }

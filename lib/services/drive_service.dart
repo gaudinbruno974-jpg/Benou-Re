@@ -54,12 +54,19 @@ class DriveService {
 
   Future<void> disconnect() => _gsi.signOut();
 
+  /// Demande l'autorisation Google Drive si nécessaire et vérifie que l'accès
+  /// est disponible avant d'essayer de créer ou télécharger le PDF.
+  Future<void> ensureDriveAuthorization() async {
+    await _authHeaders();
+  }
+
   /// Connexion Google (interactive) et récupération des en-têtes d'auth.
   Future<Map<String, String>> _authHeaders() async {
     if (kIsWeb) return _webAuthHeaders();
     GoogleSignInAccount? account;
     try {
-      account = _gsi.currentUser ??
+      account =
+          _gsi.currentUser ??
           await _gsi.signInSilently() ??
           await _gsi.signIn();
     } on DriveException {
@@ -104,17 +111,27 @@ class DriveService {
     } catch (e) {
       throw DriveException('Connexion Google impossible : $e');
     }
-    final token = (credential.credential as OAuthCredential?)?.accessToken;
+    final oauthCred = credential.credential as OAuthCredential?;
+    if (oauthCred == null) {
+      throw DriveException(
+        'Impossible d\'obtenir le jeton d\'accès Google : credential absent.',
+      );
+    }
+    final token = oauthCred.accessToken;
     if (token == null || token.isEmpty) {
-      throw DriveException("Impossible d'obtenir le jeton d'accès Google.");
+      throw DriveException(
+        'Impossible d\'obtenir le jeton d\'accès Google : accessToken vide.',
+      );
     }
     _webToken = token;
     _webEmail = credential.user?.email;
     return _bearer(token);
   }
 
-  Map<String, String> _bearer(String token) =>
-      {'Authorization': 'Bearer $token', 'X-Goog-AuthUser': '0'};
+  Map<String, String> _bearer(String token) => {
+    'Authorization': 'Bearer $token',
+    'X-Goog-AuthUser': '0',
+  };
 
   /// Application Firebase dédiée à l'autorisation Drive, créée à la demande.
   Future<FirebaseApp> _driveApp() async {
@@ -132,8 +149,10 @@ class DriveService {
 
   /// Nom du dossier de la tenue : « Tenue {chrono} {jj} {mm} {annee} ».
   static String folderName(Session session) {
-    final numOnly =
-        (session.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), '');
+    final numOnly = (session.sessionNumber ?? '').replaceAll(
+      RegExp(r'[^\d]'),
+      '',
+    );
     final chrono = numOnly.isNotEmpty ? numOnly.padLeft(2, '0') : '03';
     var jj = '01', mm = '01', annee = '2026';
     final dateValue = session.date.isNotEmpty
@@ -158,13 +177,17 @@ class DriveService {
   }
 
   Future<String> _findOrCreateFolder(
-      Map<String, String> headers, String name, String parentId) async {
+    Map<String, String> headers,
+    String name,
+    String parentId,
+  ) async {
     final escaped = name.replaceAll("'", "\\'");
     final q =
         "mimeType='application/vnd.google-apps.folder' and name='$escaped' "
         "and '$parentId' in parents and trashed = false";
     final searchUri = Uri.parse(
-        'https://www.googleapis.com/drive/v3/files?q=${Uri.encodeQueryComponent(q)}&fields=files(id,name)');
+      'https://www.googleapis.com/drive/v3/files?q=${Uri.encodeQueryComponent(q)}&fields=files(id,name)',
+    );
     final searchRes = await http.get(searchUri, headers: headers);
     if (searchRes.statusCode != 200) {
       throw DriveException('Erreur recherche dossier : ${searchRes.body}');
@@ -189,12 +212,16 @@ class DriveService {
   }
 
   /// Identifiant d'un fichier de même nom déjà présent dans [folderId].
-  Future<String?> _findFile(Map<String, String> headers, String folderId,
-      String fileName) async {
+  Future<String?> _findFile(
+    Map<String, String> headers,
+    String folderId,
+    String fileName,
+  ) async {
     final escaped = fileName.replaceAll("'", "\\'");
     final q = "name='$escaped' and '$folderId' in parents and trashed = false";
     final uri = Uri.parse(
-        'https://www.googleapis.com/drive/v3/files?q=${Uri.encodeQueryComponent(q)}&fields=files(id,name)');
+      'https://www.googleapis.com/drive/v3/files?q=${Uri.encodeQueryComponent(q)}&fields=files(id,name)',
+    );
     final res = await http.get(uri, headers: headers);
     if (res.statusCode != 200) return null;
     final files = (jsonDecode(res.body)['files'] as List?) ?? [];
@@ -202,19 +229,23 @@ class DriveService {
     return files.first['id'] as String?;
   }
 
-  Future<void> _uploadPdf(Map<String, String> headers, String folderId,
-      String fileName, Uint8List bytes) async {
+  Future<void> _uploadPdf(
+    Map<String, String> headers,
+    String folderId,
+    String fileName,
+    Uint8List bytes,
+  ) async {
     final existingId = await _findFile(headers, folderId, fileName);
     if (existingId != null) {
       final res = await http.patch(
         Uri.parse(
-            'https://www.googleapis.com/upload/drive/v3/files/$existingId?uploadType=media'),
+          'https://www.googleapis.com/upload/drive/v3/files/$existingId?uploadType=media',
+        ),
         headers: {...headers, 'Content-Type': 'application/pdf'},
         body: bytes,
       );
       if (res.statusCode != 200) {
-        throw DriveException(
-            'Erreur mise à jour « $fileName » : ${res.body}');
+        throw DriveException('Erreur mise à jour « $fileName » : ${res.body}');
       }
       return;
     }
@@ -225,16 +256,21 @@ class DriveService {
       'parents': [folderId],
     });
     final body = <int>[];
-    body.addAll(utf8.encode(
-        '--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n'));
-    body.addAll(utf8
-        .encode('--$boundary\r\nContent-Type: application/pdf\r\n\r\n'));
+    body.addAll(
+      utf8.encode(
+        '--$boundary\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n$meta\r\n',
+      ),
+    );
+    body.addAll(
+      utf8.encode('--$boundary\r\nContent-Type: application/pdf\r\n\r\n'),
+    );
     body.addAll(bytes);
     body.addAll(utf8.encode('\r\n--$boundary--'));
 
     final res = await http.post(
       Uri.parse(
-          'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart'),
+        'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      ),
       headers: {
         ...headers,
         'Content-Type': 'multipart/related; boundary=$boundary',
@@ -250,7 +286,9 @@ class DriveService {
   /// [files] : nom de fichier -> contenu PDF.
   /// Renvoie l'e-mail Google utilisé.
   Future<String> archivePdfs(
-      Session session, Map<String, Uint8List> files) async {
+    Session session,
+    Map<String, Uint8List> files,
+  ) async {
     final res = await ensureFolderAndUpload(session, files);
     return res.email;
   }
@@ -258,8 +296,7 @@ class DriveService {
   /// Crée (ou retrouve) le dossier Drive de la tenue, y dépose [files] et
   /// renvoie l'identifiant, l'URL du dossier et l'e-mail Google utilisé.
   Future<({String folderId, String folderUrl, String email})>
-      ensureFolderAndUpload(
-          Session session, Map<String, Uint8List> files) async {
+  ensureFolderAndUpload(Session session, Map<String, Uint8List> files) async {
     try {
       return await _archive(session, files);
     } on DriveException catch (e) {
@@ -271,13 +308,18 @@ class DriveService {
   }
 
   Future<({String folderId, String folderUrl, String email})> _archive(
-      Session session, Map<String, Uint8List> files) async {
+    Session session,
+    Map<String, Uint8List> files,
+  ) async {
     final headers = await _authHeaders();
     final knownId = session.driveFolderId;
     final folderId = (knownId != null && knownId.trim().isNotEmpty)
         ? knownId.trim()
         : await _findOrCreateFolder(
-            headers, folderName(session), kDriveParentFolderId);
+            headers,
+            folderName(session),
+            kDriveParentFolderId,
+          );
     for (final entry in files.entries) {
       await _uploadPdf(headers, folderId, entry.key, entry.value);
     }
