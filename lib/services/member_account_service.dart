@@ -12,13 +12,21 @@ import 'package:firebase_core/firebase_core.dart';
 
 import '../firebase_options.dart';
 
-/// Résultat d'une demande d'invitation.
-enum MemberAccountResult {
+/// Issue d'une demande d'invitation.
+enum MemberAccountStatus {
   /// Compte créé et e-mail de définition du mot de passe envoyé.
   created,
 
   /// Le compte existait déjà : e-mail de définition du mot de passe renvoyé.
   alreadyExists,
+}
+
+/// Résultat d'une invitation. [uid] n'est connu que pour un compte créé à
+/// l'instant : un compte préexistant n'est pas interrogeable depuis le client.
+class MemberAccountResult {
+  final MemberAccountStatus status;
+  final String? uid;
+  const MemberAccountResult(this.status, this.uid);
 }
 
 class MemberAccountService {
@@ -37,22 +45,24 @@ class MemberAccountService {
     final auth = FirebaseAuth.instanceFor(app: await _adminApp());
     // L'e-mail d'invitation part en français, comme ceux de l'app principale.
     await auth.setLanguageCode('fr');
-    var result = MemberAccountResult.created;
+    var status = MemberAccountStatus.created;
+    String? uid;
     try {
-      await auth.createUserWithEmailAndPassword(
+      final credential = await auth.createUserWithEmailAndPassword(
         email: address,
         // Le membre ne connaît jamais ce mot de passe : il le définit par
         // l'e-mail qui suit.
         password: _throwawayPassword(),
       );
+      uid = credential.user?.uid;
     } on FirebaseAuthException catch (e) {
       if (e.code != 'email-already-in-use') rethrow;
-      result = MemberAccountResult.alreadyExists;
+      status = MemberAccountStatus.alreadyExists;
     } finally {
       await auth.signOut();
     }
     await auth.sendPasswordResetEmail(email: address);
-    return result;
+    return MemberAccountResult(status, uid);
   }
 
   /// Application Firebase dédiée, pour ne pas remplacer la session en cours.

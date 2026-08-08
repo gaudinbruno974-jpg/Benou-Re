@@ -8,6 +8,23 @@ const String kMaitre = 'Maître';
 
 const List<String> kGrades = [kApprenti, kCompagnon, kMaitre];
 
+/// Offices de l'Atelier, dans l'ordre du tableau de Loge.
+const List<String> kFunctions = [
+  'Aucun',
+  'Vénérable Maître',
+  '1er Surveillant',
+  '2nd Surveillant',
+  'Orateur',
+  'Secrétaire',
+  'Trésorier',
+  'Hospitalier',
+  'Expert',
+  'Maître des Cérémonies',
+  'Couvreur',
+  'Maître des Banquets',
+  "Maître de l'Harmonie",
+];
+
 /// Minuscule sans accents, pour comparer des libellés saisis à la main.
 String foldLabel(String value) {
   const from = 'àâäéèêëîïôöùûüç';
@@ -186,6 +203,14 @@ class Member {
   final String motherLodge;
   final String sponsor;
   final String loginId;
+
+  /// Identifiant Firebase Auth du compte de connexion. Lien stable : il
+  /// survit à un changement d'adresse e-mail.
+  final String authUid;
+
+  /// Adresse servant d'identifiant de connexion, quand elle diffère de
+  /// l'e-mail de contact. Vide = l'e-mail de contact fait foi.
+  final String loginEmail;
   final String birthDate;
   final String initiationDate;
   final String entryDate;
@@ -219,6 +244,8 @@ class Member {
     this.motherLodge = '',
     this.sponsor = '',
     this.loginId = '',
+    this.authUid = '',
+    this.loginEmail = '',
     this.birthDate = '',
     this.initiationDate = '',
     this.entryDate = '',
@@ -271,6 +298,8 @@ class Member {
       motherLodge: (map['motherLodge'] ?? '') as String,
       sponsor: (map['sponsor'] ?? '') as String,
       loginId: (map['loginId'] ?? '') as String,
+      authUid: (map['authUid'] ?? '') as String,
+      loginEmail: (map['loginEmail'] ?? '') as String,
       birthDate: (map['birthDate'] ?? '') as String,
       initiationDate: (map['initiationDate'] ?? '') as String,
       entryDate: (map['entryDate'] ?? '') as String,
@@ -305,6 +334,8 @@ class Member {
       'motherLodge': motherLodge,
       'sponsor': sponsor,
       'loginId': loginId,
+      'authUid': authUid,
+      'loginEmail': loginEmail,
       'birthDate': birthDate,
       'initiationDate': initiationDate,
       'entryDate': entryDate,
@@ -326,6 +357,11 @@ class Member {
   }
 
   String get fullName => '$firstName $lastName'.trim();
+
+  /// Adresse à laquelle le membre se connecte : son identifiant dédié s'il en
+  /// a un, sinon son e-mail de contact.
+  String get effectiveLoginEmail =>
+      loginEmail.trim().isNotEmpty ? loginEmail.trim() : email.trim();
 
   /// Années enregistrées, triées de la plus récente à la plus ancienne.
   List<int> get years {
@@ -362,6 +398,8 @@ class Member {
     String? motherLodge,
     String? sponsor,
     String? loginId,
+    String? authUid,
+    String? loginEmail,
     String? birthDate,
     String? initiationDate,
     String? entryDate,
@@ -391,6 +429,8 @@ class Member {
       motherLodge: motherLodge ?? this.motherLodge,
       sponsor: sponsor ?? this.sponsor,
       loginId: loginId ?? this.loginId,
+      authUid: authUid ?? this.authUid,
+      loginEmail: loginEmail ?? this.loginEmail,
       birthDate: birthDate ?? this.birthDate,
       initiationDate: initiationDate ?? this.initiationDate,
       entryDate: entryDate ?? this.entryDate,
