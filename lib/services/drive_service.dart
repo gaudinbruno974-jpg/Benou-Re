@@ -14,11 +14,13 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:google_sign_in_platform_interface/google_sign_in_platform_interface.dart';
 import 'package:http/http.dart' as http;
 
+import '../firebase_options.dart';
 import '../models/session.dart';
 
 /// Dossier Drive parent partagé (identique au web).
@@ -42,7 +44,11 @@ class DriveService {
 
   final GoogleSignIn _gsi = GoogleSignIn(scopes: _scopes);
 
-  String? get currentEmail => _gsi.currentUser?.email;
+  /// Jeton d'accès Drive obtenu sur le web (valable le temps de la session).
+  String? _webToken;
+  String? _webEmail;
+
+  String? get currentEmail => _gsi.currentUser?.email ?? _webEmail;
 
   bool get isConnected => _gsi.currentUser != null;
 
@@ -73,28 +79,56 @@ class DriveService {
     return headers;
   }
 
-  /// Sur le web, `signIn()` reconstitue l'identité de l'utilisateur via l'API
-  /// People, qui n'est pas activée sur ce projet : la réponse vide provoquait un
-  /// « Null check operator used on a null value ». On demande donc seulement
-  /// l'autorisation Drive, puis le jeton d'accès associé, sans passer par
-  /// l'identité.
+  /// Sur le web, le greffon `google_sign_in` échoue avant même d'ouvrir la
+  /// fenêtre Google (identité reconstruite via l'API People, non activée sur ce
+  /// projet). On passe donc par Firebase Auth, qui expose directement le jeton
+  /// d'accès OAuth du fournisseur Google — la méthode déjà utilisée par la
+  /// version web historique.
+  ///
+  /// La fenêtre est ouverte sur une application Firebase secondaire pour ne pas
+  /// remplacer la session du membre connecté par le compte Google choisi.
   Future<Map<String, String>> _webAuthHeaders() async {
-    final bool granted;
+    final cached = _webToken;
+    if (cached != null && cached.isNotEmpty) {
+      return _bearer(cached);
+    }
+    final auth = FirebaseAuth.instanceFor(app: await _driveApp());
+    final provider = GoogleAuthProvider()
+      ..addScope('https://www.googleapis.com/auth/drive')
+      ..setCustomParameters({'prompt': 'select_account'});
+    final UserCredential credential;
     try {
-      granted = await _gsi.requestScopes(_scopes);
+      credential = await auth.signInWithPopup(provider);
+    } on FirebaseAuthException catch (e) {
+      throw DriveException('Connexion Google refusée : ${e.message ?? e.code}');
     } catch (e) {
-      throw DriveException('Autorisation Google Drive impossible : $e');
+      throw DriveException('Connexion Google impossible : $e');
     }
-    if (!granted) {
-      throw DriveException('Accès Google Drive refusé.');
-    }
-    final tokens = await GoogleSignInPlatform.instance.getTokens(email: '');
-    final token = tokens.accessToken;
+    final token = (credential.credential as OAuthCredential?)?.accessToken;
     if (token == null || token.isEmpty) {
       throw DriveException("Impossible d'obtenir le jeton d'accès Google.");
     }
-    return {'Authorization': 'Bearer $token', 'X-Goog-AuthUser': '0'};
+    _webToken = token;
+    _webEmail = credential.user?.email;
+    return _bearer(token);
   }
+
+  Map<String, String> _bearer(String token) =>
+      {'Authorization': 'Bearer $token', 'X-Goog-AuthUser': '0'};
+
+  /// Application Firebase dédiée à l'autorisation Drive, créée à la demande.
+  Future<FirebaseApp> _driveApp() async {
+    try {
+      return Firebase.app(_driveAppName);
+    } on FirebaseException {
+      return Firebase.initializeApp(
+        name: _driveAppName,
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+    }
+  }
+
+  static const String _driveAppName = 'drive';
 
   /// Nom du dossier de la tenue : « Tenue {chrono} {jj} {mm} {annee} ».
   static String folderName(Session session) {
@@ -226,6 +260,18 @@ class DriveService {
   Future<({String folderId, String folderUrl, String email})>
       ensureFolderAndUpload(
           Session session, Map<String, Uint8List> files) async {
+    try {
+      return await _archive(session, files);
+    } on DriveException catch (e) {
+      // Jeton web expiré (valable une heure) : on redemande l'autorisation.
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archive(session, files);
+    }
+  }
+
+  Future<({String folderId, String folderUrl, String email})> _archive(
+      Session session, Map<String, Uint8List> files) async {
     final headers = await _authHeaders();
     final knownId = session.driveFolderId;
     final folderId = (knownId != null && knownId.trim().isNotEmpty)
