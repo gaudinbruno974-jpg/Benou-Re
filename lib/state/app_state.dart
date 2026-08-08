@@ -115,14 +115,36 @@ class AppState extends ChangeNotifier {
   }
 
 
+  /// Retrouve la fiche du compte connecté : par l'identifiant Firebase
+  /// (stable), sinon par l'adresse de connexion pour les fiches pas encore
+  /// rattachées, auxquelles on inscrit alors cet identifiant.
   void _matchCurrentUser() {
-    final email = _firebaseUser?.email?.toLowerCase();
-    if (email == null) return;
+    final user = _firebaseUser;
+    if (user == null) return;
+    final uid = user.uid;
     for (final m in members) {
-      if (m.email.toLowerCase() == email) {
+      if (m.authUid == uid) {
         currentUser = m;
         return;
       }
+    }
+    final email = user.email?.trim().toLowerCase();
+    if (email == null || email.isEmpty) return;
+    for (final m in members) {
+      if (m.authUid.isNotEmpty) continue;
+      if (m.effectiveLoginEmail.toLowerCase() != email) continue;
+      currentUser = m;
+      unawaited(_attachAuthUid(m, uid));
+      return;
+    }
+  }
+
+  Future<void> _attachAuthUid(Member member, String uid) async {
+    try {
+      await repo.setMember(member.copyWith(authUid: uid));
+    } catch (_) {
+      // Un membre sans droit d'écriture sur sa fiche reste utilisable :
+      // le rattachement se fera à une prochaine occasion.
     }
   }
 

@@ -51,7 +51,11 @@ service cloud.firestore {
     match /members/{memberId} {
       allow read: if signedIn();
       allow update: if canEditSessions() || canEditTreasury()
-        || request.auth.uid == memberId;
+        || request.auth.uid == memberId
+        // Fiches dont l'identifiant n'est pas l'UID Auth : le rattachement
+        // est porté par le champ authUid.
+        || (signedIn()
+            && request.auth.uid == resource.data.get('authUid', ''));
       allow create, delete: if canEditSessions();
     }
 
