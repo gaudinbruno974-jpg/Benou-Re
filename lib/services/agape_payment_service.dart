@@ -7,8 +7,9 @@ import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
 
-/// Obédience de la Loge, pour les membres.
-const String kLodgeObedience = 'Grande Loge de Bourbon';
+/// Obédience de la Loge, pour les membres (sigle : les noms d'obédience
+/// complets sont trop longs pour la colonne du PDF).
+const String kLodgeObedience = 'GLDB';
 
 /// Nom de la Loge, pour les membres.
 const String kLodgeName = 'Bénou Ré';

@@ -576,12 +576,18 @@ Future<Uint8List> buildEmargementPdf(
   return doc.save();
 }
 
-pw.Widget _cell(_PdfFonts fonts, String? value, double height) => pw.Container(
+pw.Widget _cell(
+  _PdfFonts fonts,
+  String? value,
+  double height, {
+  int maxLines = 1,
+}) =>
+    pw.Container(
       height: height,
       alignment: pw.Alignment.centerLeft,
       padding: pw.EdgeInsets.symmetric(horizontal: 2 * _mm),
       child: pw.Text(value ?? '',
-          maxLines: 1,
+          maxLines: maxLines,
           overflow: pw.TextOverflow.clip,
           style: pw.TextStyle(font: fonts.base, fontSize: 11)),
     );
@@ -621,11 +627,11 @@ Future<Uint8List> buildAgapePaymentPdf(
 
   const headers = ['Nom', 'Prénom', 'Obédience', 'Loge', 'Montant', 'Signature'];
   final colWidths = {
-    0: const pw.FlexColumnWidth(28),
-    1: const pw.FlexColumnWidth(24),
-    2: const pw.FlexColumnWidth(34),
-    3: const pw.FlexColumnWidth(28),
-    4: const pw.FlexColumnWidth(18),
+    0: const pw.FlexColumnWidth(26),
+    1: const pw.FlexColumnWidth(22),
+    2: const pw.FlexColumnWidth(18),
+    3: const pw.FlexColumnWidth(46),
+    4: const pw.FlexColumnWidth(16),
     5: const pw.FlexColumnWidth(30),
   };
 
@@ -683,8 +689,8 @@ Future<Uint8List> buildAgapePaymentPdf(
               children: [
                 _cell(fonts, p.lastName, 10 * _mm),
                 _cell(fonts, p.firstName, 10 * _mm),
-                _cell(fonts, p.obedience, 10 * _mm),
-                _cell(fonts, p.lodge, 10 * _mm),
+                _cell(fonts, p.obedience, 10 * _mm, maxLines: 2),
+                _cell(fonts, p.lodge, 10 * _mm, maxLines: 2),
                 _cell(fonts, _formatAmount(amount), 10 * _mm),
                 _signatureCell(_decodeSignature(signatures[p.id]), 10 * _mm),
               ],
