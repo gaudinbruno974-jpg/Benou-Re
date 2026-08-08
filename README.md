@@ -39,9 +39,6 @@ Android/iOS natif et se développe entièrement en Dart (VSCode / Android Studio
 
 ## Reste à porter (TODO)
 
-- **Éditeur** de planche tracée (saisie des travaux/notes) — la génération PDF et
-  la capture des signatures sont faites, mais l'édition du texte des travaux se
-  fait encore côté web.
 - Écran de **statistiques** détaillé (équivalent `DashboardStats.tsx`).
 - **Seed** initial Firestore (équivalent `initializeAllAccountsAndDatabase`).
 

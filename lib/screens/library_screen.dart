@@ -6,13 +6,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/member.dart';
+import '../models/session.dart';
 import '../services/url_opener.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 
 class _DriveFolder {
-  final String grade; // 'Apprenti' | 'Compagnon' | 'Maitre'
+  final String grade; // kApprenti | kCompagnon | kMaitre
   final String label;
   final String url;
   const _DriveFolder(this.grade, this.label, this.url);
@@ -20,27 +22,27 @@ class _DriveFolder {
 
 const Map<String, List<_DriveFolder>> _folders = {
   'Architecture': [
-    _DriveFolder('Apprenti', 'Dossier Planches - Apprentis',
+    _DriveFolder(kApprenti, 'Dossier Planches - Apprentis',
         'https://drive.google.com/drive/folders/16o7qUPDk31feVoX97NIB-JQezxGn9weV?usp=drive_link'),
-    _DriveFolder('Compagnon', 'Dossier Planches - Compagnons',
+    _DriveFolder(kCompagnon, 'Dossier Planches - Compagnons',
         'https://drive.google.com/drive/folders/1EyL-gwEMrGy1vIMAWpd9narrne4yQEvZ?usp=drive_link'),
-    _DriveFolder('Maitre', 'Dossier Planches - Maîtres',
+    _DriveFolder(kMaitre, 'Dossier Planches - Maîtres',
         'https://drive.google.com/drive/folders/11ez4G3OmCVWNT1BbMDgHfcFYfbKgeqDS?usp=drive_link'),
   ],
   'Rituels': [
-    _DriveFolder('Apprenti', 'Dossier Rituels - Apprentis',
+    _DriveFolder(kApprenti, 'Dossier Rituels - Apprentis',
         'https://drive.google.com/drive/folders/1HUMlA7LU4p2H2q2irhzR0d9ZbrW0sqhR?usp=drive_link'),
-    _DriveFolder('Compagnon', 'Dossier Rituels - Compagnons',
+    _DriveFolder(kCompagnon, 'Dossier Rituels - Compagnons',
         'https://drive.google.com/drive/folders/1uwoZMDaD6tUp3FkTQAKwXlpEy7H2ETwy?usp=drive_link'),
-    _DriveFolder('Maitre', 'Dossier Rituels - Maîtres',
+    _DriveFolder(kMaitre, 'Dossier Rituels - Maîtres',
         'https://drive.google.com/drive/folders/1VpvHOaxFNWbkeQHRCvr_pQI-iTSKe3_6?usp=drive_link'),
   ],
   'Instructions': [
-    _DriveFolder('Apprenti', 'Dossier Instructions - Apprentis',
+    _DriveFolder(kApprenti, 'Dossier Instructions - Apprentis',
         'https://drive.google.com/drive/folders/1qoK7fndJePm3DOxXeElXOowB8oPQB2v9?usp=drive_link'),
-    _DriveFolder('Compagnon', 'Dossier Instructions - Compagnons',
+    _DriveFolder(kCompagnon, 'Dossier Instructions - Compagnons',
         'https://drive.google.com/drive/folders/1n4fmiq36nQMu965bvKlpC5fiytQ_44oU?usp=drive_link'),
-    _DriveFolder('Maitre', 'Dossier Instructions - Maîtres',
+    _DriveFolder(kMaitre, 'Dossier Instructions - Maîtres',
         'https://drive.google.com/drive/folders/1J_DvRYyy39Myz2t_IYq7Xi516PyUETTi?usp=drive_link'),
   ],
 };
@@ -55,20 +57,14 @@ class LibraryScreen extends StatelessWidget {
     return 'Instructions';
   }
 
-  bool _isGradeAllowed(String folderGrade, String userGrade) {
-    if (folderGrade == 'Apprenti') return true;
-    if (folderGrade == 'Compagnon') {
-      return userGrade == 'Compagnon' || userGrade == 'Maitre';
-    }
-    if (folderGrade == 'Maitre') return userGrade == 'Maitre';
-    return false;
-  }
+  bool _isGradeAllowed(String folderGrade, String userGrade) =>
+      Session.degreeRank(folderGrade) <= Session.degreeRank(userGrade);
 
-  String _gradeLabel(String g) => g == 'Maitre' ? 'MAÎTRE' : g.toUpperCase();
+  String _gradeLabel(String g) => g.toUpperCase();
 
   Color _gradeColor(String g) {
-    if (g == 'Apprenti') return const Color(0xFF60A5FA);
-    if (g == 'Compagnon') return const Color(0xFF34D399);
+    if (g == kApprenti) return const Color(0xFF60A5FA);
+    if (g == kCompagnon) return const Color(0xFF34D399);
     return BrColors.gold;
   }
 
@@ -86,7 +82,7 @@ class LibraryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AppState>().currentUser;
-    final userGrade = user?.grade ?? 'Apprenti';
+    final userGrade = normalizeGrade(user?.grade ?? kApprenti);
     final folders = _folders[type] ?? const [];
 
     return Scaffold(

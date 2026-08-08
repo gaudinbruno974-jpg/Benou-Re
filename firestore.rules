@@ -1,0 +1,71 @@
+rules_version = '2';
+
+// Règles Firestore de Bénou Ré.
+// Les mêmes droits que l'application : lecture réservée aux membres connectés,
+// écriture des tenues / visiteurs / réglages réservée au V∴M∴, au Secrétaire et
+// aux administrateurs, écriture de la trésorerie ouverte en plus au Trésorier.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Document du membre connecté (l'id du document est l'UID Auth).
+    function me() {
+      return get(/databases/$(database)/documents/members/$(request.auth.uid)).data;
+    }
+
+    function myFunction() {
+      return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        ? me().get('function', '')
+        : '';
+    }
+
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid))
+        && me().get('isAdmin', false) == true;
+    }
+
+    function canEditSessions() {
+      return isAdmin()
+        || myFunction().matches('.*[Vv][ée]n[ée]rable.*')
+        || myFunction().matches('.*[Ss]ecr[ée]taire.*');
+    }
+
+    function canEditTreasury() {
+      return canEditSessions() || myFunction().matches('.*[Tt]r[ée]sorier.*');
+    }
+
+    // Membres : lisibles par tous les membres connectés ; chacun peut mettre à
+    // jour sa propre fiche, la création / suppression est réservée au bureau.
+    match /members/{memberId} {
+      allow read: if signedIn();
+      allow update: if canEditSessions() || canEditTreasury()
+        || request.auth.uid == memberId;
+      allow create, delete: if canEditSessions();
+    }
+
+    // Tenues : lisibles par tous les membres connectés, modifiables par le
+    // bureau (présences, signatures, planche tracée incluses).
+    match /sessions/{sessionId} {
+      allow read: if signedIn();
+      allow write: if canEditSessions();
+    }
+
+    match /visitors/{visitorId} {
+      allow read: if signedIn();
+      allow write: if canEditSessions();
+    }
+
+    // Réglages de la Loge (chrono, nom du V∴M∴).
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow write: if canEditSessions();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

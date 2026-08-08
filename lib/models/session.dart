@@ -1,4 +1,5 @@
 // Modèle d'une tenue / session (porté depuis src/types.ts -> Session).
+import 'member.dart';
 
 List<String> _stringList(dynamic v) {
   if (v is List) return v.map((e) => e.toString()).toList();
@@ -22,7 +23,7 @@ Map<String, String> _stringMap(dynamic v) {
 class Session {
   final String id;
   final String date; // ISO String
-  final String degree; // 'Apprenti' | 'Compagnon' | 'Maitre'
+  final String degree; // kApprenti | kCompagnon | kMaitre
   final String type; // 'Ordinaire' | 'Solennelle' | ...
   final String title;
   final String description;
@@ -63,7 +64,7 @@ class Session {
   const Session({
     required this.id,
     this.date = '',
-    this.degree = 'Apprenti',
+    this.degree = kApprenti,
     this.type = 'Ordinaire',
     this.title = '',
     this.description = '',
@@ -117,7 +118,7 @@ class Session {
     return Session(
       id: id,
       date: (map['date'] ?? '') as String,
-      degree: (map['degree'] ?? 'Apprenti') as String,
+      degree: normalizeGrade(map['degree'] as String?),
       type: (map['type'] ?? 'Ordinaire') as String,
       title: (map['title'] ?? '') as String,
       description: (map['description'] ?? '') as String,
@@ -258,8 +259,9 @@ class Session {
       (typeTenue != null && typeTenue!.isNotEmpty) ? typeTenue! : type;
 
   /// Degré affiché : préfère le champ React `degreTravail`, sinon `degree`.
-  String get degreeLabel =>
-      (degreTravail != null && degreTravail!.isNotEmpty) ? degreTravail! : degree;
+  String get degreeLabel => (degreTravail != null && degreTravail!.isNotEmpty)
+      ? normalizeGrade(degreTravail)
+      : degree;
 
   /// Nombre d'ordres du jour complémentaires non vides.
   int get ordresJourCount =>
@@ -267,14 +269,25 @@ class Session {
 
   /// Ordinal du degré (1er / 2ème / 3ème).
   static String degreeOrdinal(String d) {
-    switch (d) {
-      case 'Compagnon':
+    switch (normalizeGrade(d)) {
+      case kCompagnon:
         return '2ème';
-      case 'Maître':
-      case 'Maitre':
+      case kMaitre:
         return '3ème';
       default:
         return '1er';
+    }
+  }
+
+  /// Rang hiérarchique du degré : Apprenti (1) < Compagnon (2) < Maître (3).
+  static int degreeRank(String d) {
+    switch (normalizeGrade(d)) {
+      case kCompagnon:
+        return 2;
+      case kMaitre:
+        return 3;
+      default:
+        return 1;
     }
   }
 }

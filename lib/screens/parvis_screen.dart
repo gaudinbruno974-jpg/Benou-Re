@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/member.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -35,15 +36,8 @@ class ParvisScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final user = state.currentUser!;
-    final fn = user.function.trim();
-    final isAdmin = user.isAdmin;
-    final isTreasury =
-        isAdmin ||
-        fn.contains('Trésorier') ||
-        fn.contains('Vénérable Maître') ||
-        fn.contains('Secrétaire');
-    final isVisitors =
-        isAdmin || fn.contains('Vénérable Maître') || fn.contains('Secrétaire');
+    final isTreasury = canEditTreasury(user) || canEditSessions(user);
+    final isVisitors = canEditSessions(user);
 
     final items = <_MenuItem>[
       _MenuItem(

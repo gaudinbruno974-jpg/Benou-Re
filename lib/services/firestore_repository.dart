@@ -79,29 +79,23 @@ class FirestoreRepository {
     return _db.collection('visitors').doc(id).delete();
   }
 
+  // ─── Réglages de la Loge (config/settings) ────────────────────
+  /// Nom du V∴M∴ en charge, utilisé par défaut sur les planches et
+  /// l'émargement quand la tenue ne le précise pas.
+  Stream<String> lodgeVmNameStream() {
+    return _db.collection('config').doc('settings').snapshots().map(
+          (snap) => (snap.data()?['vmName'] ?? '') as String,
+        );
+  }
+
+  Future<void> setLodgeVmName(String name) {
+    return _db.collection('config').doc('settings').set(
+      {'vmName': name.trim()},
+      SetOptions(merge: true),
+    );
+  }
+
   // ─── Chrono (config/settings) ─────────────────────────────────
-  Future<int> getSessionChrono() async {
-    final ref = _db.collection('config').doc('settings');
-    final snap = await ref.get();
-    if (snap.exists) {
-      return (snap.data()?['regularSessionChrono'] ?? 2) as int;
-    }
-    await ref.set({'regularSessionChrono': 2});
-    return 2;
-  }
-
-  Future<int> incrementSessionChrono() async {
-    final ref = _db.collection('config').doc('settings');
-    final snap = await ref.get();
-    int newVal = 3;
-    if (snap.exists) {
-      final current = (snap.data()?['regularSessionChrono'] ?? 2) as int;
-      newVal = current + 1;
-    }
-    await ref.set({'regularSessionChrono': newVal}, SetOptions(merge: true));
-    return newVal;
-  }
-
   /// Réserve et renvoie le chrono courant pour une nouvelle tenue, puis
   /// incrémente le compteur (comportement identique à getAndIncrementChrono
   /// côté React). Utilise une transaction pour éviter les doublons.

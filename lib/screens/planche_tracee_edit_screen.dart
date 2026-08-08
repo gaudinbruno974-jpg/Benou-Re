@@ -66,6 +66,7 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
         troncAmount: _troncValue(),
         sacPropositions: _sac.text.trim(),
         travauxNotes: _notes.map((c) => c.text.trim()).toList(),
+        lodgeVmName: state.lodgeVmName,
       );
 
   num _troncValue() =>

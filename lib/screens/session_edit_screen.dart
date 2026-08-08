@@ -29,7 +29,7 @@ const _sessionTypes = [
   'Tenue blanche',
   'Tenue noire',
 ];
-const _degrees = ['Apprenti', 'Compagnon', 'Maître'];
+const _degrees = kGrades;
 const _repasTypes = ['Agape avec médaille', 'Agape partage', 'Agape offerte'];
 
 // ─── Générateurs de textes (portés de SessionsList.tsx) ──────────────────
@@ -125,7 +125,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
     _type = _ensure(s?.typeTenue ?? s?.type, 'Ordinaire');
     _degree = _ensure(
-      _normalizeDegree(s?.degreTravail ?? s?.degree),
+      normalizeGrade(s?.degreTravail ?? s?.degree),
       'Apprenti',
     );
     _date = s?.dateTime;
@@ -137,8 +137,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _hasAgape = s?.suitAgapes ?? false;
     _typeRepas = _repasTypes.contains(s?.typeRepas) ? s!.typeRepas : null;
   }
-
-  String _normalizeDegree(String? d) => d == 'Maitre' ? 'Maître' : (d ?? '');
 
   String _ensure(String? value, String fallback) {
     if (value != null && value.isNotEmpty) return value;

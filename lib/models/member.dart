@@ -1,13 +1,49 @@
 // Modèle d'un membre de l'Atelier (porté depuis src/types.ts -> Member).
 
+/// Graphie unique des grades / degrés, pour éviter les comparaisons sur des
+/// variantes accentuées ou non.
+const String kApprenti = 'Apprenti';
+const String kCompagnon = 'Compagnon';
+const String kMaitre = 'Maître';
+
+const List<String> kGrades = [kApprenti, kCompagnon, kMaitre];
+
+/// Minuscule sans accents, pour comparer des libellés saisis à la main.
+String foldLabel(String value) {
+  const from = 'àâäéèêëîïôöùûüç';
+  const to = 'aaaeeeeiioouuuc';
+  final buffer = StringBuffer();
+  for (final c in value.trim().toLowerCase().split('')) {
+    final i = from.indexOf(c);
+    buffer.write(i == -1 ? c : to[i]);
+  }
+  return buffer.toString();
+}
+
+/// Ramène une graphie quelconque ('Maitre', 'maître'…) sur la constante.
+String normalizeGrade(String? value) {
+  final v = foldLabel(value ?? '');
+  if (v.contains('maitre')) return kMaitre;
+  if (v.contains('compagnon')) return kCompagnon;
+  if (v.contains('apprenti')) return kApprenti;
+  return value?.trim() ?? '';
+}
+
 /// Droit d'édition des tenues : V∴M∴, Secrétaire ou administrateur.
 /// Même critère que le web (`canEdit` dans PlancheTraceeScreen.tsx).
 bool canEditSessions(Member? user) {
   if (user == null) return false;
-  final fn = user.function.trim();
-  return user.isAdmin ||
-      fn.contains('Vénérable Maître') ||
-      fn.contains('Secrétaire');
+  if (user.isAdmin) return true;
+  final fn = foldLabel(user.function);
+  return fn.contains('venerable') || fn.contains('secretaire');
+}
+
+/// Droit d'édition de la Trésorerie : Trésorier, V∴M∴ ou administrateur.
+bool canEditTreasury(Member? user) {
+  if (user == null) return false;
+  if (user.isAdmin) return true;
+  final fn = foldLabel(user.function);
+  return fn.contains('tresorier') || fn.contains('venerable');
 }
 
 /// Lecture tolérante d'un montant Firestore (num, String ou absent).
@@ -145,12 +181,11 @@ class Member {
   final String phone;
   final String email;
   final String matricule;
-  final String grade; // 'Apprenti' | 'Compagnon' | 'Maitre'
+  final String grade; // kApprenti | kCompagnon | kMaitre
   final String function;
   final String motherLodge;
   final String sponsor;
   final String loginId;
-  final String password;
   final String birthDate;
   final String initiationDate;
   final String entryDate;
@@ -179,12 +214,11 @@ class Member {
     this.phone = '',
     this.email = '',
     this.matricule = '',
-    this.grade = 'Apprenti',
+    this.grade = kApprenti,
     this.function = 'Aucun',
     this.motherLodge = '',
     this.sponsor = '',
     this.loginId = '',
-    this.password = '',
     this.birthDate = '',
     this.initiationDate = '',
     this.entryDate = '',
@@ -232,12 +266,11 @@ class Member {
       phone: (map['phone'] ?? '') as String,
       email: (map['email'] ?? '') as String,
       matricule: (map['matricule'] ?? '') as String,
-      grade: (map['grade'] ?? 'Apprenti') as String,
+      grade: normalizeGrade(map['grade'] as String?),
       function: (map['function'] ?? 'Aucun') as String,
       motherLodge: (map['motherLodge'] ?? '') as String,
       sponsor: (map['sponsor'] ?? '') as String,
       loginId: (map['loginId'] ?? '') as String,
-      password: (map['password'] ?? '') as String,
       birthDate: (map['birthDate'] ?? '') as String,
       initiationDate: (map['initiationDate'] ?? '') as String,
       entryDate: (map['entryDate'] ?? '') as String,
@@ -272,7 +305,6 @@ class Member {
       'motherLodge': motherLodge,
       'sponsor': sponsor,
       'loginId': loginId,
-      'password': password,
       'birthDate': birthDate,
       'initiationDate': initiationDate,
       'entryDate': entryDate,
@@ -330,7 +362,6 @@ class Member {
     String? motherLodge,
     String? sponsor,
     String? loginId,
-    String? password,
     String? birthDate,
     String? initiationDate,
     String? entryDate,
@@ -360,7 +391,6 @@ class Member {
       motherLodge: motherLodge ?? this.motherLodge,
       sponsor: sponsor ?? this.sponsor,
       loginId: loginId ?? this.loginId,
-      password: password ?? this.password,
       birthDate: birthDate ?? this.birthDate,
       initiationDate: initiationDate ?? this.initiationDate,
       entryDate: entryDate ?? this.entryDate,

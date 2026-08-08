@@ -65,17 +65,7 @@ const Map<String, String> _directPlacement = {
   'Colonne du Midi': 'Colonne du Midi',
 };
 
-String _degreOrdinal(String? degre) {
-  switch (degre) {
-    case 'Compagnon':
-      return '2ème';
-    case 'Maitre':
-    case 'Maître':
-      return '3ème';
-    default:
-      return '1er';
-  }
-}
+String _degreOrdinal(String? degre) => Session.degreeOrdinal(degre ?? '');
 
 String _formatDateFR(String? dateStr) {
   if (dateStr == null || dateStr.isEmpty) return 'xx-xx-xxxx';
@@ -168,11 +158,10 @@ String getMasonicDate(DateTime? date) {
 }
 
 String _degreToOrdinalLong(String? degre) {
-  switch (degre) {
-    case 'Compagnon':
+  switch (normalizeGrade(degre)) {
+    case kCompagnon:
       return '2eme DEGRE';
-    case 'Maitre':
-    case 'Maître':
+    case kMaitre:
       return '3eme DEGRE';
     default:
       return '1er DEGRE';
@@ -626,8 +615,20 @@ String _visitorFullName(Visitor v) => '${v.firstName} ${v.lastName}'.trim();
 List<String> plancheOrdreDuJour(Session session) =>
     _collectOrdreDuJour(session);
 
-String plancheVmName(Session session) =>
-    session.vmName?.isNotEmpty == true ? session.vmName! : 'Bruno GAUDIN';
+/// Nom du V∴M∴ : champ de la tenue, sinon nom enregistré dans
+/// `config/settings`, sinon le membre portant l'office de Vénérable Maître.
+String plancheVmName(
+  Session session,
+  List<Member> members, {
+  String lodgeVmName = '',
+}) {
+  if (session.vmName?.isNotEmpty == true) return session.vmName!;
+  if (lodgeVmName.trim().isNotEmpty) return lodgeVmName.trim();
+  final vm = members
+      .where((m) => foldLabel(m.function).contains('venerable'))
+      .firstOrNull;
+  return vm != null ? _memberFullName(vm) : 'Vénérable Maître';
+}
 
 /// Nom de l'Orateur retenu pour la planche : champ explicite, sinon Orateur
 /// présent parmi les membres, sinon visiteur portant l'office d'Orateur.
@@ -669,9 +670,10 @@ String buildPlancheTraceeText(
   num? troncAmount,
   String? sacPropositions,
   List<String>? travauxNotes,
+  String lodgeVmName = '',
 }) {
   final paras = <String>[];
-  final vmName = plancheVmName(session);
+  final vmName = plancheVmName(session, members, lodgeVmName: lodgeVmName);
   final dateFR = _formatDateFR(session.dateReprise ?? session.date);
   final degre = _degreOrdinal(session.degreTravail ?? session.degree);
 
@@ -856,20 +858,28 @@ String plancheBodyText(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
-  int chrono,
-) {
+  int chrono, {
+  String lodgeVmName = '',
+}) {
   final draft = (session.plancheDraftText ?? '').trim();
   return draft.isNotEmpty
       ? draft
-      : buildPlancheTraceeText(session, members, visitors, chrono);
+      : buildPlancheTraceeText(
+          session,
+          members,
+          visitors,
+          chrono,
+          lodgeVmName: lodgeVmName,
+        );
 }
 
 Future<Uint8List> buildPlancheTraceePdf(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
-  int chrono,
-) async {
+  int chrono, {
+  String lodgeVmName = '',
+}) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
   final doc = pw.Document();
@@ -902,7 +912,13 @@ Future<Uint8List> buildPlancheTraceePdf(
   // Le texte édité et enregistré par le Secrétaire / V∴M∴ prime sur le texte
   // généré automatiquement.
   final paragraphs = plancheParagraphs(
-    plancheBodyText(session, members, visitors, chrono),
+    plancheBodyText(
+      session,
+      members,
+      visitors,
+      chrono,
+      lodgeVmName: lodgeVmName,
+    ),
   );
   final comments = session.plancheLineComments;
 
@@ -964,7 +980,11 @@ Future<Uint8List> buildPlancheTraceePdf(
       : '';
   final sigs = <List<String?>>[
     ['Le Frère Orateur', orateurName, session.plancheOrateurSignature],
-    ['Le Vénérable Maître', plancheVmName(session), session.plancheVMSignature],
+    [
+      'Le Vénérable Maître',
+      plancheVmName(session, members, lodgeVmName: lodgeVmName),
+      session.plancheVMSignature,
+    ],
     ['La Sœur Secrétaire', secretaryName, session.plancheSecretarySignature],
   ];
   content.add(pw.SizedBox(height: 6 * _mm));

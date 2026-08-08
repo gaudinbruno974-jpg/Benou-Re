@@ -22,7 +22,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
   late String _status;
   bool _saving = false;
 
-  static const _grades = ['Apprenti', 'Compagnon', 'Maitre'];
+  static const _grades = kGrades;
   static const _statuses = [
     'Actif',
     'Honoraire',
@@ -48,7 +48,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
       'lodgeDues': TextEditingController(text: '${m?.lodgeDues ?? 0}'),
       'orderDues': TextEditingController(text: '${m?.orderDues ?? 0}'),
     };
-    _grade = m?.grade ?? 'Apprenti';
+    _grade = normalizeGrade(m?.grade ?? kApprenti);
     _status = m?.status ?? 'Actif';
   }
 

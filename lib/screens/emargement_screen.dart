@@ -11,6 +11,7 @@ import 'package:signature/signature.dart';
 
 import '../models/member.dart';
 import '../models/session.dart';
+import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -67,9 +68,11 @@ class EmargementScreen extends StatelessWidget {
     final attendees = <_Signer>[...memberSigners, ...visitorSigners];
 
     // Signatures officielles de la planche tracée.
-    final vmName = session.vmName?.isNotEmpty == true
-        ? session.vmName!
-        : 'Bruno GAUDIN';
+    final vmName = plancheVmName(
+      session,
+      state.members,
+      lodgeVmName: state.lodgeVmName,
+    );
     final orateur = state.members.firstWhere(
       (m) =>
           m.function.trim() == 'Orateur' && session.presentIds.contains(m.id),

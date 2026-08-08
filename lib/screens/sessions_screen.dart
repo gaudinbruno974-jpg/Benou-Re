@@ -28,27 +28,14 @@ String formatSessionDate(Session s) {
   return DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
 }
 
-/// Rang hiérarchique d'un degré : Apprenti (1) < Compagnon (2) < Maître (3).
-int _degreeRank(String d) {
-  switch (d) {
-    case 'Compagnon':
-      return 2;
-    case 'Maître':
-    case 'Maitre':
-      return 3;
-    default:
-      return 1;
-  }
-}
-
 /// Tenues visibles selon le grade du membre : un Apprenti ne voit que les
 /// tenues au degré Apprenti, un Compagnon y ajoute le degré Compagnon, un
 /// Maître voit tout. Le V∴M∴, le Secrétaire et les administrateurs
 /// (`canEditSessions`) voient toutes les tenues quel que soit leur grade.
 List<Session> visibleSessionsFor(List<Session> sessions, Member? user) {
   if (canEditSessions(user)) return sessions;
-  final rank = _degreeRank(user?.grade ?? 'Apprenti');
-  return sessions.where((s) => _degreeRank(s.degree) <= rank).toList();
+  final rank = Session.degreeRank(user?.grade ?? kApprenti);
+  return sessions.where((s) => Session.degreeRank(s.degree) <= rank).toList();
 }
 
 class SessionsScreen extends StatelessWidget {
@@ -548,6 +535,7 @@ class SessionDetailScreen extends StatelessWidget {
                   state.members,
                   state.visitors,
                   _chrono(session),
+                  lodgeVmName: state.lodgeVmName,
                 ),
               ),
             ),
@@ -598,6 +586,7 @@ class SessionDetailScreen extends StatelessWidget {
             state.members,
             state.visitors,
             chrono,
+            lodgeVmName: state.lodgeVmName,
           ),
         ),
       };
