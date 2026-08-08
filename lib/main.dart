@@ -71,6 +71,41 @@ class _Root extends StatelessWidget {
       );
     }
 
+    // Connecté à Firebase Auth mais fiche membre introuvable : on l'indique au
+    // lieu de renvoyer silencieusement sur l'écran de connexion.
+    if (state.currentUser == null && state.isSignedIn) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (state.dataError == null) ...[
+                  const CircularProgressIndicator(color: BrColors.gold),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Ouverture du Temple...',
+                    style: TextStyle(color: BrColors.muted, letterSpacing: 2),
+                  ),
+                ] else
+                  Text(
+                    'Accès aux données refusé :\n${state.dataError}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: BrColors.muted),
+                  ),
+                const SizedBox(height: 24),
+                TextButton(
+                  onPressed: () => context.read<AppState>().logout(),
+                  child: const Text('Se déconnecter'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     // Utilisateur non connecté → LoginScreen
     if (state.currentUser == null) {
       return const LoginScreen();

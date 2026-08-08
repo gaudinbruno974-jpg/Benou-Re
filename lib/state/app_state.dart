@@ -28,40 +28,92 @@ class AppState extends ChangeNotifier {
 
   /// Nom du V∴M∴ en charge, lu dans `config/settings`.
   String lodgeVmName = '';
+
+  /// Dernière erreur de lecture Firestore (droits, réseau), affichée à l'écran.
+  String? dataError;
+
+  /// Vrai dès que Firebase Auth a authentifié quelqu'un, même si sa fiche
+  /// membre n'a pas encore été retrouvée.
+  bool get isSignedIn => _firebaseUser != null;
   fb.User? _firebaseUser;
 
-  late final StreamSubscription _membersSub;
-  late final StreamSubscription _sessionsSub;
-  late final StreamSubscription _visitorsSub;
+  StreamSubscription? _membersSub;
+  StreamSubscription? _sessionsSub;
+  StreamSubscription? _visitorsSub;
+  StreamSubscription? _vmNameSub;
   late final StreamSubscription _authSub;
-  late final StreamSubscription _vmNameSub;
 
   void _init() {
-    _membersSub = repo.membersStream().listen((data) {
-      members = data;
-      _matchCurrentUser();
-      notifyListeners();
-    });
-    _sessionsSub = repo.sessionsStream().listen((data) {
-      sessions = data;
-      notifyListeners();
-    });
-    _visitorsSub = repo.visitorsStream().listen((data) {
-      visitors = data;
-      notifyListeners();
-    });
-    _vmNameSub = repo.lodgeVmNameStream().listen((name) {
-      lodgeVmName = name;
-      notifyListeners();
-    });
     _authSub = auth.authStateChanges().listen((user) {
       _firebaseUser = user;
       authLoading = false;
-      if (user == null) currentUser = null;
+      if (user == null) {
+        currentUser = null;
+        _stopDataStreams();
+      } else {
+        _startDataStreams();
+      }
       _matchCurrentUser();
       notifyListeners();
     });
   }
+
+  /// Les collections ne sont lisibles qu'authentifié : on ne s'y abonne qu'après
+  /// la connexion, sinon les règles Firestore refusent l'écoute et celle-ci est
+  /// définitivement interrompue.
+  void _startDataStreams() {
+    if (_membersSub != null) return;
+    _membersSub = repo.membersStream().listen(
+      (data) {
+        members = data;
+        _matchCurrentUser();
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
+    _sessionsSub = repo.sessionsStream().listen(
+      (data) {
+        sessions = data;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
+    _visitorsSub = repo.visitorsStream().listen(
+      (data) {
+        visitors = data;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
+    _vmNameSub = repo.lodgeVmNameStream().listen(
+      (name) {
+        lodgeVmName = name;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
+  }
+
+  void _stopDataStreams() {
+    _membersSub?.cancel();
+    _sessionsSub?.cancel();
+    _visitorsSub?.cancel();
+    _vmNameSub?.cancel();
+    _membersSub = null;
+    _sessionsSub = null;
+    _visitorsSub = null;
+    _vmNameSub = null;
+    members = [];
+    sessions = [];
+    visitors = [];
+    lodgeVmName = '';
+  }
+
+  void _onStreamError(Object error) {
+    dataError = error.toString();
+    notifyListeners();
+  }
+
 
   void _matchCurrentUser() {
     final email = _firebaseUser?.email?.toLowerCase();
@@ -77,6 +129,7 @@ class AppState extends ChangeNotifier {
   Future<void> logout() async {
     await auth.logout();
     currentUser = null;
+    _stopDataStreams();
     notifyListeners();
   }
 
@@ -101,11 +154,8 @@ class AppState extends ChangeNotifier {
 
   @override
   void dispose() {
-    _membersSub.cancel();
-    _sessionsSub.cancel();
-    _visitorsSub.cancel();
+    _stopDataStreams();
     _authSub.cancel();
-    _vmNameSub.cancel();
     super.dispose();
   }
 }
