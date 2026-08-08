@@ -29,6 +29,7 @@ import 'package:printing/printing.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
+import 'agape_payment_service.dart';
 
 // 1 mm en points PDF (le paquet `pdf` travaille en points ; jsPDF en mm).
 const double _mm = PdfPageFormat.mm;
@@ -593,6 +594,121 @@ pw.Widget _signatureCell(Uint8List? bytes, double height) => pw.Container(
           ? pw.SizedBox()
           : pw.Image(pw.MemoryImage(bytes), fit: pw.BoxFit.contain),
     );
+
+// ══════════════════════════════════════════════════════════════════
+// PAIEMENT DES AGAPES
+// ══════════════════════════════════════════════════════════════════
+
+/// Feuille de paiement des agapes : chaque payeur signe le règlement de sa
+/// médaille, le total encaissé figure en bas du tableau.
+Future<Uint8List> buildAgapePaymentPdf(
+  Session session,
+  List<Member> members,
+  List<Visitor> visitors,
+) async {
+  final fonts = await _loadLodgeFonts();
+  final logo = (await _loadLogos())[1]; // Bénou Ré
+  final doc = pw.Document();
+
+  final payers = agapePayers(session, members, visitors);
+  final signatures = session.agapePaymentSignatures;
+  final amount = agapeMedailleAmount(session);
+  final total = agapeCollectedTotal(session, members, visitors);
+  final sessionNumber = session.sessionNumber ??
+      (session.chrono != null ? '${session.chrono}' : '');
+  final dateStr =
+      session.date.isNotEmpty ? session.date : (session.dateReprise ?? '');
+
+  const headers = ['Nom', 'Prénom', 'Obédience', 'Loge', 'Montant', 'Signature'];
+  final colWidths = {
+    0: const pw.FlexColumnWidth(28),
+    1: const pw.FlexColumnWidth(24),
+    2: const pw.FlexColumnWidth(34),
+    3: const pw.FlexColumnWidth(28),
+    4: const pw.FlexColumnWidth(18),
+    5: const pw.FlexColumnWidth(30),
+  };
+
+  doc.addPage(pw.MultiPage(
+    pageFormat: PdfPageFormat.a4,
+    margin: pw.EdgeInsets.fromLTRB(18 * _mm, 12 * _mm, 18 * _mm, 18 * _mm),
+    theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+    build: (context) => [
+      if (logo != null)
+        pw.Center(
+          child: pw.SizedBox(
+            height: 30 * _mm,
+            child: pw.Image(logo, fit: pw.BoxFit.contain),
+          ),
+        ),
+      pw.SizedBox(height: 4 * _mm),
+      pw.Center(
+        child: pw.Text('R∴ L∴ Bénou Ré N°5',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy)),
+      ),
+      pw.SizedBox(height: 8 * _mm),
+      pw.Center(
+        child: pw.Text('PAIEMENT DES AGAPES',
+            style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 20,
+                color: _violet,
+                letterSpacing: 1)),
+      ),
+      pw.SizedBox(height: 6 * _mm),
+      pw.Text(
+        'Tenue N° $sessionNumber du ${_formatDateFrench(dateStr)}'
+        ' — médaille : ${_formatAmount(amount)}',
+        style: pw.TextStyle(font: fonts.base, fontSize: 12),
+      ),
+      pw.SizedBox(height: 6 * _mm),
+      pw.Table(
+        columnWidths: colWidths,
+        border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+        children: [
+          pw.TableRow(
+            decoration: const pw.BoxDecoration(color: _grey),
+            children: [
+              for (final h in headers)
+                pw.Container(
+                  alignment: pw.Alignment.center,
+                  height: 9 * _mm,
+                  child: pw.Text(h,
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+                ),
+            ],
+          ),
+          for (final p in payers)
+            pw.TableRow(
+              children: [
+                _cell(fonts, p.lastName, 10 * _mm),
+                _cell(fonts, p.firstName, 10 * _mm),
+                _cell(fonts, p.obedience, 10 * _mm),
+                _cell(fonts, p.lodge, 10 * _mm),
+                _cell(fonts, _formatAmount(amount), 10 * _mm),
+                _signatureCell(_decodeSignature(signatures[p.id]), 10 * _mm),
+              ],
+            ),
+        ],
+      ),
+      pw.SizedBox(height: 6 * _mm),
+      pw.Align(
+        alignment: pw.Alignment.centerRight,
+        child: pw.Text('Total encaissé : ${_formatAmount(total)}',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 13)),
+      ),
+    ],
+  ));
+
+  return doc.save();
+}
+
+String _formatAmount(num value) {
+  final s = value % 1 == 0
+      ? value.toInt().toString()
+      : value.toStringAsFixed(2).replaceAll('.', ',');
+  return '$s €';
+}
 
 class _Row {
   final String lastName;
