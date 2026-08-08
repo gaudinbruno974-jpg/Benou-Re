@@ -18,31 +18,13 @@ import '../widgets/br_decor.dart';
 const _emerald = Color(0xFF34D399);
 const _rose = Color(0xFFFB7185);
 
-bool _canEditTreasury(Member? u) {
-  if (u == null) return false;
-  if (u.isAdmin) return true;
-  final f = u.function.trim().toLowerCase();
-  if (f.contains('trésorier') ||
-      f.contains('tresorier') ||
-      f.contains('vénérable') ||
-      f.contains('venerable')) {
-    return true;
-  }
-  const admins = {
-    'vm@loge.com',
-    'gaudin.bruno974@gmail.com',
-    'benoure974@gmail.com',
-  };
-  return admins.contains(u.email.toLowerCase());
-}
-
 class TreasuryScreen extends StatelessWidget {
   const TreasuryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final canEdit = _canEditTreasury(state.currentUser);
+    final canEdit = canEditTreasury(state.currentUser);
     final members = [...state.members]
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
 

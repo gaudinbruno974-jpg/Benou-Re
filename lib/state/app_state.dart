@@ -25,12 +25,16 @@ class AppState extends ChangeNotifier {
   List<Session> sessions = [];
   List<Visitor> visitors = [];
   Member? currentUser;
+
+  /// Nom du V∴M∴ en charge, lu dans `config/settings`.
+  String lodgeVmName = '';
   fb.User? _firebaseUser;
 
   late final StreamSubscription _membersSub;
   late final StreamSubscription _sessionsSub;
   late final StreamSubscription _visitorsSub;
   late final StreamSubscription _authSub;
+  late final StreamSubscription _vmNameSub;
 
   void _init() {
     _membersSub = repo.membersStream().listen((data) {
@@ -44,6 +48,10 @@ class AppState extends ChangeNotifier {
     });
     _visitorsSub = repo.visitorsStream().listen((data) {
       visitors = data;
+      notifyListeners();
+    });
+    _vmNameSub = repo.lodgeVmNameStream().listen((name) {
+      lodgeVmName = name;
       notifyListeners();
     });
     _authSub = auth.authStateChanges().listen((user) {
@@ -83,6 +91,9 @@ class AppState extends ChangeNotifier {
   Future<void> deleteSession(String id) => repo.deleteSession(id);
   Future<int> allocateSessionChrono() => repo.allocateSessionChrono();
 
+  // Réglages de la Loge
+  Future<void> updateLodgeVmName(String name) => repo.setLodgeVmName(name);
+
   // Actions visiteurs
   Future<void> addVisitor(Visitor v) => repo.setVisitor(v);
   Future<void> updateVisitor(Visitor v) => repo.setVisitor(v);
@@ -94,6 +105,7 @@ class AppState extends ChangeNotifier {
     _sessionsSub.cancel();
     _visitorsSub.cancel();
     _authSub.cancel();
+    _vmNameSub.cancel();
     super.dispose();
   }
 }

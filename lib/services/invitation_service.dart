@@ -38,17 +38,7 @@ String _dateLongue(Session session) {
       : DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
 }
 
-String _degreOrdinal(String degre) {
-  switch (degre) {
-    case 'Compagnon':
-      return '2ème';
-    case 'Maitre':
-    case 'Maître':
-      return '3ème';
-    default:
-      return '1er';
-  }
-}
+String _degreOrdinal(String degre) => Session.degreeOrdinal(degre);
 
 /// Titre commun aux messages : « Tenue X du jj/mm/aaaa ».
 String invitationTitle(Session session, int chrono) =>
@@ -60,11 +50,10 @@ InvitationCounts invitationCounts(Session session, List<Member> members) {
   var compagnons = 0;
   var apprentis = 0;
   for (final m in members.where((m) => session.presentIds.contains(m.id))) {
-    switch (m.grade) {
-      case 'Maitre':
-      case 'Maître':
+    switch (normalizeGrade(m.grade)) {
+      case kMaitre:
         maitres++;
-      case 'Compagnon':
+      case kCompagnon:
         compagnons++;
       default:
         apprentis++;

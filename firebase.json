@@ -1,1 +1,40 @@
-{"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]},"flutter":{"platforms":{"android":{"default":{"projectId":"benou-re-loge","appId":"1:184228725535:android:e831784d7837eadc08a62a","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"benou-re-loge","configurations":{"android":"1:184228725535:android:e831784d7837eadc08a62a","ios":"1:184228725535:ios:c61e947d0348c80708a62a","web":"1:184228725535:web:397104a16f16932108a62a"}}}}}}
+{
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "benou-re-loge",
+          "appId": "1:184228725535:android:e831784d7837eadc08a62a",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "benou-re-loge",
+          "configurations": {
+            "android": "1:184228725535:android:e831784d7837eadc08a62a",
+            "ios": "1:184228725535:ios:c61e947d0348c80708a62a",
+            "web": "1:184228725535:web:397104a16f16932108a62a"
+          }
+        }
+      }
+    }
+  }
+}

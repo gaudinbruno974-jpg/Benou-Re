@@ -158,6 +158,16 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     final isSuspended = session.isSuspended;
     final allowEdit = canEdit && !isSuspended;
 
+    // Un membre ne peut assister qu'aux travaux de son grade ou en dessous.
+    // Les membres déjà pointés restent affichés pour ne rien masquer.
+    final sessionRank = Session.degreeRank(session.degreeLabel);
+    final eligibleMembers = state.members
+        .where((m) =>
+            Session.degreeRank(m.grade) >= sessionRank ||
+            _presentIds.contains(m.id) ||
+            _excusedIds.contains(m.id))
+        .toList();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Présence'),
@@ -199,13 +209,13 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               ),
             ),
           const _SectionTitle('MEMBRES — PRÉSENTS / EXCUSÉS / AGAPES'),
-          if (state.members.isEmpty)
+          if (eligibleMembers.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
               child: Text('Aucun membre.',
                   style: TextStyle(color: BrColors.muted)),
             ),
-          for (final m in state.members)
+          for (final m in eligibleMembers)
             _MemberTile(
               name: m.fullName,
               role: m.function.isNotEmpty ? m.function : 'Membre',
