@@ -97,8 +97,9 @@ class BrColors {
 ThemeData buildBrTheme() {
   final base = ThemeData.dark(useMaterial3: true);
   return base.copyWith(
-    // Transparent : le dégradé global est peint derrière tous les écrans.
-    scaffoldBackgroundColor: Colors.transparent,
+    // Fond principal : couleur uniforme (le dégradé est optionnel en arrière
+    // plan, mais les tests et certaines vues s'appuient sur une couleur fixe).
+    scaffoldBackgroundColor: BrColors.background,
     colorScheme: base.colorScheme.copyWith(
       primary: BrColors.teal,
       secondary: BrColors.gold,
@@ -148,9 +149,7 @@ ThemeData buildBrTheme() {
       backgroundColor: BrColors.backgroundDark.withValues(alpha: 0.5),
       side: BorderSide(color: BrColors.gold.withValues(alpha: 0.25)),
       labelStyle: const TextStyle(color: BrColors.text, fontSize: 12),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(999),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
     ),
     dialogTheme: DialogThemeData(
       backgroundColor: BrColors.surface,

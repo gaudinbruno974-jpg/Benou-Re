@@ -11,6 +11,7 @@
 // archivage est « best effort » : son échec n'empêche pas l'enregistrement.
 
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -85,6 +86,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   String? _typeRepas;
 
   bool _saving = false;
+  bool _driveAuthInProgress = false;
   int? _autoChronoValue;
 
   @override
@@ -124,10 +126,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     ];
 
     _type = _ensure(s?.typeTenue ?? s?.type, 'Ordinaire');
-    _degree = _ensure(
-      normalizeGrade(s?.degreTravail ?? s?.degree),
-      'Apprenti',
-    );
+    _degree = _ensure(normalizeGrade(s?.degreTravail ?? s?.degree), 'Apprenti');
     _date = s?.dateTime;
     _heureReprise = _date != null && (_date!.hour != 0 || _date!.minute != 0)
         ? TimeOfDay(hour: _date!.hour, minute: _date!.minute)
@@ -210,6 +209,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
   // ─── ARCHIVAGE DRIVE À LA CRÉATION (best effort) ──────────────────
   Future<Session> _createDriveFolder(Session session, int chrono) async {
+    final messenger = ScaffoldMessenger.of(context);
     final pdf = Uint8List.fromList(await buildConvocationPdf(session, chrono));
     final res = await DriveService.instance.ensureFolderAndUpload(session, {
       'Convocation_Tenue_$chrono.pdf': pdf,
@@ -217,25 +217,28 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     final map = session.toMap();
     map['driveFolderId'] = res.folderId;
     map['driveFolderUrl'] = res.folderUrl;
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Dossier Drive créé par ${res.email}'),
-          backgroundColor: BrColors.teal,
-        ),
-      );
-    }
-    return Session.fromMap(session.id, map);
+    final result = Session.fromMap(session.id, map);
+    if (!mounted) return result;
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text('Dossier Drive créé par ${res.email}'),
+        backgroundColor: BrColors.teal,
+      ),
+    );
+    return result;
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     if (_date == null) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Veuillez choisir une date.')),
       );
       return;
     }
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
     setState(() => _saving = true);
     final state = context.read<AppState>();
     final existing = widget.session;
@@ -310,15 +313,21 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         // Archivage Drive « best effort » : ne doit pas bloquer la création.
         if (chrono != null) {
           try {
+            await DriveService.instance.ensureDriveAuthorization();
             await state.updateSession(
               await _createDriveFolder(session, chrono),
             );
           } catch (e) {
             if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
+              final message = e.toString();
+              messenger.showSnackBar(
                 SnackBar(
-                  content: Text('Dossier Drive non créé : $e'),
+                  content: Text(
+                    'Dossier Drive non créé : $message\n'
+                    '${kIsWeb ? 'Vous êtes sur le Web : vérifiez la configuration OAuth Google Drive et les permissions de l\'application.' : ''}',
+                  ),
                   backgroundColor: BrColors.error,
+                  duration: const Duration(seconds: 6),
                 ),
               );
             }
@@ -328,13 +337,16 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         await state.updateSession(session);
       }
 
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) {
+        navigator.pop();
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erreur enregistrement : $e')));
+        final messenger = ScaffoldMessenger.of(context);
+        messenger.showSnackBar(
+          SnackBar(content: Text('Erreur enregistrement : $e')),
+        );
       }
     }
   }
@@ -581,6 +593,60 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             ],
 
             const SizedBox(height: 28),
+            if (kIsWeb && !readOnly) ...[
+              ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueGrey,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                icon: _driveAuthInProgress
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.cloud_upload),
+                label: const Text('CONNECTER DRIVE'),
+                onPressed: _driveAuthInProgress
+                    ? null
+                    : () async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        setState(() => _driveAuthInProgress = true);
+                        try {
+                          await DriveService.instance
+                              .ensureDriveAuthorization();
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Accès Google Drive accordé. Vous pouvez maintenant planifier la tenue.',
+                              ),
+                              backgroundColor: BrColors.teal,
+                            ),
+                          );
+                        } catch (e) {
+                          if (!mounted) return;
+                          messenger.showSnackBar(
+                            SnackBar(
+                              content: Text('Connexion Drive impossible : $e'),
+                              backgroundColor: BrColors.error,
+                              duration: const Duration(seconds: 6),
+                            ),
+                          );
+                        } finally {
+                          if (mounted) {
+                            setState(() {
+                              _driveAuthInProgress = false;
+                            });
+                          }
+                        }
+                      },
+              ),
+              const SizedBox(height: 12),
+            ],
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
                 backgroundColor: BrColors.teal,
