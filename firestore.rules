@@ -17,20 +17,29 @@ service cloud.firestore {
     }
 
     function myFunction() {
-      return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid))
-        ? me().get('function', '')
-        : '';
+      return hasMemberDoc() ? me().get('function', '') : '';
+    }
+
+    // Les fiches membres historiques ne sont pas toujours identifiées par
+    // l'UID Auth : sans fiche correspondante, on ne peut pas lire la fonction
+    // du signataire, et on conserve alors les droits d'un membre connecté
+    // plutôt que de tout bloquer.
+    function hasMemberDoc() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/members/$(request.auth.uid));
     }
 
     function isAdmin() {
-      return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid))
-        && me().get('isAdmin', false) == true;
+      return hasMemberDoc() && me().get('isAdmin', false) == true;
     }
 
     function canEditSessions() {
-      return isAdmin()
+      return signedIn() && (
+        !hasMemberDoc()
+        || isAdmin()
         || myFunction().matches('.*[Vv][ée]n[ée]rable.*')
-        || myFunction().matches('.*[Ss]ecr[ée]taire.*');
+        || myFunction().matches('.*[Ss]ecr[ée]taire.*')
+      );
     }
 
     function canEditTreasury() {
