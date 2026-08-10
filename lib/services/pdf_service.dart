@@ -423,7 +423,7 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
           ),
         pw.SizedBox(height: 12 * _mm),
         pw.Text(
-          "Les Travaux seront suivis d'Agapes au nom de la Fraternité en Salle Humide.$medaille",
+          "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide.$medaille",
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy),
         ),

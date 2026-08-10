@@ -43,3 +43,20 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Résidus de commandes shell / PowerShell mal redirigées
+# (`... > $null` sous Git Bash crée un fichier nommé « $null », et une copie
+# de fichier dans l'Explorateur Windows produit « - Copie.<nom> »).
+/$null
+/nul
+*- Copie.*
+* - Copie.*
+*- Copy.*
+* - Copy.*
+
+# Cache local de la CLI Firebase : empreintes du dernier déploiement, propres
+# au poste et régénérées à chaque `firebase deploy`.
+/.firebase/
+
+# Réglages locaux de l'assistant Claude Code (préférences de poste).
+/.claude/

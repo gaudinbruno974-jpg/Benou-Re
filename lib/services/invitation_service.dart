@@ -73,7 +73,7 @@ String invitationBody(Session session, int chrono, List<String> ordreDuJour) {
     invitationTitle(session, chrono),
     '',
     'Très Chers Frères, Très Chères Sœurs,',
-    'Vous êtes convoqués en Tenue ${session.typeLabel} au '
+    'Vous êtes invités en Tenue ${session.typeLabel} au '
         '${_degreOrdinal(session.degreeLabel)} degré symbolique, '
         'le ${_dateLongue(session)}.',
   ];
