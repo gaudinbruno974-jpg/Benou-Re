@@ -20,11 +20,9 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
+import '../config/lodge_config.dart';
 import '../firebase_options.dart';
 import '../models/session.dart';
-
-/// Dossier Drive parent partagé (identique au web).
-const String kDriveParentFolderId = '11Qp8SXLFG0Spfks-G6OAQ66EHMGjEOgy';
 
 class DriveException implements Exception {
   final String message;
@@ -318,7 +316,8 @@ class DriveService {
         : await _findOrCreateFolder(
             headers,
             folderName(session),
-            kDriveParentFolderId,
+            // Dossier parent partagé, propre à chaque Loge.
+            LodgeConfig.current.driveParentFolderId,
           );
     for (final entry in files.entries) {
       await _uploadPdf(headers, folderId, entry.key, entry.value);

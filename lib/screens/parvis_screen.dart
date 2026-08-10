@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
 import '../models/member.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -37,6 +38,7 @@ class ParvisScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final user = state.currentUser!;
+    final lodge = LodgeConfig.current;
     final isTreasury = canEditTreasury(user) || canEditSessions(user);
     final isVisitors = canEditSessions(user);
 
@@ -137,14 +139,14 @@ class ParvisScreen extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Text(
-                  'R. L. Bénou Ré',
-                  style: TextStyle(fontSize: 16, letterSpacing: 1),
+                  'R. L. ${lodge.name}',
+                  style: const TextStyle(fontSize: 16, letterSpacing: 1),
                 ),
                 Text(
-                  'Orient de Saint-Pierre',
-                  style: TextStyle(fontSize: 11, color: BrColors.muted),
+                  'Orient de ${lodge.orient}',
+                  style: const TextStyle(fontSize: 11, color: BrColors.muted),
                 ),
               ],
             ),
@@ -255,7 +257,7 @@ class ParvisScreen extends StatelessWidget {
             const SizedBox(height: 28),
             Center(
               child: Text(
-                'RL Bénou Ré • RAPMM • v1.0.0',
+                'RL ${lodge.name} • RAPMM • v1.0.0',
                 style: TextStyle(
                   color: BrColors.muted.withValues(alpha: 0.7),
                   fontSize: 11,

@@ -3,16 +3,10 @@
 //
 // Une Tenue n'est concernée que si le repas est une « Agape avec médaille » :
 // c'est le seul type de repas qui donne lieu à un paiement.
+import '../config/lodge_config.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
-
-/// Obédience de la Loge, pour les membres (sigle : les noms d'obédience
-/// complets sont trop longs pour la colonne du PDF).
-const String kLodgeObedience = 'GLDB';
-
-/// Nom de la Loge, pour les membres.
-const String kLodgeName = 'Bénou Ré';
 
 /// Une personne attendue aux agapes payantes d'une Tenue.
 class AgapePayer {
@@ -61,8 +55,10 @@ List<AgapePayer> agapePayers(
           id: m.id,
           lastName: m.lastName,
           firstName: m.firstName,
-          obedience: kLodgeObedience,
-          lodge: kLodgeName,
+          // Sigle de l'obédience : les noms complets sont trop longs pour la
+          // colonne « Loge » du PDF.
+          obedience: LodgeConfig.current.obedienceAcronym,
+          lodge: LodgeConfig.current.name,
         ),
     for (final v in visitors)
       if (session.visitorAgapeIds.contains(v.id))

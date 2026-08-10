@@ -1,8 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Requis par Firebase (Auth + Firestore) et l'API Google Drive. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- app_name est défini par le flavor de la loge (cf. app/build.gradle.kts). -->
     <application
-        android:label="Bénou Ré"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

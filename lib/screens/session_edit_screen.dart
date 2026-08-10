@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../state/app_state.dart';
@@ -96,7 +97,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _location = TextEditingController(
       text: s?.location.isNotEmpty == true
           ? s!.location
-          : (s?.lieuReunion ?? 'Temple Thérèse Eliseman à Saint-Pierre'),
+          : (s?.lieuReunion ?? LodgeConfig.current.defaultMeetingPlace),
     );
     if (s?.chrono != null) {
       _chronoController = TextEditingController(text: '${s!.chrono!.toInt()}');

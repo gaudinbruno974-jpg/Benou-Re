@@ -1,3 +1,4 @@
+import 'package:benou_re/config/lodge_config.dart';
 import 'package:benou_re/models/member.dart';
 import 'package:benou_re/models/session.dart';
 import 'package:benou_re/models/visitor.dart';
@@ -41,8 +42,8 @@ void main() {
     });
     final payers = agapePayers(session, members, visitors);
     expect(payers.map((p) => p.id), ['m1', 'v1']);
-    expect(payers.first.obedience, kLodgeObedience);
-    expect(payers.first.lodge, kLodgeName);
+    expect(payers.first.obedience, LodgeConfig.current.obedienceAcronym);
+    expect(payers.first.lodge, LodgeConfig.current.name);
     expect(payers.last.obedience, 'GLDF');
     expect(payers.last.lodge, 'Les Trois Palmiers');
   });

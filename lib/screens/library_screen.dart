@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../services/url_opener.dart';
@@ -20,32 +21,30 @@ class _DriveFolder {
   const _DriveFolder(this.grade, this.label, this.url);
 }
 
-const Map<String, List<_DriveFolder>> _folders = {
-  'Architecture': [
-    _DriveFolder(kApprenti, 'Dossier Planches - Apprentis',
-        'https://drive.google.com/drive/folders/16o7qUPDk31feVoX97NIB-JQezxGn9weV?usp=drive_link'),
-    _DriveFolder(kCompagnon, 'Dossier Planches - Compagnons',
-        'https://drive.google.com/drive/folders/1EyL-gwEMrGy1vIMAWpd9narrne4yQEvZ?usp=drive_link'),
-    _DriveFolder(kMaitre, 'Dossier Planches - Maîtres',
-        'https://drive.google.com/drive/folders/11ez4G3OmCVWNT1BbMDgHfcFYfbKgeqDS?usp=drive_link'),
-  ],
-  'Rituels': [
-    _DriveFolder(kApprenti, 'Dossier Rituels - Apprentis',
-        'https://drive.google.com/drive/folders/1HUMlA7LU4p2H2q2irhzR0d9ZbrW0sqhR?usp=drive_link'),
-    _DriveFolder(kCompagnon, 'Dossier Rituels - Compagnons',
-        'https://drive.google.com/drive/folders/1uwoZMDaD6tUp3FkTQAKwXlpEy7H2ETwy?usp=drive_link'),
-    _DriveFolder(kMaitre, 'Dossier Rituels - Maîtres',
-        'https://drive.google.com/drive/folders/1VpvHOaxFNWbkeQHRCvr_pQI-iTSKe3_6?usp=drive_link'),
-  ],
-  'Instructions': [
-    _DriveFolder(kApprenti, 'Dossier Instructions - Apprentis',
-        'https://drive.google.com/drive/folders/1qoK7fndJePm3DOxXeElXOowB8oPQB2v9?usp=drive_link'),
-    _DriveFolder(kCompagnon, 'Dossier Instructions - Compagnons',
-        'https://drive.google.com/drive/folders/1n4fmiq36nQMu965bvKlpC5fiytQ_44oU?usp=drive_link'),
-    _DriveFolder(kMaitre, 'Dossier Instructions - Maîtres',
-        'https://drive.google.com/drive/folders/1J_DvRYyy39Myz2t_IYq7Xi516PyUETTi?usp=drive_link'),
-  ],
+/// Pluriel du grade, tel qu'il s'affiche dans le nom du dossier.
+const Map<String, String> _gradePlural = {
+  kApprenti: 'Apprentis',
+  kCompagnon: 'Compagnons',
+  kMaitre: 'Maîtres',
 };
+
+/// Les dossiers d'architecture s'appellent « Planches » sur le Drive.
+String _folderWord(String type) => type == 'Architecture' ? 'Planches' : type;
+
+/// Dossiers Drive du [type] demandé, dans l'ordre des grades. Les identifiants
+/// viennent de la configuration de la Loge : chaque loge a ses propres dossiers.
+List<_DriveFolder> _foldersFor(String type) {
+  final ids = LodgeConfig.current.libraryFolders[type] ?? const {};
+  return [
+    for (final grade in kGrades)
+      if (ids[grade] != null && ids[grade]!.isNotEmpty)
+        _DriveFolder(
+          grade,
+          'Dossier ${_folderWord(type)} - ${_gradePlural[grade] ?? grade}',
+          'https://drive.google.com/drive/folders/${ids[grade]}?usp=drive_link',
+        ),
+  ];
+}
 
 class LibraryScreen extends StatelessWidget {
   final String type; // 'Architecture' | 'Instructions' | 'Rituels'
@@ -83,7 +82,7 @@ class LibraryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AppState>().currentUser;
     final userGrade = normalizeGrade(user?.grade ?? kApprenti);
-    final folders = _folders[type] ?? const [];
+    final folders = _foldersFor(type);
 
     return Scaffold(
       appBar: AppBar(title: Text(_typeNameFr(type))),
