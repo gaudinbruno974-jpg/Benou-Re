@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 
+import '../config/lodge_config.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -41,6 +42,7 @@ class AppState extends ChangeNotifier {
   StreamSubscription? _sessionsSub;
   StreamSubscription? _visitorsSub;
   StreamSubscription? _vmNameSub;
+  StreamSubscription? _lodgeConfigSub;
   late final StreamSubscription _authSub;
 
   void _init() {
@@ -92,6 +94,16 @@ class AppState extends ChangeNotifier {
       },
       onError: _onStreamError,
     );
+    // L'identité de la Loge sert aussi hors widgets (génération des PDF,
+    // dossiers Drive) : elle est publiée dans LodgeConfig.current plutôt que
+    // portée par l'état.
+    _lodgeConfigSub = repo.lodgeConfigStream().listen(
+      (config) {
+        LodgeConfig.current = config;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
   }
 
   void _stopDataStreams() {
@@ -99,14 +111,19 @@ class AppState extends ChangeNotifier {
     _sessionsSub?.cancel();
     _visitorsSub?.cancel();
     _vmNameSub?.cancel();
+    _lodgeConfigSub?.cancel();
     _membersSub = null;
     _sessionsSub = null;
     _visitorsSub = null;
     _vmNameSub = null;
+    _lodgeConfigSub = null;
     members = [];
     sessions = [];
     visitors = [];
     lodgeVmName = '';
+    // Retour au repli du flavor : l'écran de connexion doit afficher l'identité
+    // de la Loge sans dépendre d'une session ouverte.
+    LodgeConfig.current = LodgeConfig.benouRe;
   }
 
   void _onStreamError(Object error) {

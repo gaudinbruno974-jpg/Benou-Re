@@ -26,6 +26,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../config/lodge_config.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -37,7 +38,6 @@ const double _mm = PdfPageFormat.mm;
 const _navy = PdfColor.fromInt(0xFF0C235C);
 const _violet = PdfColor.fromInt(0xFF701A75);
 const _grey = PdfColor.fromInt(0xFFD9D9D9);
-const _lodgeName = 'Bénou Ré';
 
 // Placement rituel de chaque office dans le Temple.
 const Map<String, String> _officePlacement = {
@@ -203,9 +203,12 @@ Future<_PdfFonts> _loadLodgeFonts() async {
 // Feuille de présence : police à empattement (Times), comme le PDF React.
 _PdfFonts _serifFonts() => _PdfFonts(pw.Font.times(), pw.Font.timesBold());
 
-// En-tête commun des documents officiels (logos GLDB/Bénou Ré, GRANDE LOGE DE
-// BOURBON, rites historiques, filiations, R∴L∴ Bénou Ré) — porté de
-// lodgeHeader.ts -> drawLodgeHeader.
+// En-tête commun des documents officiels (logos de l'obédience et de la Loge,
+// GRANDE LOGE DE BOURBON, rites historiques, filiations, titre de la Loge) —
+// porté de lodgeHeader.ts -> drawLodgeHeader.
+//
+// Les rites et les filiations sont ceux du R∴A∴P∴M∴M∴ : communs à toutes les
+// loges de l'obédience, ils ne relèvent donc pas de LodgeConfig.
 const _rites = [
   ['Rite Primitif', 'Paris 1721'],
   ['Rite Primitif des Philadelphes', 'Narbonne 1779'],
@@ -299,12 +302,12 @@ pw.Widget _lodgeHeader(
         ),
       pw.SizedBox(height: 7 * _mm),
       pw.Text(
-        'R∴ L∴ Bénou Ré N°5',
+        LodgeConfig.current.shortTitle,
         style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
       ),
       pw.SizedBox(height: 2 * _mm),
       pw.Text(
-        'O∴ de Saint Pierre – Île de la Réunion',
+        'O∴ de ${LodgeConfig.current.orientLong}',
         style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
       ),
       pw.SizedBox(height: 12 * _mm),
@@ -321,7 +324,11 @@ Future<List<pw.ImageProvider?>> _loadLogos() async {
     }
   }
 
-  return Future.wait([load('assets/GLDB.png'), load('assets/Benou-Re.png')]);
+  final lodge = LodgeConfig.current;
+  return Future.wait([
+    load(lodge.obedienceLogoAsset),
+    load(lodge.lodgeLogoAsset),
+  ]);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -342,7 +349,7 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
       session.lieuReunionExtra ??
       (session.location.isNotEmpty
           ? session.location
-          : 'Temple Thérèse Eliseman à Saint-Pierre');
+          : LodgeConfig.current.defaultMeetingPlace);
   final masonicDate = getMasonicDate(DateTime.tryParse(dateSource));
   final items = _collectOrdreDuJour(session);
   final medaille = (session.montantMedaille ?? 0) > 0
@@ -386,7 +393,7 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
         ),
         pw.SizedBox(height: 9 * _mm),
         pw.Text(
-          'La R∴L∴ Bénou Ré a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
+          'La R∴L∴ ${LodgeConfig.current.name} a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(font: fonts.base, fontSize: 11, color: _violet),
         ),
@@ -452,7 +459,7 @@ Future<Uint8List> buildEmargementPdf(
   // DejaVu en repli : Times (standard-14) ne connaît pas « – » ni certains
   // symboles ; on garde la typo Times avec repli DejaVu pour les glyphes manquants.
   final fallback = await _loadLodgeFonts();
-  final logo = (await _loadLogos())[1]; // Bénou Ré
+  final logo = (await _loadLogos())[1]; // logo de la Loge
   final doc = pw.Document();
 
   final signatures = session.signatures;
@@ -477,7 +484,7 @@ Future<Uint8List> buildEmargementPdf(
           m.function != 'Aucun' && m.function.isNotEmpty
               ? m.function
               : 'Membre',
-          _lodgeName,
+          LodgeConfig.current.name,
           signatures[m.id],
         ),
       )
@@ -507,7 +514,7 @@ Future<Uint8List> buildEmargementPdf(
         ),
       pw.SizedBox(height: 4 * _mm),
       pw.Text(
-        'Respectable Loge Benou Ré',
+        'Respectable Loge ${LodgeConfig.current.name}',
         style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: _violet),
       ),
       pw.SizedBox(height: 3 * _mm),
@@ -699,7 +706,7 @@ Future<Uint8List> buildAgapePaymentPdf(
   List<Visitor> visitors,
 ) async {
   final fonts = await _loadLodgeFonts();
-  final logo = (await _loadLogos())[1]; // Bénou Ré
+  final logo = (await _loadLogos())[1]; // logo de la Loge
   final doc = pw.Document();
 
   final payers = agapePayers(session, members, visitors);
@@ -746,7 +753,7 @@ Future<Uint8List> buildAgapePaymentPdf(
         pw.SizedBox(height: 4 * _mm),
         pw.Center(
           child: pw.Text(
-            'R∴ L∴ Bénou Ré N°5',
+            LodgeConfig.current.shortTitle,
             style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
           ),
         ),
@@ -906,7 +913,8 @@ String buildPlancheTraceeText(
   final degre = _degreOrdinal(session.degreTravail ?? session.degree);
 
   paras.add('Planche Tracée de la Tenue Régulière N°$chrono du $dateFR');
-  paras.add('De la Respectable Loge BENOU RE N°5 à l’Orient Saint-Pierre');
+  final lodge = LodgeConfig.current;
+  paras.add('De la ${lodge.formalTitleUpper} à l’Orient ${lodge.orient}');
   paras.add(
     'Vénérable Maître en chaire et vous tous mes Frères et Sœurs en vos grades et qualités.',
   );
@@ -914,7 +922,7 @@ String buildPlancheTraceeText(
     'Protocole de la Tenue ${session.type == 'Solennelle' ? 'Solennelle' : (session.typeTenue ?? (session.type.isNotEmpty ? session.type : 'Régulière'))} du $dateFR de Ère Vulgaire.',
   );
   paras.add(
-    'Les Membres composant la Respectable Loge BENOU RE N°5 régulièrement Convoqués, sont traditionnellement réunis en un lieu très pur, très saint et très éclairé par la lumière d’Egypte, lieu où règne la Paix, la Joie et l’Harmonie.',
+    'Les Membres composant la ${lodge.formalTitleUpper} régulièrement Convoqués, sont traditionnellement réunis en un lieu très pur, très saint et très éclairé par la lumière d’Egypte, lieu où règne la Paix, la Joie et l’Harmonie.',
   );
   paras.add(
     'Les Sœurs et Frères sont éclairés à l’orient par la sagesse du V∴ M∴ en chaire $vmName.',
@@ -931,10 +939,10 @@ String buildPlancheTraceeText(
   if (excused.isNotEmpty) {
     final noms = excused.map(_memberFullName).join(', ');
     paras.add(
-      '$noms membre(s) de la R∴ L∴ Bénou Ré sont absents excusés. (Voir la liste des membres excusés)',
+      '$noms membre(s) de la R∴ L∴ ${lodge.name} sont absents excusés. (Voir la liste des membres excusés)',
     );
   } else {
-    paras.add('Aucun membre de la R∴ L∴ Bénou Ré n’est absent excusé.');
+    paras.add('Aucun membre de la R∴ L∴ ${lodge.name} n’est absent excusé.');
   }
 
   // Invités

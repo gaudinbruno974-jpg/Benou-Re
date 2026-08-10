@@ -52,12 +52,46 @@ Android/iOS natif et se développe entièrement en Dart (VSCode / Android Studio
 Le projet Flutter est à la racine du dépôt (`lib/`, `pubspec.yaml`) : toutes les
 commandes ci-dessous se lancent depuis cette racine.
 
+Depuis la mise en place du multi-loges, **Android exige un flavor** : la loge
+est choisie par l'option `--flavor`. Le web n'est pas concerné (voir plus bas).
+
 ```bash
 flutter pub get
-flutter run                 # sur un émulateur/appareil
-flutter build apk --debug   # APK debug -> build/app/outputs/flutter-apk/app-debug.apk
-flutter build apk --release # APK release (signature à configurer)
+flutter run --flavor benoure                 # sur un émulateur/appareil
+flutter build apk --debug --flavor benoure   # -> build/app/outputs/flutter-apk/app-benoure-debug.apk
+flutter build apk --release --flavor benoure # APK release (signature à configurer)
+flutter build web --release                  # web : pas de flavor
 ```
+
+Sans `--flavor`, la commande Android échoue avec
+« You must specify a --flavor option ». Le nom du fichier produit contient
+désormais le flavor (`app-benoure-debug.apk`).
+
+## Multi-loges
+
+L'identité de chaque loge est répartie en deux endroits, selon qu'elle doit ou
+non être figée dans le binaire :
+
+| Où | Quoi | Fichier |
+| --- | --- | --- |
+| Flavor (compilation) | `applicationId`, nom sous l'icône, logos, `firebase_options.dart` | `android/app/build.gradle.kts`, `android/app/src/<flavor>/` |
+| Firestore `config/settings` | nom, numéro, orient, lieu de réunion, dossiers Drive | document modifiable sans rebuild |
+
+Le code ne lit jamais ces valeurs en dur : tout passe par
+[`lib/config/lodge_config.dart`](lib/config/lodge_config.dart), dont les
+valeurs par défaut sont celles de Bénou Ré. Une loge ne renseigne dans
+Firestore que les champs qui la distinguent ; les autres gardent le repli du
+flavor, ce qui laisse l'application correcte hors connexion.
+
+Champs reconnus dans `config/settings` : `lodgeName`, `lodgeNumber`,
+`lodgeOrient`, `lodgeOrientLong`, `lodgeObedience`, `lodgeMeetingPlace`,
+`driveParentFolderId` et `libraryFolders` (par type de document puis par grade).
+
+**Ajouter une loge** : créer son projet Firebase (voir [deployment/](deployment/)),
+ajouter un flavor dans `android/app/build.gradle.kts`, déposer son
+`google-services.json` et un `res/values/strings.xml` dans
+`android/app/src/<flavor>/`, puis renseigner `config/settings` dans son
+Firestore.
 
 ## Configuration Firebase (important)
 

@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'config/lodge_config.dart';
 import 'firebase_options.dart';
 import 'state/app_state.dart';
 import 'theme.dart';
@@ -26,7 +27,7 @@ class BenouReApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => AppState(),
       child: MaterialApp(
-        title: 'Bénou Ré',
+        title: LodgeConfig.current.name,
         debugShowCheckedModeBanner: false,
         theme: buildBrTheme(), // ✅ Le thème est bien centralisé
         locale: const Locale('fr', 'FR'),

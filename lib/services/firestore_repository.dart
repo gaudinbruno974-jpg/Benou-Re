@@ -2,6 +2,7 @@
 // Collections : members, sessions, visitors, config.
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../config/lodge_config.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -93,6 +94,17 @@ class FirestoreRepository {
       {'vmName': name.trim()},
       SetOptions(merge: true),
     );
+  }
+
+  /// Identité de la Loge (nom, orient, lieu, dossiers Drive), fusionnée avec
+  /// les valeurs du flavor : une loge ne renseigne que ce qui la distingue, et
+  /// l'application reste correcte si le document est absent.
+  Stream<LodgeConfig> lodgeConfigStream() {
+    return _db.collection('config').doc('settings').snapshots().map((snap) {
+      final data = snap.data();
+      if (data == null) return LodgeConfig.benouRe;
+      return LodgeConfig.benouRe.mergedWith(data);
+    });
   }
 
   // ─── Chrono (config/settings) ─────────────────────────────────
