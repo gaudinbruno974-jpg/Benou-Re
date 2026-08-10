@@ -49,8 +49,10 @@ Android/iOS natif et se développe entièrement en Dart (VSCode / Android Studio
 
 ## Lancer / builder
 
+Le projet Flutter est à la racine du dépôt (`lib/`, `pubspec.yaml`) : toutes les
+commandes ci-dessous se lancent depuis cette racine.
+
 ```bash
-cd flutter_app
 flutter pub get
 flutter run                 # sur un émulateur/appareil
 flutter build apk --debug   # APK debug -> build/app/outputs/flutter-apk/app-debug.apk
@@ -86,7 +88,7 @@ Comme sur le web, le flux OAuth par popup ne fonctionne pas en natif : il faut u
 
 1. **Empreinte SHA-1** de la clé de signature (debug) :
    ```bash
-   cd flutter_app/android
+   cd android
    ./gradlew signingReport        # Windows : .\gradlew signingReport
    ```
    Copiez la ligne `SHA1:` de la variante `debug` (et la `SHA-256` si demandée).
