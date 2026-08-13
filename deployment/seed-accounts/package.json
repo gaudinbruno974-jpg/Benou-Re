@@ -1,0 +1,10 @@
+{
+  "name": "seed-accounts",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Crée/synchronise les comptes de test (Firebase Auth + Firestore members) d'une loge.",
+  "type": "commonjs",
+  "dependencies": {
+    "firebase-admin": "^12.7.0"
+  }
+}

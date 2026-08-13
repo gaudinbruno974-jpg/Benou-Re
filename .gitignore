@@ -60,3 +60,9 @@ app.*.map.json
 
 # Réglages locaux de l'assistant Claude Code (préférences de poste).
 /.claude/
+
+# Clés de compte de service Firebase/GCP : jamais commitées, quel que soit
+# l'endroit où elles atterrissent par erreur (voir deployment/seed-accounts).
+*serviceAccount*.json
+*firebase-adminsdk*.json
+deployment/seed-accounts/node_modules/
