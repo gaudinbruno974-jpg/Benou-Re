@@ -35,14 +35,18 @@ const _degrees = kGrades;
 const _repasTypes = ['Agape avec médaille', 'Agape partage', 'Agape offerte'];
 
 // ─── Générateurs de textes (portés de SessionsList.tsx) ──────────────────
-Map<String, String> _travauxFixes(String degre, TimeOfDay? heure) {
+// Le V∴M∴ mentionné est celui qui préside réellement les travaux : résolu
+// depuis config/settings ou la fiche membre portant l'office (même repli que
+// plancheVmName), jamais un nom figé — sans quoi le texte généré par défaut
+// resterait celui du flavor d'origine (benoure) quelle que soit la loge.
+Map<String, String> _travauxFixes(String degre, TimeOfDay? heure, String vmName) {
   final ord = Session.degreeOrdinal(degre);
   final h = heure != null
       ? '${heure.hour.toString().padLeft(2, '0')}h${heure.minute.toString().padLeft(2, '0')}'
       : 'xxhxx';
   return {
     't1':
-        '$h Ouverture des Travaux au $ord Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ Bruno GAU∴',
+        '$h Ouverture des Travaux au $ord Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ $vmName.',
     't2': 'Appel des FF∴ et SS∴ de la loge',
     't3':
         'Lecture de la planche tracée de nos derniers travaux au $ord Degré symbolique.',
@@ -50,10 +54,10 @@ Map<String, String> _travauxFixes(String degre, TimeOfDay? heure) {
   };
 }
 
-String _ligneCloture(String degre, int ordresCount) {
+String _ligneCloture(String degre, int ordresCount, String vmName) {
   final ord = Session.degreeOrdinal(degre);
   final n = 4 + ordresCount + 1;
-  return '$n. Clôture des Travaux au $ord Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ Bruno GAU∴';
+  return '$n. Clôture des Travaux au $ord Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ $vmName.';
 }
 
 class SessionEditScreen extends StatefulWidget {
@@ -195,8 +199,19 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
   int get _ordresCount => _ordres.where((c) => c.text.trim().isNotEmpty).length;
 
+  /// Nom du V∴M∴ actuellement en charge, résolu comme pour la planche
+  /// tracée (config/settings, sinon la fiche membre portant l'office).
+  String get _currentVmName {
+    final state = context.read<AppState>();
+    return plancheVmName(
+      const Session(id: ''),
+      state.members,
+      lodgeVmName: state.lodgeVmName,
+    );
+  }
+
   void _regenerateTravaux() {
-    final fixes = _travauxFixes(_degree, _heureReprise);
+    final fixes = _travauxFixes(_degree, _heureReprise, _currentVmName);
     _t1.text = fixes['t1']!;
     _t2.text = fixes['t2']!;
     _t3.text = fixes['t3']!;
@@ -205,7 +220,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   }
 
   void _regenerateCloture() {
-    _cloture.text = _ligneCloture(_degree, _ordresCount);
+    _cloture.text = _ligneCloture(_degree, _ordresCount, _currentVmName);
   }
 
   // ─── ARCHIVAGE DRIVE À LA CRÉATION (best effort) ──────────────────
