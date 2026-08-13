@@ -16,6 +16,7 @@ import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'emargement_screen.dart';
 import 'planche_tracee_edit_screen.dart';
+import 'session_dignitaires_announce_screen.dart';
 import 'session_edit_screen.dart';
 import 'session_invitations_screen.dart';
 import 'session_presence_screen.dart';
@@ -369,6 +370,7 @@ class SessionDetailScreen extends StatelessWidget {
         .where((v) => session.visitorIds.contains(v.id))
         .toList();
     final canEdit = canEditSessions(state.currentUser);
+    final canAnnounceDignitaries = canViewDignitaryAnnounce(state.currentUser);
     final isSuspended = session.isSuspended;
 
     return Scaffold(
@@ -497,6 +499,23 @@ class SessionDetailScreen extends StatelessWidget {
             ),
             const SizedBox(height: 10),
           ],
+          if (canAnnounceDignitaries && !isSuspended) ...[
+            OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: BrColors.violet,
+                side: const BorderSide(color: BrColors.violet),
+              ),
+              icon: const Icon(Icons.workspace_premium_outlined, size: 18),
+              label: const Text('Annonce des Dignitaires'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      SessionDignitairesAnnounceScreen(sessionId: session.id),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: _navyBtn),
             icon: const Icon(Icons.mail_outline, size: 18),
@@ -516,8 +535,12 @@ class SessionDetailScreen extends StatelessWidget {
               onPressed: () => _openPdf(
                 context,
                 'Emargement',
-                () =>
-                    buildEmargementPdf(session, state.members, state.visitors),
+                () => buildEmargementPdf(
+                  session,
+                  state.members,
+                  state.visitors,
+                  state.dignitaries,
+                ),
               ),
             ),
             const SizedBox(height: 10),
@@ -534,6 +557,7 @@ class SessionDetailScreen extends StatelessWidget {
                   session,
                   state.members,
                   state.visitors,
+                  state.dignitaries,
                   _chrono(session),
                   lodgeVmName: state.lodgeVmName,
                 ),
@@ -578,13 +602,19 @@ class SessionDetailScreen extends StatelessWidget {
           await buildConvocationPdf(session, chrono),
         ),
         'Emargement_Tenue_$chrono.pdf': Uint8List.fromList(
-          await buildEmargementPdf(session, state.members, state.visitors),
+          await buildEmargementPdf(
+            session,
+            state.members,
+            state.visitors,
+            state.dignitaries,
+          ),
         ),
         'PlancheTracee_Tenue_$chrono.pdf': Uint8List.fromList(
           await buildPlancheTraceePdf(
             session,
             state.members,
             state.visitors,
+            state.dignitaries,
             chrono,
             lodgeVmName: state.lodgeVmName,
           ),

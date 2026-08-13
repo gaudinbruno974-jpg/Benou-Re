@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'package:benou_re/models/dignitary.dart';
 import 'package:benou_re/models/member.dart';
 import 'package:benou_re/models/session.dart';
 import 'package:benou_re/models/visitor.dart';
@@ -61,6 +62,23 @@ void main() {
           orient: 'Le Port'),
     ];
 
+    final dignitaries = [
+      const Dignitary(
+          id: 'd1',
+          firstName: 'Alain',
+          lastName: 'ROUSSEAU',
+          title: 'Grand Maître Adjoint',
+          lodge: 'Les Cœurs Réunis',
+          obedience: 'GLDB',
+          protocolRank: 1),
+      const Dignitary(
+          id: 'd2',
+          firstName: 'Nadia',
+          lastName: 'FONTAINE',
+          title: 'Représentante de la R∴L∴ Concorde',
+          lodge: 'Concorde'),
+    ];
+
     final session = Session(
       id: 's1',
       date: '2026-03-14',
@@ -75,6 +93,8 @@ void main() {
       visitorIds: const ['v1', 'v2'],
       troncAmount: 42.5,
       visitorRoles: const {'v1': 'Premier Surveillant'},
+      dignitaryIds: const ['d1', 'd2'],
+      dignitaryRoles: const {'d2': 'Second Surveillant'},
       extra: const {
         'travail1': 'Ouverture des travaux au 1er degré',
         'travail2': 'Lecture et adoption de la planche précédente',
@@ -94,8 +114,10 @@ void main() {
     );
 
     final convoc = await buildConvocationPdf(session, 128);
-    final emarg = await buildEmargementPdf(session, members, visitors);
-    final planche = await buildPlancheTraceePdf(session, members, visitors, 128);
+    final emarg =
+        await buildEmargementPdf(session, members, visitors, dignitaries);
+    final planche = await buildPlancheTraceePdf(
+        session, members, visitors, dignitaries, 128);
 
     final outDir = Directory.systemTemp;
     File('${outDir.path}/pdf_convocation.pdf').writeAsBytesSync(convoc);

@@ -1,0 +1,50 @@
+[
+  {
+    "email": "apprentis@loge.com",
+    "password": "000007",
+    "firstName": "Apprenti",
+    "lastName": "Test",
+    "grade": "Apprenti",
+    "function": "Aucun"
+  },
+  {
+    "email": "compagnons@loge.com",
+    "password": "000007",
+    "firstName": "Compagnon",
+    "lastName": "Test",
+    "grade": "Compagnon",
+    "function": "Aucun"
+  },
+  {
+    "email": "maitres@loge.com",
+    "password": "000007",
+    "firstName": "Maître",
+    "lastName": "Test",
+    "grade": "Maître",
+    "function": "Aucun"
+  },
+  {
+    "email": "secretaire@loge.com",
+    "password": "000007",
+    "firstName": "Secrétaire",
+    "lastName": "Test",
+    "grade": "Maître",
+    "function": "Secrétaire"
+  },
+  {
+    "email": "tresorier@loge.com",
+    "password": "000007",
+    "firstName": "Trésorier",
+    "lastName": "Test",
+    "grade": "Maître",
+    "function": "Trésorier"
+  },
+  {
+    "email": "vm@loge.com",
+    "password": "000007",
+    "firstName": "Vénérable",
+    "lastName": "Maître",
+    "grade": "Maître",
+    "function": "Vénérable Maître"
+  }
+]

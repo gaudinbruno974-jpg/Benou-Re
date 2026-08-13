@@ -1,55 +1,26 @@
-// Configuration Firebase du projet "benou-re-loge".
+// Sélectionne la configuration Firebase du flavor actif.
 //
-// Ces valeurs proviennent de la configuration web existante (src/firebase.ts).
-// Pour un build de production sur appareil, il est recommandé d'exécuter
-// `flutterfire configure` afin de générer des identifiants natifs par
-// plateforme (appId Android/iOS dédié + google-services.json). Voir le README.
+// `appFlavor` est renseigné automatiquement par le tookit Flutter à partir de
+// l'option `--flavor`, déjà obligatoire pour tout build Android (cf.
+// android/app/build.gradle.kts) : aucune étape supplémentaire n'est donc
+// nécessaire pour qu'une loge parle au bon projet Firebase, et il est
+// impossible d'oublier de le préciser puisque le build échoue sinon.
+//
+// Sur le web, `appFlavor` (mécanisme natif) reste toujours nul : le flavor y
+// est fourni au moment du build via `--dart-define=FLAVOR=<flavor>` (voir
+// README et lib/config/flavor.dart), avec `benoure` en valeur par défaut pour
+// ne rien changer aux builds web existants qui ne précisent pas cette option.
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
-import 'package:flutter/foundation.dart'
-    show defaultTargetPlatform, kIsWeb, TargetPlatform;
+
+import 'config/flavor.dart';
+import 'firebase_options_benoure.dart' as benoure;
+import 'firebase_options_petitprince.dart' as petitprince;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
-    if (kIsWeb) {
-      return web;
+    if (currentFlavor == 'petitprince') {
+      return petitprince.DefaultFirebaseOptions.currentPlatform;
     }
-    switch (defaultTargetPlatform) {
-      case TargetPlatform.android:
-        return android;
-      case TargetPlatform.iOS:
-        return ios;
-      default:
-        return web;
-    }
+    return benoure.DefaultFirebaseOptions.currentPlatform;
   }
-
-  static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBmjvNZNZX5ZGcR4QAC3rlrTNJiHnFBeGI',
-    appId: '1:184228725535:web:397104a16f16932108a62a',
-    messagingSenderId: '184228725535',
-    projectId: 'benou-re-loge',
-    authDomain: 'benou-re-loge.firebaseapp.com',
-    storageBucket: 'benou-re-loge.firebasestorage.app',
-  );
-  // Android : à remplacer par un appId natif via `flutterfire configure`.
-
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBrQaUIG2AjSRCAwjFilVnrLcuZPEum39Y',
-    appId: '1:184228725535:android:e831784d7837eadc08a62a',
-    messagingSenderId: '184228725535',
-    projectId: 'benou-re-loge',
-    storageBucket: 'benou-re-loge.firebasestorage.app',
-  );
-  // iOS : à remplacer par un appId natif via `flutterfire configure`.
-
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyA6d0kMjjS9_tNURYoRKbiqrLjfqSZP2sg',
-    appId: '1:184228725535:ios:c61e947d0348c80708a62a',
-    messagingSenderId: '184228725535',
-    projectId: 'benou-re-loge',
-    storageBucket: 'benou-re-loge.firebasestorage.app',
-    androidClientId: '184228725535-kptstidkro6e2rr8naau5pbjllusf4vk.apps.googleusercontent.com',
-    iosClientId: '184228725535-nt27evr72vn4cuven9c45g3f740tqlep.apps.googleusercontent.com',
-    iosBundleId: 're.benou.benouRe',
-  );
 }

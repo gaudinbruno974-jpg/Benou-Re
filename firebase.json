@@ -23,15 +23,29 @@
           "projectId": "benou-re-loge",
           "appId": "1:184228725535:android:e831784d7837eadc08a62a",
           "fileOutput": "android/app/google-services.json"
+        },
+        "buildConfigurations": {
+          "src\\petitprince": {
+            "projectId": "petit-prince-loge",
+            "appId": "1:163957689546:android:5cd338748e21c0c799b833",
+            "fileOutput": "android/app/src/petitprince/google-services.json"
+          }
         }
       },
       "dart": {
-        "lib/firebase_options.dart": {
+        "lib/firebase_options_benoure.dart": {
           "projectId": "benou-re-loge",
           "configurations": {
             "android": "1:184228725535:android:e831784d7837eadc08a62a",
             "ios": "1:184228725535:ios:c61e947d0348c80708a62a",
             "web": "1:184228725535:web:397104a16f16932108a62a"
+          }
+        },
+        "lib/firebase_options_petitprince.dart": {
+          "projectId": "petit-prince-loge",
+          "configurations": {
+            "android": "1:163957689546:android:5cd338748e21c0c799b833",
+            "web": "1:163957689546:web:12c1ddea70e959e199b833"
           }
         }
       }

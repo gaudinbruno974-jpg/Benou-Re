@@ -44,6 +44,10 @@ android {
             // le client OAuth Android utilisé pour Google Drive.
             applicationId = "re.benou.benou_re"
         }
+        create("petitprince") {
+            dimension = "loge"
+            applicationId = "re.gldb.petitprince"
+        }
     }
 
     buildTypes {

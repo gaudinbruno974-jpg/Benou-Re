@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb;
 import 'package:flutter/foundation.dart';
 
 import '../config/lodge_config.dart';
+import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -25,6 +26,7 @@ class AppState extends ChangeNotifier {
   List<Member> members = [];
   List<Session> sessions = [];
   List<Visitor> visitors = [];
+  List<Dignitary> dignitaries = [];
   Member? currentUser;
 
   /// Nom du V∴M∴ en charge, lu dans `config/settings`.
@@ -41,6 +43,7 @@ class AppState extends ChangeNotifier {
   StreamSubscription? _membersSub;
   StreamSubscription? _sessionsSub;
   StreamSubscription? _visitorsSub;
+  StreamSubscription? _dignitariesSub;
   StreamSubscription? _vmNameSub;
   StreamSubscription? _lodgeConfigSub;
   late final StreamSubscription _authSub;
@@ -87,6 +90,13 @@ class AppState extends ChangeNotifier {
       },
       onError: _onStreamError,
     );
+    _dignitariesSub = repo.dignitariesStream().listen(
+      (data) {
+        dignitaries = data;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
     _vmNameSub = repo.lodgeVmNameStream().listen(
       (name) {
         lodgeVmName = name;
@@ -110,20 +120,23 @@ class AppState extends ChangeNotifier {
     _membersSub?.cancel();
     _sessionsSub?.cancel();
     _visitorsSub?.cancel();
+    _dignitariesSub?.cancel();
     _vmNameSub?.cancel();
     _lodgeConfigSub?.cancel();
     _membersSub = null;
     _sessionsSub = null;
     _visitorsSub = null;
+    _dignitariesSub = null;
     _vmNameSub = null;
     _lodgeConfigSub = null;
     members = [];
     sessions = [];
     visitors = [];
+    dignitaries = [];
     lodgeVmName = '';
     // Retour au repli du flavor : l'écran de connexion doit afficher l'identité
     // de la Loge sans dépendre d'une session ouverte.
-    LodgeConfig.current = LodgeConfig.benouRe;
+    LodgeConfig.current = LodgeConfig.forCurrentFlavor;
   }
 
   void _onStreamError(Object error) {
@@ -190,6 +203,11 @@ class AppState extends ChangeNotifier {
   Future<void> addVisitor(Visitor v) => repo.setVisitor(v);
   Future<void> updateVisitor(Visitor v) => repo.setVisitor(v);
   Future<void> deleteVisitor(String id) => repo.deleteVisitor(id);
+
+  // Actions dignitaires
+  Future<void> addDignitary(Dignitary d) => repo.setDignitary(d);
+  Future<void> updateDignitary(Dignitary d) => repo.setDignitary(d);
+  Future<void> deleteDignitary(String id) => repo.deleteDignitary(id);
 
   @override
   void dispose() {

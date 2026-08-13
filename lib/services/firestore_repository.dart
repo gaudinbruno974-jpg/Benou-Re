@@ -1,8 +1,9 @@
 // Accès Firestore (porté depuis src/lib/firebaseSync.ts).
-// Collections : members, sessions, visitors, config.
+// Collections : members, sessions, visitors, dignitaries, config.
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../config/lodge_config.dart';
+import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -80,6 +81,26 @@ class FirestoreRepository {
     return _db.collection('visitors').doc(id).delete();
   }
 
+  // ─── Dignitaries ──────────────────────────────────────────────
+  Stream<List<Dignitary>> dignitariesStream() {
+    return _db.collection('dignitaries').snapshots().map(
+          (snap) => snap.docs
+              .map((d) => Dignitary.fromMap(d.id, d.data()))
+              .toList(),
+        );
+  }
+
+  Future<void> setDignitary(Dignitary dignitary) {
+    return _db
+        .collection('dignitaries')
+        .doc(dignitary.id)
+        .set(dignitary.toMap());
+  }
+
+  Future<void> deleteDignitary(String id) {
+    return _db.collection('dignitaries').doc(id).delete();
+  }
+
   // ─── Réglages de la Loge (config/settings) ────────────────────
   /// Nom du V∴M∴ en charge, utilisé par défaut sur les planches et
   /// l'émargement quand la tenue ne le précise pas.
@@ -101,9 +122,10 @@ class FirestoreRepository {
   /// l'application reste correcte si le document est absent.
   Stream<LodgeConfig> lodgeConfigStream() {
     return _db.collection('config').doc('settings').snapshots().map((snap) {
+      final fallback = LodgeConfig.forCurrentFlavor;
       final data = snap.data();
-      if (data == null) return LodgeConfig.benouRe;
-      return LodgeConfig.benouRe.mergedWith(data);
+      if (data == null) return fallback;
+      return fallback.mergedWith(data);
     });
   }
 

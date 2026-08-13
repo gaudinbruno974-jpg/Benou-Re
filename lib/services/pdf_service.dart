@@ -27,6 +27,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../config/lodge_config.dart';
+import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -225,11 +226,12 @@ const _filiations = [
 pw.Widget _lodgeHeader(
   _PdfFonts fonts,
   pw.ImageProvider? logoGldb,
-  pw.ImageProvider? logoBenou,
-) {
+  pw.ImageProvider? logoBenou, {
+  double scale = 1.0,
+}) {
   pw.Widget logoBox(pw.ImageProvider? img) => pw.SizedBox(
-    width: 26 * _mm,
-    height: 26 * _mm,
+    width: 26 * _mm * scale,
+    height: 26 * _mm * scale,
     child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
   );
   return pw.Column(
@@ -246,15 +248,15 @@ pw.Widget _lodgeHeader(
                   textAlign: pw.TextAlign.center,
                   style: pw.TextStyle(
                     font: fonts.bold,
-                    fontSize: 16,
+                    fontSize: 16 * scale,
                     color: _navy,
                   ),
                 ),
-                pw.SizedBox(height: 2 * _mm),
+                pw.SizedBox(height: 2 * _mm * scale),
                 pw.Text(
                   'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
                   textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(font: fonts.base, fontSize: 7.5),
+                  style: pw.TextStyle(font: fonts.base, fontSize: 7.5 * scale),
                 ),
               ],
             ),
@@ -262,7 +264,7 @@ pw.Widget _lodgeHeader(
           logoBox(logoBenou),
         ],
       ),
-      pw.SizedBox(height: 8 * _mm),
+      pw.SizedBox(height: 8 * _mm * scale),
       pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
@@ -273,44 +275,44 @@ pw.Widget _lodgeHeader(
                   pw.Text(
                     r[0],
                     textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 7.5),
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 7.5 * scale),
                   ),
-                  pw.SizedBox(height: 1 * _mm),
+                  pw.SizedBox(height: 1 * _mm * scale),
                   pw.Text(
                     r[1],
                     textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(font: fonts.base, fontSize: 7),
+                    style: pw.TextStyle(font: fonts.base, fontSize: 7 * scale),
                   ),
                 ],
               ),
             ),
         ],
       ),
-      pw.SizedBox(height: 10 * _mm),
+      pw.SizedBox(height: 10 * _mm * scale),
       for (final f in _filiations)
         pw.Padding(
-          padding: pw.EdgeInsets.only(bottom: 1 * _mm),
+          padding: pw.EdgeInsets.only(bottom: 1 * _mm * scale),
           child: pw.Text(
             f,
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
               font: fonts.base,
-              fontSize: 8,
+              fontSize: 8 * scale,
               color: const PdfColor.fromInt(0xFF505050),
             ),
           ),
         ),
-      pw.SizedBox(height: 7 * _mm),
+      pw.SizedBox(height: 7 * _mm * scale),
       pw.Text(
         LodgeConfig.current.shortTitle,
-        style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
+        style: pw.TextStyle(font: fonts.bold, fontSize: 15 * scale, color: _navy),
       ),
-      pw.SizedBox(height: 2 * _mm),
+      pw.SizedBox(height: 2 * _mm * scale),
       pw.Text(
         'O∴ de ${LodgeConfig.current.orientLong}',
-        style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
+        style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale, color: _navy),
       ),
-      pw.SizedBox(height: 12 * _mm),
+      pw.SizedBox(height: 12 * _mm * scale),
     ],
   );
 }
@@ -334,10 +336,111 @@ Future<List<pw.ImageProvider?>> _loadLogos() async {
 // ══════════════════════════════════════════════════════════════════
 // CONVOCATION / ORDRE DU JOUR
 // ══════════════════════════════════════════════════════════════════
+// Échelle minimale acceptée avant d'abandonner la réduction : en dessous, le
+// texte deviendrait difficilement lisible. Couvre tout ordre du jour
+// raisonnable ; un cas extrême resterait sur une page mais très resserré.
+const double _kConvocationMinScale = 0.55;
+const double _kConvocationScaleStep = 0.05;
+
+List<pw.Widget> _convocationContent({
+  required _PdfFonts fonts,
+  required List<pw.ImageProvider?> logos,
+  required String dateFormatted,
+  required String degreLong,
+  required String typeTenue,
+  required String lieu,
+  required int chrono,
+  required String masonicDate,
+  required List<String> items,
+  required String medaille,
+  required double scale,
+}) {
+  return [
+    _lodgeHeader(fonts, logos[0], logos[1], scale: scale),
+    pw.Container(
+      width: double.infinity,
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.black, width: 0.4),
+      ),
+      padding: pw.EdgeInsets.symmetric(
+        vertical: 3 * _mm * scale,
+        horizontal: 4 * _mm,
+      ),
+      child: pw.Text(
+        'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted.toUpperCase()} E∴V∴',
+        textAlign: pw.TextAlign.center,
+        style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale),
+      ),
+    ),
+    pw.SizedBox(height: 12 * _mm * scale),
+    pw.Center(
+      child: pw.Text(
+        'A la Gloire Du Grand Architecte De l\'Univers,',
+        style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+      ),
+    ),
+    pw.SizedBox(height: 6 * _mm * scale),
+    pw.Center(
+      child: pw.Text(
+        'Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,',
+        style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+      ),
+    ),
+    pw.SizedBox(height: 9 * _mm * scale),
+    pw.Text(
+      'La R∴L∴ ${LodgeConfig.current.name} a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale, color: _violet),
+    ),
+    pw.SizedBox(height: 6 * _mm * scale),
+    pw.Text(
+      masonicDate,
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale, color: _navy),
+    ),
+    pw.SizedBox(height: 12 * _mm * scale),
+    pw.Text(
+      "L'ordre du jour appellera :",
+      style: pw.TextStyle(font: fonts.bold, fontSize: 12 * scale),
+    ),
+    pw.SizedBox(height: 8 * _mm * scale),
+    for (var i = 0; i < items.length; i++)
+      pw.Padding(
+        padding: pw.EdgeInsets.only(bottom: 2.5 * _mm * scale),
+        child: pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              '${i + 1}. ',
+              style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+            ),
+            pw.Expanded(
+              child: pw.Text(
+                items[i],
+                style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+              ),
+            ),
+          ],
+        ),
+      ),
+    pw.SizedBox(height: 12 * _mm * scale),
+    pw.Text(
+      "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide.$medaille",
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+    ),
+    pw.SizedBox(height: 3 * _mm * scale),
+    pw.Text(
+      "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+    ),
+  ];
+}
+
 Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
-  final doc = pw.Document();
 
   final dateSource = session.dateReprise ?? session.date;
   final dateFormatted = _formatDateConvoc(dateSource);
@@ -356,93 +459,42 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
       ? ' La médaille est de ${session.montantMedaille} euros.'
       : '';
 
-  doc.addPage(
-    pw.MultiPage(
-      pageFormat: PdfPageFormat.a4,
-      margin: pw.EdgeInsets.all(15 * _mm),
-      build: (context) => [
-        _lodgeHeader(fonts, logos[0], logos[1]),
-        pw.Container(
-          width: double.infinity,
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.black, width: 0.4),
-          ),
-          padding: pw.EdgeInsets.symmetric(
-            vertical: 3 * _mm,
-            horizontal: 4 * _mm,
-          ),
-          child: pw.Text(
-            'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted.toUpperCase()} E∴V∴',
-            textAlign: pw.TextAlign.center,
-            style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-          ),
+  // Contrainte "une seule page, toujours" : on tente à pleine échelle, puis on
+  // réduit progressivement police/interlignage/marges/logos jusqu'à ce que le
+  // contenu tienne, plutôt que de laisser jsPDF/le moteur de mise en page
+  // déborder sur une 2e page. Le contenu affiché n'est jamais retiré.
+  var scale = 1.0;
+  pw.Document doc;
+  while (true) {
+    doc = pw.Document();
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4,
+        margin: pw.EdgeInsets.all(15 * _mm * scale),
+        build: (context) => _convocationContent(
+          fonts: fonts,
+          logos: logos,
+          dateFormatted: dateFormatted,
+          degreLong: degreLong,
+          typeTenue: typeTenue,
+          lieu: lieu,
+          chrono: chrono,
+          masonicDate: masonicDate,
+          items: items,
+          medaille: medaille,
+          scale: scale,
         ),
-        pw.SizedBox(height: 12 * _mm),
-        pw.Center(
-          child: pw.Text(
-            'A la Gloire Du Grand Architecte De l\'Univers,',
-            style: pw.TextStyle(font: fonts.base, fontSize: 11),
-          ),
-        ),
-        pw.SizedBox(height: 6 * _mm),
-        pw.Center(
-          child: pw.Text(
-            'Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,',
-            style: pw.TextStyle(font: fonts.base, fontSize: 11),
-          ),
-        ),
-        pw.SizedBox(height: 9 * _mm),
-        pw.Text(
-          'La R∴L∴ ${LodgeConfig.current.name} a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.base, fontSize: 11, color: _violet),
-        ),
-        pw.SizedBox(height: 6 * _mm),
-        pw.Text(
-          masonicDate,
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
-        ),
-        pw.SizedBox(height: 12 * _mm),
-        pw.Text(
-          "L'ordre du jour appellera :",
-          style: pw.TextStyle(font: fonts.bold, fontSize: 12),
-        ),
-        pw.SizedBox(height: 8 * _mm),
-        for (var i = 0; i < items.length; i++)
-          pw.Padding(
-            padding: pw.EdgeInsets.only(bottom: 2.5 * _mm),
-            child: pw.Row(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(
-                  '${i + 1}. ',
-                  style: pw.TextStyle(font: fonts.base, fontSize: 11),
-                ),
-                pw.Expanded(
-                  child: pw.Text(
-                    items[i],
-                    style: pw.TextStyle(font: fonts.base, fontSize: 11),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        pw.SizedBox(height: 12 * _mm),
-        pw.Text(
-          "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide.$medaille",
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy),
-        ),
-        pw.SizedBox(height: 3 * _mm),
-        pw.Text(
-          "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.base, fontSize: 10, color: _navy),
-        ),
-      ],
-    ),
-  );
+      ),
+    );
+    final fitsOnePage = doc.document.pdfPageList.pages.length <= 1;
+    if (fitsOnePage || scale <= _kConvocationMinScale) {
+      break;
+    }
+    scale = (scale - _kConvocationScaleStep).clamp(
+      _kConvocationMinScale,
+      1.0,
+    );
+  }
 
   return doc.save();
 }
@@ -454,6 +506,7 @@ Future<Uint8List> buildEmargementPdf(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
+  List<Dignitary> dignitaries,
 ) async {
   final fonts = _serifFonts();
   // DejaVu en repli : Times (standard-14) ne connaît pas « – » ni certains
@@ -499,6 +552,19 @@ Future<Uint8List> buildEmargementPdf(
               (v.function.isNotEmpty ? v.function : 'Visiteur'),
           v.lodge,
           signatures[v.id],
+        ),
+      )
+      .toList();
+  final dignitaryRows = dignitaries
+      .where((d) => session.dignitaryIds.contains(d.id))
+      .map(
+        (d) => _Row(
+          d.lastName,
+          d.firstName,
+          session.dignitaryRoles[d.id] ??
+              (d.title.isNotEmpty ? d.title : 'Dignitaire'),
+          d.lodge,
+          signatures[d.id],
         ),
       )
       .toList();
@@ -631,6 +697,7 @@ Future<Uint8List> buildEmargementPdf(
     (i) => i < memberRows.length ? memberRows[i] : null,
   );
   final visitorSlots = visitorRows;
+  final dignitarySlots = dignitaryRows;
 
   doc.addPage(
     pw.MultiPage(
@@ -660,6 +727,11 @@ Future<Uint8List> buildEmargementPdf(
         pw.NewPage(),
         sectionTable('INVITÉS'),
         dataTable(visitorSlots, 8 * _mm),
+        if (dignitarySlots.isNotEmpty) ...[
+          pw.NewPage(),
+          sectionTable('DIGNITAIRES'),
+          dataTable(dignitarySlots, 8 * _mm),
+        ],
       ],
     ),
   );
@@ -866,11 +938,13 @@ String plancheVmName(
 }
 
 /// Nom de l'Orateur retenu pour la planche : champ explicite, sinon Orateur
-/// présent parmi les membres, sinon visiteur portant l'office d'Orateur.
+/// présent parmi les membres, sinon visiteur ou dignitaire portant l'office
+/// d'Orateur.
 String? plancheOrateurName(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
+  List<Dignitary> dignitaries,
 ) {
   if (session.plancheOrateurName?.isNotEmpty == true) {
     return session.plancheOrateurName;
@@ -889,7 +963,15 @@ String? plancheOrateurName(
             (session.visitorRoles[v.id] ?? v.function).trim() == 'Orateur',
       )
       .firstOrNull;
-  return visitor != null ? _visitorFullName(visitor) : null;
+  if (visitor != null) return _visitorFullName(visitor);
+  final dignitary = dignitaries
+      .where(
+        (d) =>
+            session.dignitaryIds.contains(d.id) &&
+            (session.dignitaryRoles[d.id] ?? '').trim() == 'Orateur',
+      )
+      .firstOrNull;
+  return dignitary != null ? dignitary.fullName : null;
 }
 
 /// Construit le texte intégral de la planche tracée (un paragraphe par ligne).
@@ -901,6 +983,7 @@ String buildPlancheTraceeText(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
+  List<Dignitary> dignitaries,
   int chrono, {
   num? troncAmount,
   String? sacPropositions,
@@ -950,6 +1033,10 @@ String buildPlancheTraceeText(
       .map((id) => visitors.where((v) => v.id == id).firstOrNull)
       .whereType<Visitor>()
       .toList();
+  final presentDignitaries = session.dignitaryIds
+      .map((id) => dignitaries.where((d) => d.id == id).firstOrNull)
+      .whereType<Dignitary>()
+      .toList();
 
   String? roleOf(Visitor v) {
     final r = (session.visitorRoles[v.id] ?? '').trim();
@@ -959,11 +1046,26 @@ String buildPlancheTraceeText(
     return null;
   }
 
+  // Un dignitaire n'a pas d'équivalent à `function` (identité par défaut) :
+  // seul l'office éventuellement pris pendant cette tenue le distingue.
+  String? roleOfDignitary(Dignitary d) {
+    final r = (session.dignitaryRoles[d.id] ?? '').trim();
+    return r.isEmpty ? null : r;
+  }
+
   bool isOffice(String role) => _officePlacement.containsKey(role);
   String? placementOf(Visitor v) {
     final role = roleOf(v);
     if (role == null) return null;
     return _officePlacement[role] ?? _directPlacement[role];
+  }
+
+  // Sans office assigné, un dignitaire reste par défaut à l'Orient : c'est
+  // la raison d'être de la catégorie (personne à annoncer/honorer).
+  String placementOfDignitary(Dignitary d) {
+    final role = roleOfDignitary(d);
+    if (role == null) return 'Orient';
+    return _officePlacement[role] ?? _directPlacement[role] ?? 'Orient';
   }
 
   String placementSentence(Visitor v, String placement, String role) {
@@ -981,24 +1083,55 @@ String buildPlancheTraceeText(
     }
   }
 
-  final dignitairesOrient = presentVisitors
+  String placementSentenceDignitary(Dignitary d, String placement, String role) {
+    final lodgePart = d.lodge.isNotEmpty ? ' (${d.lodge})' : '';
+    final who = 'le F∴ S∴ ${d.fullName}$lodgePart';
+    final qualite = isOffice(role) ? ' en qualité de $role' : '';
+    switch (placement) {
+      case 'Colonne du Midi':
+        return 'Au Midi, a pris place $who$qualite.';
+      case 'Colonne du Nord':
+        return 'Au Nord, a pris place $who$qualite.';
+      case 'Occident':
+        return 'À l’Occident, à la porte d’entrée à l’intérieur, a pris place $who$qualite.';
+      default:
+        return 'À l’Orient, a pris place $who$qualite.';
+    }
+  }
+
+  // Phrase collective des dignitaires à l'Orient : visiteurs ayant pris un
+  // office qui y siège (comportement historique, inchangé) et, désormais,
+  // les dignitaires présents — avec leur office s'ils en ont pris un, sinon
+  // leur titre.
+  final visitorOrientEntries = presentVisitors
       .where(
         (v) =>
             placementOf(v) == 'Orient' &&
             roleOf(v) != 'Orateur' &&
             isOffice(roleOf(v) ?? ''),
       )
-      .toList();
-  if (dignitairesOrient.isNotEmpty) {
-    final liste = dignitairesOrient
-        .map((v) => '${_visitorFullName(v)} (${roleOf(v)} – ${v.lodge})')
-        .join(', ');
+      .map((v) => '${_visitorFullName(v)} (${roleOf(v)} – ${v.lodge})');
+  final dignitaryOrientEntries = presentDignitaries
+      .where(
+        (d) =>
+            placementOfDignitary(d) == 'Orient' && roleOfDignitary(d) != 'Orateur',
+      )
+      .map((d) {
+        final role = roleOfDignitary(d);
+        final qualifier = (role != null && isOffice(role))
+            ? role
+            : (d.title.isNotEmpty ? d.title : 'Dignitaire');
+        final lodgePart = d.lodge.isNotEmpty ? ' – ${d.lodge}' : '';
+        return '${d.fullName} ($qualifier$lodgePart)';
+      });
+  final orientEntries = [...visitorOrientEntries, ...dignitaryOrientEntries];
+  if (orientEntries.isNotEmpty) {
     paras.add(
-      'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : $liste.',
+      'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : ${orientEntries.join(', ')}.',
     );
   }
 
-  final orateurName = plancheOrateurName(session, members, visitors);
+  final orateurName = plancheOrateurName(session, members, visitors, dignitaries);
   paras.add(
     orateurName != null
         ? 'Le poste d’Orateur est occupé par le F∴ S∴ $orateurName.'
@@ -1017,6 +1150,16 @@ String buildPlancheTraceeText(
         'Le F∴ S∴ ${_visitorFullName(v)} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.',
       );
     }
+  }
+
+  // Dignitaires ayant pris un office hors Orient (ceux à l'Orient, avec ou
+  // sans office, sont déjà couverts par la phrase collective ci-dessus).
+  for (final d in presentDignitaries) {
+    final role = roleOfDignitary(d);
+    final placement = placementOfDignitary(d);
+    if (role == 'Orateur') continue;
+    if (placement == 'Orient') continue;
+    paras.add(placementSentenceDignitary(d, placement, role as String));
   }
 
   paras.add('La planche tracée de nos derniers travaux a été adoptée.');
@@ -1091,6 +1234,7 @@ String plancheBodyText(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
+  List<Dignitary> dignitaries,
   int chrono, {
   String lodgeVmName = '',
 }) {
@@ -1101,6 +1245,7 @@ String plancheBodyText(
           session,
           members,
           visitors,
+          dignitaries,
           chrono,
           lodgeVmName: lodgeVmName,
         );
@@ -1110,6 +1255,7 @@ Future<Uint8List> buildPlancheTraceePdf(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
+  List<Dignitary> dignitaries,
   int chrono, {
   String lodgeVmName = '',
 }) async {
@@ -1149,6 +1295,7 @@ Future<Uint8List> buildPlancheTraceePdf(
       session,
       members,
       visitors,
+      dignitaries,
       chrono,
       lodgeVmName: lodgeVmName,
     ),
@@ -1196,7 +1343,7 @@ Future<Uint8List> buildPlancheTraceePdf(
   }
 
   // Signatures
-  final orateurName = plancheOrateurName(session, members, visitors);
+  final orateurName = plancheOrateurName(session, members, visitors, dignitaries);
   final secretaryMember = members
       .where(
         (m) =>

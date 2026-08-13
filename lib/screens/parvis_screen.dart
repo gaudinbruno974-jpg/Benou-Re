@@ -7,6 +7,7 @@ import '../models/member.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'dignitaries_screen.dart';
 import 'members_screen.dart';
 import 'sessions_screen.dart';
 import 'visitors_screen.dart';
@@ -66,6 +67,14 @@ class ParvisScreen extends StatelessWidget {
         BrColors.menuVisiteurs,
         isVisitors,
         () => const VisitorsScreen(),
+      ),
+      _MenuItem(
+        'Dignitaires',
+        '${state.dignitaries.length} enregistré(s)',
+        Icons.workspace_premium_outlined,
+        BrColors.violet,
+        isVisitors,
+        () => const DignitariesScreen(),
       ),
       _MenuItem(
         "Morceaux d'architecture",
@@ -223,6 +232,12 @@ class ParvisScreen extends StatelessWidget {
                   label: 'Visiteurs',
                   value: '${state.visitors.length}',
                   icon: Icons.shield,
+                ),
+                const SizedBox(width: 12),
+                _StatCard(
+                  label: 'Dignitaires',
+                  value: '${state.dignitaries.length}',
+                  icon: Icons.workspace_premium,
                 ),
               ],
             ),

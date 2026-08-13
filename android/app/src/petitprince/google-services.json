@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "163957689546",
+    "project_id": "petit-prince-loge",
+    "storage_bucket": "petit-prince-loge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:163957689546:android:5cd338748e21c0c799b833",
+        "android_client_info": {
+          "package_name": "re.gldb.petitprince"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCcEbNbydm2WdtJOB5UbI-gryDFXu12Mpg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

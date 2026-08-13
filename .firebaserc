@@ -1,5 +1,6 @@
 {
   "projects": {
-    "default": "benou-re-loge"
+    "default": "benou-re-loge",
+    "petitprince": "petit-prince-loge"
   }
 }
