@@ -1,15 +1,17 @@
 // Gestion des présences d'une tenue (porté depuis
 // src/components/SessionPresenceScreen.tsx).
 //
-// Deux panneaux :
+// Trois panneaux :
 //  - MEMBRES : boutons « Présent » / « Excusé » mutuellement exclusifs
 //    (gèrent session.presentIds / session.excusedIds).
 //  - VISITEURS : toggle « Présent » / « Absent » (gère session.visitorIds) ;
 //    lorsqu'il est présent, un menu déroulant « Poste pendant la tenue »
 //    écrit dans session.visitorRoles[visitorId].
+//  - DIGNITAIRES : même mécanisme que les visiteurs (session.dignitaryIds /
+//    session.dignitaryRoles), sans suivi Agapes.
 //
-// L'enregistrement persiste les 4 champs (presentIds, excusedIds, visitorIds,
-// visitorRoles) via AppState.updateSession, sans toucher au reste de la tenue.
+// L'enregistrement persiste ces champs via AppState.updateSession, sans
+// toucher au reste de la tenue.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -20,7 +22,10 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 
-const _visitorRoleOptions = [
+// Liste des offices pouvant être pris pendant la tenue par un visiteur ou un
+// dignitaire, partagée entre les deux (voir _officePlacement dans
+// pdf_service.dart pour le placement rituel associé à chaque office).
+const _officeRoleOptions = [
   'Premier Surveillant',
   'Second Surveillant',
   'Orateur',
@@ -48,6 +53,8 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
   late List<String> _excusedIds;
   late List<String> _visitorIds;
   late Map<String, String> _visitorRoles;
+  late List<String> _dignitaryIds;
+  late Map<String, String> _dignitaryRoles;
   late List<String> _agapeIds;
   late List<String> _visitorAgapeIds;
   bool _initialized = false;
@@ -58,6 +65,8 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     _excusedIds = List<String>.from(session.excusedIds);
     _visitorIds = List<String>.from(session.visitorIds);
     _visitorRoles = Map<String, String>.from(session.visitorRoles);
+    _dignitaryIds = List<String>.from(session.dignitaryIds);
+    _dignitaryRoles = Map<String, String>.from(session.dignitaryRoles);
     _agapeIds = List<String>.from(session.agapeIds);
     _visitorAgapeIds = List<String>.from(session.visitorAgapeIds);
     _initialized = true;
@@ -129,6 +138,27 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     });
   }
 
+  void _toggleDignitary(String dignitaryId) {
+    setState(() {
+      if (_dignitaryIds.contains(dignitaryId)) {
+        _dignitaryIds.remove(dignitaryId);
+        _dignitaryRoles.remove(dignitaryId);
+      } else {
+        _dignitaryIds.add(dignitaryId);
+      }
+    });
+  }
+
+  void _updateDignitaryRole(String dignitaryId, String? role) {
+    setState(() {
+      if (role == null || role.isEmpty) {
+        _dignitaryRoles.remove(dignitaryId);
+      } else {
+        _dignitaryRoles[dignitaryId] = role;
+      }
+    });
+  }
+
   Future<void> _save(Session session) async {
     setState(() => _saving = true);
     final state = context.read<AppState>();
@@ -137,6 +167,8 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     map['excusedIds'] = _excusedIds;
     map['visitorIds'] = _visitorIds;
     map['visitorRoles'] = _visitorRoles;
+    map['dignitaryIds'] = _dignitaryIds;
+    map['dignitaryRoles'] = _dignitaryRoles;
     map['agapeIds'] = _agapeIds;
     map['visitorAgapeIds'] = _visitorAgapeIds;
     try {
@@ -262,6 +294,30 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               onRoleChanged:
                   allowEdit ? (r) => _updateVisitorRole(v.id, r) : null,
             ),
+          const SizedBox(height: 16),
+          const _SectionTitle('DIGNITAIRES — PRÉSENTS'),
+          if (state.dignitaries.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Aucun dignitaire.',
+                  style: TextStyle(color: BrColors.muted)),
+            ),
+          for (final d in state.dignitaries)
+            _VisitorTile(
+              name: d.fullName,
+              subtitle: [
+                if (d.title.isNotEmpty) d.title,
+                d.lodge,
+              ].where((e) => e.isNotEmpty).join(' — '),
+              isPresent: _dignitaryIds.contains(d.id),
+              isAgape: false,
+              showAgape: false,
+              role: _dignitaryRoles[d.id] ?? '',
+              onToggle: allowEdit ? () => _toggleDignitary(d.id) : null,
+              onAgape: null,
+              onRoleChanged:
+                  allowEdit ? (r) => _updateDignitaryRole(d.id, r) : null,
+            ),
         ],
       ),
     );
@@ -380,6 +436,7 @@ class _VisitorTile extends StatelessWidget {
   final String subtitle;
   final bool isPresent;
   final bool isAgape;
+  final bool showAgape;
   final String role;
   final VoidCallback? onToggle;
   final VoidCallback? onAgape;
@@ -389,6 +446,7 @@ class _VisitorTile extends StatelessWidget {
     required this.subtitle,
     required this.isPresent,
     required this.isAgape,
+    this.showAgape = true,
     required this.role,
     required this.onToggle,
     required this.onAgape,
@@ -455,7 +513,7 @@ class _VisitorTile extends StatelessWidget {
                     value: '',
                     child: Text('Aucun'),
                   ),
-                  for (final option in _visitorRoleOptions)
+                  for (final option in _officeRoleOptions)
                     DropdownMenuItem<String>(
                       value: option,
                       child: Text(option),
@@ -463,18 +521,20 @@ class _VisitorTile extends StatelessWidget {
                 ],
                 onChanged: onRoleChanged,
               ),
-              const SizedBox(height: 10),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  _PresenceButton(
-                    label: 'Agapes',
-                    selected: isAgape,
-                    selectedColor: BrColors.teal,
-                    onTap: onAgape,
-                  ),
-                ],
-              ),
+              if (showAgape) ...[
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    _PresenceButton(
+                      label: 'Agapes',
+                      selected: isAgape,
+                      selectedColor: BrColors.teal,
+                      onTap: onAgape,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ],
         ),

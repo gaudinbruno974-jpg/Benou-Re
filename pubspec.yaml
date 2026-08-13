@@ -53,6 +53,7 @@ flutter:
   assets:
     - assets/GLDB.png
     - assets/Benou-Re.png
+    - assets/Petit-Prince.png
     - assets/icon/LogoApkBenou.png
     - assets/fonts/DejaVuSans.ttf
     - assets/fonts/DejaVuSans-Bold.ttf

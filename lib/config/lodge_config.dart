@@ -9,8 +9,62 @@
 //     réunion, identifiants Drive) est relu depuis `config/settings` sur
 //     Firestore et vient écraser ces valeurs au démarrage.
 //
-// Les valeurs par défaut restent celles de Bénou Ré : sans réseau, ou pour un
-// document généré hors connexion, l'application reste correcte.
+// Les valeurs par défaut sont celles du flavor actif (voir `forCurrentFlavor`
+// ci-dessous) : sans réseau, ou pour un document généré hors connexion,
+// l'application reste correcte.
+
+import 'package:flutter/painting.dart' show Alignment, Color, LinearGradient;
+
+import 'flavor.dart';
+
+// Couleurs de marque par flavor, en constantes top-level : `theme.dart` les
+// référence directement (Dart n'autorise pas l'accès à un champ d'instance,
+// même `const`, dans une expression constante — donc pas de
+// `LodgeConfig.benouRe.primaryColor` dans un contexte `const`). Ce sont ici
+// les seules valeurs sources ; `LodgeConfig` les reprend telles quelles.
+//
+// Couvre TOUT ce qui donne son identité visuelle à une loge : accents
+// (primary/accent) mais aussi fond, surface et dégradés (arrière-plan,
+// cartes) — sans quoi seuls quelques détails changent et les deux loges se
+// ressemblent malgré la palette.
+const Color kBenouRePrimary = Color(0xFF16B6C7);
+const Color kBenouReAccent = Color(0xFFD4B36A);
+const Color kBenouReAccentBright = Color(0xFFEDCB82);
+const Color kBenouReBackground = Color(0xFF123A52);
+const Color kBenouReBackgroundDark = Color(0xFF0C2A3E);
+const Color kBenouReSurface = Color(0xFF1C5570);
+const LinearGradient kBenouReBackgroundGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF15455F), Color(0xFF0F3349), Color(0xFF0A2334)],
+  stops: [0.0, 0.55, 1.0],
+);
+const LinearGradient kBenouReCardGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF215F7C), Color(0xFF17475F)],
+);
+
+// Identité violette : mêmes rôles, même structure de dégradé (3 paliers pour
+// le fond, 2 pour les cartes) que Bénou Ré, teinte déplacée du bleu-turquoise
+// vers le violet — pas seulement les accents.
+const Color kPetitPrincePrimary = Color(0xFF7C4DBE);
+const Color kPetitPrinceAccent = Color(0xFFC9A9E8);
+const Color kPetitPrinceAccentBright = Color(0xFFE3CCFA);
+const Color kPetitPrinceBackground = Color(0xFF2E1F4D);
+const Color kPetitPrinceBackgroundDark = Color(0xFF1D1333);
+const Color kPetitPrinceSurface = Color(0xFF4A3574);
+const LinearGradient kPetitPrinceBackgroundGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF3B2864), Color(0xFF2A1D4A), Color(0xFF190F2B)],
+  stops: [0.0, 0.55, 1.0],
+);
+const LinearGradient kPetitPrinceCardGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF54397F), Color(0xFF3A2760)],
+);
 
 /// Rend une chaîne sans signes diacritiques (« Bénou Ré » → « Benou Re »).
 ///
@@ -55,6 +109,30 @@ class LodgeConfig {
   /// Logo de la Loge, embarqué dans les assets.
   final String lodgeLogoAsset;
 
+  /// Couleur principale de la loge (boutons, onglet actif, FAB).
+  final Color primaryColor;
+
+  /// Couleur d'accent de la loge (titres, bordures, badges).
+  final Color accentColor;
+
+  /// Variante plus claire de [accentColor] (libellés d'onglet, contours).
+  final Color accentBrightColor;
+
+  /// Couleur de fond principale (scaffold, dégradé le plus clair).
+  final Color backgroundColor;
+
+  /// Couleur de fond sombre (app bar, champs de saisie, superpositions).
+  final Color backgroundDarkColor;
+
+  /// Couleur des cartes, dialogues et surfaces (pavés).
+  final Color surfaceColor;
+
+  /// Dégradé peint derrière tous les écrans (voir `BrBackground`).
+  final LinearGradient backgroundGradient;
+
+  /// Dégradé des cartes contrastées (voir `BrCard`).
+  final LinearGradient cardGradient;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -71,6 +149,14 @@ class LodgeConfig {
     required this.defaultMeetingPlace,
     required this.obedienceLogoAsset,
     required this.lodgeLogoAsset,
+    required this.primaryColor,
+    required this.accentColor,
+    required this.accentBrightColor,
+    required this.backgroundColor,
+    required this.backgroundDarkColor,
+    required this.surfaceColor,
+    required this.backgroundGradient,
+    required this.cardGradient,
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -94,6 +180,14 @@ class LodgeConfig {
     defaultMeetingPlace: 'Temple Thérèse Eliseman à Saint-Pierre',
     obedienceLogoAsset: 'assets/GLDB.png',
     lodgeLogoAsset: 'assets/Benou-Re.png',
+    primaryColor: kBenouRePrimary,
+    accentColor: kBenouReAccent,
+    accentBrightColor: kBenouReAccentBright,
+    backgroundColor: kBenouReBackground,
+    backgroundDarkColor: kBenouReBackgroundDark,
+    surfaceColor: kBenouReSurface,
+    backgroundGradient: kBenouReBackgroundGradient,
+    cardGradient: kBenouReCardGradient,
     driveParentFolderId: '11Qp8SXLFG0Spfks-G6OAQ66EHMGjEOgy',
     libraryFolders: {
       'Architecture': {
@@ -114,10 +208,52 @@ class LodgeConfig {
     },
   );
 
+  /// Valeurs de repli, propres au flavor Le Petit Prince.
+  static const LodgeConfig petitPrince = LodgeConfig(
+    name: 'Le Petit Prince',
+    number: '2',
+    orient: 'Saint-Pierre',
+    orientLong: 'Saint Pierre – Île de la Réunion',
+    obedienceAcronym: 'GLDB',
+    defaultMeetingPlace: 'Temple Thérèse Eliseman à Saint-Pierre',
+    obedienceLogoAsset: 'assets/GLDB.png',
+    lodgeLogoAsset: 'assets/Petit-Prince.png',
+    primaryColor: kPetitPrincePrimary,
+    accentColor: kPetitPrinceAccent,
+    accentBrightColor: kPetitPrinceAccentBright,
+    backgroundColor: kPetitPrinceBackground,
+    backgroundDarkColor: kPetitPrinceBackgroundDark,
+    surfaceColor: kPetitPrinceSurface,
+    backgroundGradient: kPetitPrinceBackgroundGradient,
+    cardGradient: kPetitPrinceCardGradient,
+    driveParentFolderId: '13JPdAvGz_dHCYGHs-9JrjpvvbnqgW_U5',
+    libraryFolders: {
+      'Architecture': {
+        'Apprenti': '1IOmDYov8Cl1hnet-Q-QdNJiKjFqQCu4S',
+        'Compagnon': '1aQv_5mu7h_cMvgTM7UDEXn6Ls_26CtSD',
+        'Maître': '1pKt7t6wGW3vlZrZ-w_WhfZb87oRZWMu3',
+      },
+      'Instructions': {
+        'Apprenti': '1ZF5zO2IR26vGBLGgB5qH8EX6bx7yBbIt',
+        'Compagnon': '1aYorZAUdlMOs_WgiDgcXVVtWOS3mjYTZ',
+        'Maître': '1vQBEKSzEDPbyYGMBpOTwJPvm8dcFr8U3',
+      },
+      'Rituels': {
+        'Apprenti': '1QGq_I0s86rQKGy-9GmzFhgJ9IM_mPwp5',
+        'Compagnon': '1feY3fYdzsY5lGwHA71YFMkAV8d3327nW',
+        'Maître': '16qQDL4HrSgYOadjI8BHU8lQaewyOfylS',
+      },
+    },
+  );
+
+  /// Repli propre au flavor actif (voir `lib/config/flavor.dart`).
+  static LodgeConfig get forCurrentFlavor =>
+      currentFlavor == 'petitprince' ? petitPrince : benouRe;
+
   /// Configuration active. Alimentée au démarrage par [AppState] à partir de
   /// `config/settings` ; vaut le repli du flavor tant que Firestore n'a rien
   /// renvoyé, ce qui couvre aussi les tests et la génération hors ligne.
-  static LodgeConfig current = benouRe;
+  static LodgeConfig current = forCurrentFlavor;
 
   /// Applique les champs présents dans `config/settings`, en conservant la
   /// valeur du flavor pour ceux que le document ne porte pas : une loge n'a à
@@ -136,10 +272,18 @@ class LodgeConfig {
       orientLong: text('lodgeOrientLong', orientLong),
       obedienceAcronym: text('lodgeObedience', obedienceAcronym),
       defaultMeetingPlace: text('lodgeMeetingPlace', defaultMeetingPlace),
-      // Les logos sont embarqués dans le binaire : ils relèvent du flavor et ne
-      // peuvent pas être redéfinis à distance.
+      // Les logos et les couleurs sont embarqués dans le binaire : ils
+      // relèvent du flavor et ne peuvent pas être redéfinis à distance.
       obedienceLogoAsset: obedienceLogoAsset,
       lodgeLogoAsset: lodgeLogoAsset,
+      primaryColor: primaryColor,
+      accentColor: accentColor,
+      accentBrightColor: accentBrightColor,
+      backgroundColor: backgroundColor,
+      backgroundDarkColor: backgroundDarkColor,
+      surfaceColor: surfaceColor,
+      backgroundGradient: backgroundGradient,
+      cardGradient: cardGradient,
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),
     );

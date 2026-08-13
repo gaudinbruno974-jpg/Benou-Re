@@ -63,6 +63,16 @@ bool canEditTreasury(Member? user) {
   return fn.contains('tresorier') || fn.contains('venerable');
 }
 
+/// Droit de consultation de la vue d'annonce des Dignitaires : ceux qui
+/// gèrent déjà les tenues (V∴M∴, Secrétaire, administrateur), plus le
+/// Maître des Cérémonies qui procède lui-même à l'annonce et n'a pas
+/// forcément l'un de ces offices.
+bool canViewDignitaryAnnounce(Member? user) {
+  if (user == null) return false;
+  if (canEditSessions(user)) return true;
+  return foldLabel(user.function).contains('ceremonies');
+}
+
 /// Lecture tolérante d'un montant Firestore (num, String ou absent).
 num _num(dynamic value) {
   if (value is num) return value;

@@ -53,6 +53,8 @@ class Session {
   final bool plancheValidated;
   final bool isValidated;
   final Map<String, String> visitorRoles;
+  final List<String> dignitaryIds;
+  final Map<String, String> dignitaryRoles;
   final String? driveFolderId;
   final String? driveFolderUrl;
   final num? chrono;
@@ -94,6 +96,8 @@ class Session {
     this.plancheValidated = false,
     this.isValidated = false,
     this.visitorRoles = const {},
+    this.dignitaryIds = const [],
+    this.dignitaryRoles = const {},
     this.driveFolderId,
     this.driveFolderUrl,
     this.chrono,
@@ -107,6 +111,7 @@ class Session {
     'agenda3', 'agenda4', 'hasAgape', 'agapeTime', 'agapeType', 'agapePrice',
     'sessionNumber', 'deityName', 'egyptianYear', 'vmName', 'customLines',
     'plancheDraftText', 'plancheValidated', 'isValidated', 'visitorRoles',
+    'dignitaryIds', 'dignitaryRoles',
     'driveFolderId', 'driveFolderUrl', 'chrono',
   };
 
@@ -148,6 +153,8 @@ class Session {
       plancheValidated: (map['plancheValidated'] ?? false) as bool,
       isValidated: (map['isValidated'] ?? false) as bool,
       visitorRoles: _stringMap(map['visitorRoles']),
+      dignitaryIds: _stringList(map['dignitaryIds']),
+      dignitaryRoles: _stringMap(map['dignitaryRoles']),
       driveFolderId: map['driveFolderId'] as String?,
       driveFolderUrl: map['driveFolderUrl'] as String?,
       chrono: map['chrono'] as num?,
@@ -189,6 +196,8 @@ class Session {
       'plancheValidated': plancheValidated,
       'isValidated': isValidated,
       'visitorRoles': visitorRoles,
+      'dignitaryIds': dignitaryIds,
+      'dignitaryRoles': dignitaryRoles,
       'driveFolderId': driveFolderId,
       'driveFolderUrl': driveFolderUrl,
       'chrono': chrono,

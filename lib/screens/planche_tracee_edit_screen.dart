@@ -62,6 +62,7 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
         session,
         state.members,
         state.visitors,
+        state.dignitaries,
         _chrono(session),
         troncAmount: _troncValue(),
         sacPropositions: _sac.text.trim(),

@@ -57,15 +57,21 @@ est choisie par l'option `--flavor`. Le web n'est pas concerné (voir plus bas).
 
 ```bash
 flutter pub get
-flutter run --flavor benoure                 # sur un émulateur/appareil
-flutter build apk --debug --flavor benoure   # -> build/app/outputs/flutter-apk/app-benoure-debug.apk
-flutter build apk --release --flavor benoure # APK release (signature à configurer)
-flutter build web --release                  # web : pas de flavor
+flutter run --flavor benoure                     # sur un émulateur/appareil
+flutter build apk --debug --flavor benoure       # -> build/app/outputs/flutter-apk/app-benoure-debug.apk
+flutter build apk --release --flavor benoure     # APK release (signature à configurer)
+flutter build apk --debug --flavor petitprince   # loge pilote Le Petit Prince
+flutter build web --release --dart-define=FLAVOR=benoure       # web, loge benoure
+flutter build web --release --dart-define=FLAVOR=petitprince   # web, loge petitprince
 ```
 
 Sans `--flavor`, la commande Android échoue avec
 « You must specify a --flavor option ». Le nom du fichier produit contient
-désormais le flavor (`app-benoure-debug.apk`).
+désormais le flavor (`app-benoure-debug.apk`, `app-petitprince-debug.apk`).
+
+Sur le web, `--dart-define=FLAVOR=<flavor>` joue le même rôle que `--flavor`
+sur Android (voir [Web multi-loges](#web-multi-loges) plus bas) ; omis, il
+vaut `benoure` par défaut.
 
 ## Multi-loges
 
@@ -92,6 +98,49 @@ ajouter un flavor dans `android/app/build.gradle.kts`, déposer son
 `google-services.json` et un `res/values/strings.xml` dans
 `android/app/src/<flavor>/`, puis renseigner `config/settings` dans son
 Firestore.
+
+## Web multi-loges
+
+Le web n'a pas d'équivalent natif du flavor Android (`appFlavor` reste
+toujours nul dans un navigateur) : le flavor y est choisi au build via
+`--dart-define=FLAVOR=<flavor>`, lu par `lib/firebase_options.dart` (repli sur
+`benoure` si l'option est omise, pour ne rien changer aux builds existants).
+
+Le dossier `web/` reste la source versionnée du site **benoure**. Flutter ne
+fusionne pas non plus de dossiers `web/<flavor>/` au build (contrairement à
+Android) : les fichiers qui diffèrent par loge (`index.html`, `manifest.json`,
+favicon, icônes) sont donc dupliqués dans `web-flavors/<flavor>/` et copiés
+par-dessus `web/` juste avant le build par un script dédié, qui restaure
+ensuite `web/` à son état versionné (benoure) :
+
+```bash
+./deployment/build_web.ps1 -Flavor benoure          # PowerShell
+./deployment/build_web.ps1 -Flavor petitprince
+
+./deployment/build_web.sh benoure                    # bash
+./deployment/build_web.sh petitprince
+```
+
+Chaque loge est déployée sur le Hosting **de son propre projet Firebase**
+(cohérent avec un projet isolé par loge), sélectionné via l'alias déclaré dans
+`.firebaserc` :
+
+```bash
+firebase deploy --only hosting                 # benoure (projet par défaut)
+firebase deploy --only hosting -P petitprince   # petit-prince-loge
+```
+
+> **Limitation connue** : `web-flavors/petitprince/index.html` n'embarque pas
+> encore de `google-signin-client_id` (pas de client OAuth Web provisionné
+> pour `petit-prince-loge`). L'archivage Google Drive reste donc indisponible
+> sur ce site tant que ce client n'est pas créé dans la Google Cloud Console
+> du projet (même démarche que le client OAuth Android, voir
+> [Google Drive](#google-drive-archivage-des-pdf) plus bas) ; Auth
+> email/mot de passe et Firestore ne sont pas affectés.
+
+**Ajouter une loge côté web** : créer `web-flavors/<flavor>/` avec ses propres
+`index.html`, `manifest.json`, `favicon.png` et `icons/`, puis ajouter son
+alias de projet dans `.firebaserc`.
 
 ## Configuration Firebase (important)
 

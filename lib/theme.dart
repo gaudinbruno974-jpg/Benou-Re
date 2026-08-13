@@ -1,13 +1,34 @@
 import 'package:flutter/material.dart';
 
+import 'config/flavor.dart';
+import 'config/lodge_config.dart';
+
 class BrColors {
-  // ---- PALETTE TURQUOISE (plus bleue) ----
-  static const background = Color(0xFF123A52);
-  static const backgroundDark = Color(0xFF0C2A3E);
-  static const surface = Color(0xFF1C5570);
-  static const gold = Color(0xFFD4B36A);
-  static const goldBright = Color(0xFFEDCB82);
-  static const teal = Color(0xFF16B6C7);
+  // Couleurs de marque : propres au flavor actif (voir LodgeConfig). TOUTES
+  // les couleurs qui donnent son identité visuelle à une loge (accents, fond,
+  // surface, dégradés de fond et de cartes) varient ici — pas seulement
+  // l'accent doré. `currentFlavor` est une constante de compilation
+  // (lib/config/flavor.dart), donc ces valeurs restent `const` — tous les
+  // widgets `const` qui les utilisent ailleurs dans l'app continuent de
+  // compiler sans modification.
+  static const gold = currentFlavor == 'petitprince'
+      ? kPetitPrinceAccent
+      : kBenouReAccent;
+  static const goldBright = currentFlavor == 'petitprince'
+      ? kPetitPrinceAccentBright
+      : kBenouReAccentBright;
+  static const teal = currentFlavor == 'petitprince'
+      ? kPetitPrincePrimary
+      : kBenouRePrimary;
+  static const background = currentFlavor == 'petitprince'
+      ? kPetitPrinceBackground
+      : kBenouReBackground;
+  static const backgroundDark = currentFlavor == 'petitprince'
+      ? kPetitPrinceBackgroundDark
+      : kBenouReBackgroundDark;
+  static const surface = currentFlavor == 'petitprince'
+      ? kPetitPrinceSurface
+      : kBenouReSurface;
   static const muted = Color(0xFFC4D8D8);
   static const text = Color(0xFFF8FAFA);
 
@@ -24,20 +45,17 @@ class BrColors {
   static const violet = Color(0xFF9B6FC9);
 
   // ---- ESTHÉTIQUE : dégradés, ombres, rayons ----
-  /// Dégradé de fond principal (chaleureux, du turquoise profond vers le nuit).
-  static const backgroundGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF15455F), Color(0xFF0F3349), Color(0xFF0A2334)],
-    stops: [0.0, 0.55, 1.0],
-  );
+  /// Dégradé de fond principal, peint derrière tous les écrans (voir
+  /// `BrBackground`) : turquoise profond pour Bénou Ré, violet nuit pour Le
+  /// Petit Prince.
+  static const backgroundGradient = currentFlavor == 'petitprince'
+      ? kPetitPrinceBackgroundGradient
+      : kBenouReBackgroundGradient;
 
-  /// Dégradé utilisé pour les cartes contrastées.
-  static const cardGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF215F7C), Color(0xFF17475F)],
-  );
+  /// Dégradé utilisé pour les cartes contrastées (voir `BrCard`).
+  static const cardGradient = currentFlavor == 'petitprince'
+      ? kPetitPrinceCardGradient
+      : kBenouReCardGradient;
 
   /// Dégradé doré (accents, titres, boutons mis en valeur).
   static const goldGradient = LinearGradient(

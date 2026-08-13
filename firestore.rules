@@ -71,6 +71,15 @@ service cloud.firestore {
       allow write: if canEditSessions();
     }
 
+    // Dignitaires : mêmes droits que les visiteurs. La vue d'annonce du
+    // Maître des Cérémonies est un accès en lecture supplémentaire côté
+    // application (voir canViewDignitaryAnnounce), déjà couvert par
+    // `signedIn()` — pas de règle Firestore distincte à ajouter pour ça.
+    match /dignitaries/{dignitaryId} {
+      allow read: if signedIn();
+      allow write: if canEditSessions();
+    }
+
     // Réglages de la Loge (chrono, nom du V∴M∴).
     match /config/{docId} {
       allow read: if signedIn();

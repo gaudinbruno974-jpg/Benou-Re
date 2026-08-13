@@ -1,7 +1,8 @@
-// Configuration Firebase du projet "benou-re-loge".
+// Configuration Firebase du flavor benoure (projet "benou-re-loge").
 //
-// Ces valeurs proviennent de la configuration web existante (src/firebase.ts).
-// Pour un build de production sur appareil, il est recommandé d'exécuter
+// Sélectionnée par lib/firebase_options.dart via `appFlavor`. Ces valeurs
+// proviennent de la configuration web existante (src/firebase.ts) ; pour un
+// build de production sur appareil, il est recommandé d'exécuter
 // `flutterfire configure` afin de générer des identifiants natifs par
 // plateforme (appId Android/iOS dédié + google-services.json). Voir le README.
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;

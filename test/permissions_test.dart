@@ -49,4 +49,37 @@ void main() {
     expect(Session.degreeRank(kCompagnon), 2);
     expect(Session.degreeRank(kApprenti), 1);
   });
+
+  test(
+    'la vue d\'annonce des Dignitaires est ouverte au bureau et au M.C.',
+    () {
+      expect(
+        canViewDignitaryAnnounce(
+          const Member(id: '1', function: 'Vénérable Maître'),
+        ),
+        isTrue,
+      );
+      expect(
+        canViewDignitaryAnnounce(
+          const Member(id: '2', function: 'Maître des Cérémonies'),
+        ),
+        isTrue,
+      );
+      expect(
+        canViewDignitaryAnnounce(
+          const Member(id: '3', function: 'maitre des ceremonies'),
+        ),
+        isTrue,
+      );
+      expect(
+        canViewDignitaryAnnounce(const Member(id: '4', isAdmin: true)),
+        isTrue,
+      );
+      expect(
+        canViewDignitaryAnnounce(const Member(id: '5', function: 'Orateur')),
+        isFalse,
+      );
+      expect(canViewDignitaryAnnounce(null), isFalse);
+    },
+  );
 }

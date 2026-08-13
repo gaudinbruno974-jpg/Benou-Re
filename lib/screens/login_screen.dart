@@ -4,25 +4,90 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // <-- NOUVEAU
 
+import '../config/flavor.dart';
+import '../config/lodge_config.dart';
 import '../env.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 
-/// Mot de passe commun aux comptes fictifs de l'environnement de test.
-const String _testPassword = '030365';
-
-/// Comptes fictifs proposés en accès rapide sur l'environnement de test.
+/// Comptes fictifs proposés en accès rapide sur l'environnement de test,
+/// propres à chaque flavor (mot de passe et jeu de comptes distincts par
+/// loge). Ces comptes doivent exister dans Firebase Auth et dans la
+/// collection `members` du projet Firebase correspondant.
 ///
-/// Ces comptes doivent exister dans Firebase Auth et dans la collection
-/// `members`. Le V∴M∴ en est volontairement absent : c'est un compte réel.
-const List<({String label, String email, String password})> _testAccounts = [
-  (label: 'Apprenti', email: 'apprentis@loge.com', password: _testPassword),
-  (label: 'Compagnon', email: 'compagnons@loge.com', password: _testPassword),
-  (label: 'Maître', email: 'maitres@loge.com', password: _testPassword),
-  (label: 'Secrétaire', email: 'secretaire@loge.com', password: _testPassword),
-  (label: 'Trésorier', email: 'tresorier@loge.com', password: _testPassword),
+/// Pour Bénou Ré, le V∴M∴ est volontairement absent : c'est un compte réel.
+/// Pour Le Petit Prince (encore en phase d'essai), il est inclus : c'est
+/// aussi un compte de test.
+const String _testPasswordBenoure = '030365';
+const List<({String label, String email, String password})>
+_testAccountsBenoure = [
+  (
+    label: 'Apprenti',
+    email: 'apprentis@loge.com',
+    password: _testPasswordBenoure,
+  ),
+  (
+    label: 'Compagnon',
+    email: 'compagnons@loge.com',
+    password: _testPasswordBenoure,
+  ),
+  (
+    label: 'Maître',
+    email: 'maitres@loge.com',
+    password: _testPasswordBenoure,
+  ),
+  (
+    label: 'Secrétaire',
+    email: 'secretaire@loge.com',
+    password: _testPasswordBenoure,
+  ),
+  (
+    label: 'Trésorier',
+    email: 'tresorier@loge.com',
+    password: _testPasswordBenoure,
+  ),
 ];
+
+const String _testPasswordPetitprince = '000007';
+const List<({String label, String email, String password})>
+_testAccountsPetitprince = [
+  (
+    label: 'Apprenti',
+    email: 'apprentis@loge.com',
+    password: _testPasswordPetitprince,
+  ),
+  (
+    label: 'Compagnon',
+    email: 'compagnons@loge.com',
+    password: _testPasswordPetitprince,
+  ),
+  (
+    label: 'Maître',
+    email: 'maitres@loge.com',
+    password: _testPasswordPetitprince,
+  ),
+  (
+    label: 'Secrétaire',
+    email: 'secretaire@loge.com',
+    password: _testPasswordPetitprince,
+  ),
+  (
+    label: 'Trésorier',
+    email: 'tresorier@loge.com',
+    password: _testPasswordPetitprince,
+  ),
+  (
+    label: 'Vénérable Maître',
+    email: 'vm@loge.com',
+    password: _testPasswordPetitprince,
+  ),
+];
+
+List<({String label, String email, String password})> get _testAccounts =>
+    currentFlavor == 'petitprince'
+    ? _testAccountsPetitprince
+    : _testAccountsBenoure;
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -194,9 +259,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'RL BÉNOU RÉ',
-                    style: TextStyle(
+                  Text(
+                    'RL ${LodgeConfig.current.name.toUpperCase()}',
+                    style: const TextStyle(
                       color: BrColors.text,
                       fontSize: 26,
                       fontWeight: FontWeight.w600,

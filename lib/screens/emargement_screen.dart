@@ -41,6 +41,9 @@ class EmargementScreen extends StatelessWidget {
     final presentVisitors = state.visitors
         .where((v) => session.visitorIds.contains(v.id))
         .toList();
+    final presentDignitaries = state.dignitaries
+        .where((d) => session.dignitaryIds.contains(d.id))
+        .toList();
 
     final memberSigners = <_Signer>[
       for (final m in presentMembers)
@@ -63,7 +66,21 @@ class EmargementScreen extends StatelessWidget {
           sigs[v.id],
         ),
     ];
-    final attendees = <_Signer>[...memberSigners, ...visitorSigners];
+    final dignitarySigners = <_Signer>[
+      for (final d in presentDignitaries)
+        _Signer(
+          d.id,
+          d.fullName,
+          session.dignitaryRoles[d.id] ??
+              (d.title.isNotEmpty ? d.title : 'Dignitaire'),
+          sigs[d.id],
+        ),
+    ];
+    final attendees = <_Signer>[
+      ...memberSigners,
+      ...visitorSigners,
+      ...dignitarySigners,
+    ];
 
     // Signatures officielles de la planche tracée.
     final vmName = plancheVmName(
@@ -166,6 +183,21 @@ class EmargementScreen extends StatelessWidget {
                 ),
               ),
             for (final a in visitorSigners)
+              _SignerTile(
+                signer: a,
+                onSign: () => _sign(context, session, a, isPlanche: false),
+              ),
+            const SizedBox(height: 12),
+            const _SectionTitle('DIGNITAIRES PRÉSENTS'),
+            if (dignitarySigners.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text(
+                  'Aucun dignitaire présent enregistré.',
+                  style: TextStyle(color: BrColors.muted),
+                ),
+              ),
+            for (final a in dignitarySigners)
               _SignerTile(
                 signer: a,
                 onSign: () => _sign(context, session, a, isPlanche: false),
