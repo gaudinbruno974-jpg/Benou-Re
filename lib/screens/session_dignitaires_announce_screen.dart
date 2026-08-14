@@ -54,8 +54,7 @@ class SessionDignitairesAnnounceScreen extends StatelessWidget {
               separatorBuilder: (context, index) => const SizedBox(height: 14),
               itemBuilder: (context, i) {
                 final d = present[i];
-                final role = (session.dignitaryRoles[d.id] ?? '').trim();
-                return _AnnounceCard(dignitary: d, order: i + 1, role: role);
+                return _AnnounceCard(dignitary: d, order: i + 1);
               },
             ),
     );
@@ -65,12 +64,7 @@ class SessionDignitairesAnnounceScreen extends StatelessWidget {
 class _AnnounceCard extends StatelessWidget {
   final Dignitary dignitary;
   final int order;
-  final String role;
-  const _AnnounceCard({
-    required this.dignitary,
-    required this.order,
-    required this.role,
-  });
+  const _AnnounceCard({required this.dignitary, required this.order});
 
   @override
   Widget build(BuildContext context) {
@@ -113,11 +107,7 @@ class _AnnounceCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  role.isNotEmpty
-                      ? role
-                      : (dignitary.title.isNotEmpty
-                          ? dignitary.title
-                          : 'Dignitaire'),
+                  dignitary.title.isNotEmpty ? dignitary.title : 'Dignitaire',
                   style: const TextStyle(
                     color: BrColors.goldBright,
                     fontSize: 15,
