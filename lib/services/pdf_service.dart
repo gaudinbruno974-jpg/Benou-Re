@@ -236,22 +236,6 @@ pw.Widget _lodgeHeader(
     height: 26 * _mm * scale,
     child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
   );
-  // Une rangée [logo | titre centré | logo (ou espace vide de même largeur,
-  // pour garder le titre centré)]. Sert au bloc GLDB dans tous les cas, et
-  // au bloc Loge lorsque l'en-tête est empilé (deux blocs logo+titre l'un
-  // au-dessus de l'autre plutôt que les deux logos côte à côte).
-  pw.Widget titleRow(
-    pw.ImageProvider? leftLogo,
-    List<pw.Widget> titleChildren,
-    pw.ImageProvider? rightLogo,
-  ) => pw.Row(
-    crossAxisAlignment: pw.CrossAxisAlignment.center,
-    children: [
-      logoBox(leftLogo),
-      pw.Expanded(child: pw.Column(children: titleChildren)),
-      logoBox(rightLogo),
-    ],
-  );
 
   final gldbTitle = [
     pw.Text(
@@ -281,52 +265,100 @@ pw.Widget _lodgeHeader(
     ),
   ];
 
-  return pw.Column(
+  final ritesRow = pw.Row(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
-      titleRow(logoGldb, gldbTitle, stacked ? null : logoBenou),
-      pw.SizedBox(height: 8 * _mm * scale),
-      pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          for (final r in _rites)
+      for (final r in _rites)
+        pw.Expanded(
+          child: pw.Column(
+            children: [
+              pw.Text(
+                r[0],
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(font: fonts.bold, fontSize: 7.5 * scale),
+              ),
+              pw.SizedBox(height: 1 * _mm * scale),
+              pw.Text(
+                r[1],
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(font: fonts.base, fontSize: 7 * scale),
+              ),
+            ],
+          ),
+        ),
+    ],
+  );
+
+  final filiationsBlock = [
+    for (final f in _filiations)
+      pw.Padding(
+        padding: pw.EdgeInsets.only(bottom: 1 * _mm * scale),
+        child: pw.Text(
+          f,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(
+            font: fonts.base,
+            fontSize: 8 * scale,
+            color: const PdfColor.fromInt(0xFF505050),
+          ),
+        ),
+      ),
+  ];
+
+  if (stacked) {
+    // Les deux logos empilés dans une colonne fixe à gauche (GLDB puis
+    // Loge), le reste du contenu (titre GLDB, rites, filiations) dans la
+    // colonne restante à droite ; le titre de la loge vient ensuite, seul,
+    // centré sur toute la largeur.
+    return pw.Column(
+      children: [
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Column(
+              children: [
+                logoBox(logoGldb),
+                pw.SizedBox(height: 3 * _mm * scale),
+                logoBox(logoBenou),
+              ],
+            ),
+            pw.SizedBox(width: 4 * _mm * scale),
             pw.Expanded(
               child: pw.Column(
                 children: [
-                  pw.Text(
-                    r[0],
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 7.5 * scale),
-                  ),
-                  pw.SizedBox(height: 1 * _mm * scale),
-                  pw.Text(
-                    r[1],
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(font: fonts.base, fontSize: 7 * scale),
-                  ),
+                  ...gldbTitle,
+                  pw.SizedBox(height: 8 * _mm * scale),
+                  ritesRow,
+                  pw.SizedBox(height: 10 * _mm * scale),
+                  ...filiationsBlock,
                 ],
               ),
             ),
+          ],
+        ),
+        pw.SizedBox(height: 6 * _mm * scale),
+        pw.Column(children: lodgeTitle),
+        pw.SizedBox(height: 8 * _mm * scale),
+      ],
+    );
+  }
+
+  return pw.Column(
+    children: [
+      pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        children: [
+          logoBox(logoGldb),
+          pw.Expanded(child: pw.Column(children: gldbTitle)),
+          logoBox(logoBenou),
         ],
       ),
+      pw.SizedBox(height: 8 * _mm * scale),
+      ritesRow,
       pw.SizedBox(height: 10 * _mm * scale),
-      for (final f in _filiations)
-        pw.Padding(
-          padding: pw.EdgeInsets.only(bottom: 1 * _mm * scale),
-          child: pw.Text(
-            f,
-            textAlign: pw.TextAlign.center,
-            style: pw.TextStyle(
-              font: fonts.base,
-              fontSize: 8 * scale,
-              color: const PdfColor.fromInt(0xFF505050),
-            ),
-          ),
-        ),
-      pw.SizedBox(height: stacked ? 4 * _mm * scale : 7 * _mm * scale),
-      if (stacked)
-        titleRow(logoBenou, lodgeTitle, null)
-      else
-        pw.Column(children: lodgeTitle),
+      ...filiationsBlock,
+      pw.SizedBox(height: 7 * _mm * scale),
+      pw.Column(children: lodgeTitle),
       pw.SizedBox(height: 12 * _mm * scale),
     ],
   );
