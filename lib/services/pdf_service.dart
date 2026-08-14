@@ -230,41 +230,60 @@ pw.Widget _lodgeHeader(
   pw.ImageProvider? logoBenou, {
   double scale = 1.0,
 }) {
+  final stacked = LodgeConfig.current.pdfHeaderStacked;
   pw.Widget logoBox(pw.ImageProvider? img) => pw.SizedBox(
     width: 26 * _mm * scale,
     height: 26 * _mm * scale,
     child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
   );
+  // Une rangée [logo | titre centré | logo (ou espace vide de même largeur,
+  // pour garder le titre centré)]. Sert au bloc GLDB dans tous les cas, et
+  // au bloc Loge lorsque l'en-tête est empilé (deux blocs logo+titre l'un
+  // au-dessus de l'autre plutôt que les deux logos côte à côte).
+  pw.Widget titleRow(
+    pw.ImageProvider? leftLogo,
+    List<pw.Widget> titleChildren,
+    pw.ImageProvider? rightLogo,
+  ) => pw.Row(
+    crossAxisAlignment: pw.CrossAxisAlignment.center,
+    children: [
+      logoBox(leftLogo),
+      pw.Expanded(child: pw.Column(children: titleChildren)),
+      logoBox(rightLogo),
+    ],
+  );
+
+  final gldbTitle = [
+    pw.Text(
+      'GRANDE LOGE DE BOURBON',
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.bold, fontSize: 16 * scale, color: _navy),
+    ),
+    pw.SizedBox(height: 2 * _mm * scale),
+    pw.Text(
+      'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.base, fontSize: 7.5 * scale),
+    ),
+  ];
+
+  final lodgeTitle = [
+    pw.Text(
+      LodgeConfig.current.shortTitle,
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.bold, fontSize: 15 * scale, color: _navy),
+    ),
+    pw.SizedBox(height: 2 * _mm * scale),
+    pw.Text(
+      'O∴ de ${LodgeConfig.current.orientLong}',
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale, color: _navy),
+    ),
+  ];
+
   return pw.Column(
     children: [
-      pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
-        children: [
-          logoBox(logoGldb),
-          pw.Expanded(
-            child: pw.Column(
-              children: [
-                pw.Text(
-                  'GRANDE LOGE DE BOURBON',
-                  textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 16 * scale,
-                    color: _navy,
-                  ),
-                ),
-                pw.SizedBox(height: 2 * _mm * scale),
-                pw.Text(
-                  'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE MEMPHIS MISRAÏM',
-                  textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(font: fonts.base, fontSize: 7.5 * scale),
-                ),
-              ],
-            ),
-          ),
-          logoBox(logoBenou),
-        ],
-      ),
+      titleRow(logoGldb, gldbTitle, stacked ? null : logoBenou),
       pw.SizedBox(height: 8 * _mm * scale),
       pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -303,16 +322,11 @@ pw.Widget _lodgeHeader(
             ),
           ),
         ),
-      pw.SizedBox(height: 7 * _mm * scale),
-      pw.Text(
-        LodgeConfig.current.shortTitle,
-        style: pw.TextStyle(font: fonts.bold, fontSize: 15 * scale, color: _navy),
-      ),
-      pw.SizedBox(height: 2 * _mm * scale),
-      pw.Text(
-        'O∴ de ${LodgeConfig.current.orientLong}',
-        style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale, color: _navy),
-      ),
+      pw.SizedBox(height: stacked ? 4 * _mm * scale : 7 * _mm * scale),
+      if (stacked)
+        titleRow(logoBenou, lodgeTitle, null)
+      else
+        pw.Column(children: lodgeTitle),
       pw.SizedBox(height: 12 * _mm * scale),
     ],
   );

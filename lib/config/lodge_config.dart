@@ -109,6 +109,12 @@ class LodgeConfig {
   /// Logo de la Loge, embarqué dans les assets.
   final String lodgeLogoAsset;
 
+  /// En-tête PDF (logos + titres GLDB / Loge) empilé en deux blocs distincts
+  /// (un par logo) plutôt que les deux logos côte à côte dans la même
+  /// rangée. Propriété d'identité visuelle figée au flavor, comme les logos
+  /// et les couleurs : non modifiable depuis Firestore.
+  final bool pdfHeaderStacked;
+
   /// Couleur principale de la loge (boutons, onglet actif, FAB).
   final Color primaryColor;
 
@@ -149,6 +155,7 @@ class LodgeConfig {
     required this.defaultMeetingPlace,
     required this.obedienceLogoAsset,
     required this.lodgeLogoAsset,
+    this.pdfHeaderStacked = false,
     required this.primaryColor,
     required this.accentColor,
     required this.accentBrightColor,
@@ -218,6 +225,7 @@ class LodgeConfig {
     defaultMeetingPlace: 'Temple Thérèse Eliseman à Saint-Pierre',
     obedienceLogoAsset: 'assets/GLDB.png',
     lodgeLogoAsset: 'assets/Petit-Prince.png',
+    pdfHeaderStacked: true,
     primaryColor: kPetitPrincePrimary,
     accentColor: kPetitPrinceAccent,
     accentBrightColor: kPetitPrinceAccentBright,
@@ -276,6 +284,7 @@ class LodgeConfig {
       // relèvent du flavor et ne peuvent pas être redéfinis à distance.
       obedienceLogoAsset: obedienceLogoAsset,
       lodgeLogoAsset: lodgeLogoAsset,
+      pdfHeaderStacked: pdfHeaderStacked,
       primaryColor: primaryColor,
       accentColor: accentColor,
       accentBrightColor: accentBrightColor,
