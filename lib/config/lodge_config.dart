@@ -45,25 +45,27 @@ const LinearGradient kBenouReCardGradient = LinearGradient(
   colors: [Color(0xFF215F7C), Color(0xFF17475F)],
 );
 
-// Identité violette : mêmes rôles, même structure de dégradé (3 paliers pour
+// Identité bleue : mêmes rôles, même structure de dégradé (3 paliers pour
 // le fond, 2 pour les cartes) que Bénou Ré, teinte déplacée du bleu-turquoise
-// vers le violet — pas seulement les accents.
-const Color kPetitPrincePrimary = Color(0xFF7C4DBE);
-const Color kPetitPrinceAccent = Color(0xFFC9A9E8);
-const Color kPetitPrinceAccentBright = Color(0xFFE3CCFA);
-const Color kPetitPrinceBackground = Color(0xFF2E1F4D);
-const Color kPetitPrinceBackgroundDark = Color(0xFF1D1333);
-const Color kPetitPrinceSurface = Color(0xFF4A3574);
+// vers un bleu roi/indigo — pas seulement les accents. Choisie distincte du
+// cyan-turquoise de Bénou Ré (kBenouRePrimary) pour que les deux loges
+// restent visuellement différenciables malgré une famille de couleur commune.
+const Color kPetitPrincePrimary = Color(0xFF2E5FD9);
+const Color kPetitPrinceAccent = Color(0xFF7FB2F0);
+const Color kPetitPrinceAccentBright = Color(0xFFB3D4FA);
+const Color kPetitPrinceBackground = Color(0xFF16294D);
+const Color kPetitPrinceBackgroundDark = Color(0xFF0E1B36);
+const Color kPetitPrinceSurface = Color(0xFF223A66);
 const LinearGradient kPetitPrinceBackgroundGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF3B2864), Color(0xFF2A1D4A), Color(0xFF190F2B)],
+  colors: [Color(0xFF1B2F5C), Color(0xFF15254A), Color(0xFF0C1830)],
   stops: [0.0, 0.55, 1.0],
 );
 const LinearGradient kPetitPrinceCardGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF54397F), Color(0xFF3A2760)],
+  colors: [Color(0xFF2A4A85), Color(0xFF1C3563)],
 );
 
 /// Rend une chaîne sans signes diacritiques (« Bénou Ré » → « Benou Re »).
