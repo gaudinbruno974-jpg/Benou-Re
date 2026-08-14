@@ -208,7 +208,8 @@ class Session {
   }
 
   DateTime? get dateTime {
-    final raw = date.isNotEmpty ? date : (dateReprise ?? '');
+    final reprise = dateReprise ?? '';
+    final raw = reprise.isNotEmpty ? reprise : date;
     if (raw.isEmpty) return null;
     return DateTime.tryParse(raw);
   }
