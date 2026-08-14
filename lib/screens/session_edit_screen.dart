@@ -23,6 +23,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../services/drive_service.dart';
 import '../services/pdf_service.dart';
+import '../utils/name_mask.dart';
 
 const _sessionTypes = [
   'Ordinaire',
@@ -200,13 +201,17 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   int get _ordresCount => _ordres.where((c) => c.text.trim().isNotEmpty).length;
 
   /// Nom du V∴M∴ actuellement en charge, résolu comme pour la planche
-  /// tracée (config/settings, sinon la fiche membre portant l'office).
+  /// tracée (config/settings, sinon la fiche membre portant l'office), et
+  /// masqué à la manière maçonnique : ce nom alimente le texte généré par
+  /// défaut de la convocation (un document), jamais un affichage interne.
   String get _currentVmName {
     final state = context.read<AppState>();
-    return plancheVmName(
-      const Session(id: ''),
-      state.members,
-      lodgeVmName: state.lodgeVmName,
+    return maskPersonName(
+      plancheVmName(
+        const Session(id: ''),
+        state.members,
+        lodgeVmName: state.lodgeVmName,
+      ),
     );
   }
 

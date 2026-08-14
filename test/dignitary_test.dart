@@ -111,7 +111,7 @@ void main() {
       expect(
         withVisitorOnly,
         contains(
-          'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : Paul BERNARD (Trésorier – Les Amis Réunis).',
+          'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : Pau∴ BER∴ (Trésorier – Les Amis Réunis).',
         ),
       );
     },
@@ -135,8 +135,8 @@ void main() {
         text,
         contains(
           'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : '
-          'Paul BERNARD (Trésorier – Les Amis Réunis), '
-          'Alain ROUSSEAU (Grand Maître Adjoint – Les Cœurs Réunis).',
+          'Pau∴ BER∴ (Trésorier – Les Amis Réunis), '
+          'Ala∴ ROU∴ (Grand Maître Adjoint – Les Cœurs Réunis).',
         ),
       );
     },
@@ -158,7 +158,7 @@ void main() {
       expect(
         text,
         contains(
-          'Au Nord, a pris place le F∴ S∴ Nadia FONTAINE (Concorde) en qualité de Second Surveillant.',
+          'Au Nord, a pris place le F∴ S∴ Nad∴ FON∴ (Concorde) en qualité de Second Surveillant.',
         ),
       );
       expect(text, isNot(contains('sont venus soutenir nos travaux')));
@@ -178,7 +178,7 @@ void main() {
     );
     expect(
       text,
-      contains('Le poste d’Orateur est occupé par le F∴ S∴ Marc LEROY.'),
+      contains('Le poste d’Orateur est occupé par le F∴ S∴ Mar∴ LER∴.'),
     );
   });
 }

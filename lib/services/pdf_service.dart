@@ -31,6 +31,7 @@ import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
+import '../utils/name_mask.dart';
 import 'agape_payment_service.dart';
 
 // 1 mm en points PDF (le paquet `pdf` travaille en points ; jsPDF en mm).
@@ -532,8 +533,8 @@ Future<Uint8List> buildEmargementPdf(
       .where((m) => session.presentIds.contains(m.id))
       .map(
         (m) => _Row(
-          m.lastName,
-          m.firstName,
+          maskPersonName(m.lastName),
+          maskPersonName(m.firstName),
           m.function != 'Aucun' && m.function.isNotEmpty
               ? m.function
               : 'Membre',
@@ -546,8 +547,8 @@ Future<Uint8List> buildEmargementPdf(
       .where((v) => session.visitorIds.contains(v.id))
       .map(
         (v) => _Row(
-          v.lastName,
-          v.firstName,
+          maskPersonName(v.lastName),
+          maskPersonName(v.firstName),
           session.visitorRoles[v.id] ??
               (v.function.isNotEmpty ? v.function : 'Visiteur'),
           v.lodge,
@@ -559,8 +560,8 @@ Future<Uint8List> buildEmargementPdf(
       .where((d) => session.dignitaryIds.contains(d.id))
       .map(
         (d) => _Row(
-          d.lastName,
-          d.firstName,
+          maskPersonName(d.lastName),
+          maskPersonName(d.firstName),
           session.dignitaryRoles[d.id] ??
               (d.title.isNotEmpty ? d.title : 'Dignitaire'),
           d.lodge,
@@ -869,8 +870,8 @@ Future<Uint8List> buildAgapePaymentPdf(
             for (final p in payers)
               pw.TableRow(
                 children: [
-                  _cell(fonts, p.lastName, 10 * _mm),
-                  _cell(fonts, p.firstName, 10 * _mm),
+                  _cell(fonts, maskPersonName(p.lastName), 10 * _mm),
+                  _cell(fonts, maskPersonName(p.firstName), 10 * _mm),
                   _cell(fonts, p.obedience, 10 * _mm, maxLines: 2),
                   _cell(fonts, p.lodge, 10 * _mm, maxLines: 2),
                   _cell(fonts, _formatAmount(amount), 10 * _mm),
@@ -924,6 +925,11 @@ List<String> plancheOrdreDuJour(Session session) =>
 
 /// Nom du V∴M∴ : champ de la tenue, sinon nom enregistré dans
 /// `config/settings`, sinon le membre portant l'office de Vénérable Maître.
+///
+/// Retourne le nom réel, non masqué : cette fonction alimente aussi l'écran
+/// de signature (émargement), où le nom complet reste nécessaire. Les
+/// appelants qui écrivent dans un document PDF doivent appliquer
+/// [maskPersonName] eux-mêmes sur le résultat.
 String plancheVmName(
   Session session,
   List<Member> members, {
@@ -947,7 +953,7 @@ String? plancheOrateurName(
   List<Dignitary> dignitaries,
 ) {
   if (session.plancheOrateurName?.isNotEmpty == true) {
-    return session.plancheOrateurName;
+    return maskPersonName(session.plancheOrateurName!);
   }
   final member = members
       .where(
@@ -955,7 +961,7 @@ String? plancheOrateurName(
             m.function.trim() == 'Orateur' && session.presentIds.contains(m.id),
       )
       .firstOrNull;
-  if (member != null) return _memberFullName(member);
+  if (member != null) return maskPersonName(_memberFullName(member));
   final visitor = visitors
       .where(
         (v) =>
@@ -963,7 +969,7 @@ String? plancheOrateurName(
             (session.visitorRoles[v.id] ?? v.function).trim() == 'Orateur',
       )
       .firstOrNull;
-  if (visitor != null) return _visitorFullName(visitor);
+  if (visitor != null) return maskPersonName(_visitorFullName(visitor));
   final dignitary = dignitaries
       .where(
         (d) =>
@@ -971,7 +977,7 @@ String? plancheOrateurName(
             (session.dignitaryRoles[d.id] ?? '').trim() == 'Orateur',
       )
       .firstOrNull;
-  return dignitary != null ? dignitary.fullName : null;
+  return dignitary != null ? maskPersonName(dignitary.fullName) : null;
 }
 
 /// Construit le texte intégral de la planche tracée (un paragraphe par ligne).
@@ -991,7 +997,9 @@ String buildPlancheTraceeText(
   String lodgeVmName = '',
 }) {
   final paras = <String>[];
-  final vmName = plancheVmName(session, members, lodgeVmName: lodgeVmName);
+  final vmName = maskPersonName(
+    plancheVmName(session, members, lodgeVmName: lodgeVmName),
+  );
   final dateFR = _formatDateFR(session.dateReprise ?? session.date);
   final degre = _degreOrdinal(session.degreTravail ?? session.degree);
 
@@ -1020,7 +1028,9 @@ String buildPlancheTraceeText(
       .whereType<Member>()
       .toList();
   if (excused.isNotEmpty) {
-    final noms = excused.map(_memberFullName).join(', ');
+    final noms = excused
+        .map((m) => maskPersonName(_memberFullName(m)))
+        .join(', ');
     paras.add(
       '$noms membre(s) de la R∴ L∴ ${lodge.name} sont absents excusés. (Voir la liste des membres excusés)',
     );
@@ -1069,7 +1079,7 @@ String buildPlancheTraceeText(
   }
 
   String placementSentence(Visitor v, String placement, String role) {
-    final who = 'le F∴ S∴ ${_visitorFullName(v)} (${v.lodge})';
+    final who = 'le F∴ S∴ ${maskPersonName(_visitorFullName(v))} (${v.lodge})';
     final qualite = isOffice(role) ? ' en qualité de $role' : '';
     switch (placement) {
       case 'Colonne du Midi':
@@ -1085,7 +1095,7 @@ String buildPlancheTraceeText(
 
   String placementSentenceDignitary(Dignitary d, String placement, String role) {
     final lodgePart = d.lodge.isNotEmpty ? ' (${d.lodge})' : '';
-    final who = 'le F∴ S∴ ${d.fullName}$lodgePart';
+    final who = 'le F∴ S∴ ${maskPersonName(d.fullName)}$lodgePart';
     final qualite = isOffice(role) ? ' en qualité de $role' : '';
     switch (placement) {
       case 'Colonne du Midi':
@@ -1110,7 +1120,7 @@ String buildPlancheTraceeText(
             roleOf(v) != 'Orateur' &&
             isOffice(roleOf(v) ?? ''),
       )
-      .map((v) => '${_visitorFullName(v)} (${roleOf(v)} – ${v.lodge})');
+      .map((v) => '${maskPersonName(_visitorFullName(v))} (${roleOf(v)} – ${v.lodge})');
   final dignitaryOrientEntries = presentDignitaries
       .where(
         (d) =>
@@ -1122,7 +1132,7 @@ String buildPlancheTraceeText(
             ? role
             : (d.title.isNotEmpty ? d.title : 'Dignitaire');
         final lodgePart = d.lodge.isNotEmpty ? ' – ${d.lodge}' : '';
-        return '${d.fullName} ($qualifier$lodgePart)';
+        return '${maskPersonName(d.fullName)} ($qualifier$lodgePart)';
       });
   final orientEntries = [...visitorOrientEntries, ...dignitaryOrientEntries];
   if (orientEntries.isNotEmpty) {
@@ -1147,7 +1157,7 @@ String buildPlancheTraceeText(
       paras.add(placementSentence(v, placement, role as String));
     } else {
       paras.add(
-        'Le F∴ S∴ ${_visitorFullName(v)} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.',
+        'Le F∴ S∴ ${maskPersonName(_visitorFullName(v))} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.',
       );
     }
   }
@@ -1352,13 +1362,13 @@ Future<Uint8List> buildPlancheTraceePdf(
       )
       .firstOrNull;
   final secretaryName = secretaryMember != null
-      ? _memberFullName(secretaryMember)
+      ? maskPersonName(_memberFullName(secretaryMember))
       : '';
   final sigs = <List<String?>>[
     ['Le Frère Orateur', orateurName, session.plancheOrateurSignature],
     [
       'Le Vénérable Maître',
-      plancheVmName(session, members, lodgeVmName: lodgeVmName),
+      maskPersonName(plancheVmName(session, members, lodgeVmName: lodgeVmName)),
       session.plancheVMSignature,
     ],
     ['La Sœur Secrétaire', secretaryName, session.plancheSecretarySignature],
@@ -1479,7 +1489,7 @@ Future<Uint8List> buildTreasuryReportPdf(int year, List<Member> members) async {
     rows.add(
       pw.TableRow(
         children: [
-          cell(m.fullName.isNotEmpty ? m.fullName : '—'),
+          cell(m.fullName.isNotEmpty ? maskPersonName(m.fullName) : '—'),
           cell(exempt ? '${m.status} (exonéré)' : m.status),
           cell(amount(d.lodgeDues, d.lodgeCollected, d.lodgeDuesPaid)),
           cell(amount(d.orderDues, d.orderCollected, d.orderDuesPaid)),
