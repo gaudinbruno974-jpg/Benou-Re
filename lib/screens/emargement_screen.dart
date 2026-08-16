@@ -6,6 +6,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/civilite.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../services/pdf_service.dart';
@@ -104,7 +105,9 @@ class EmargementScreen extends StatelessWidget {
         'plancheOrateurSignature',
         session.plancheOrateurName ??
             (orateur.id.isNotEmpty ? orateur.fullName : 'Orateur'),
-        'Le Frère Orateur',
+        // Civilité inconnue quand le nom vient du champ saisi à la main
+        // (pas de fiche associée à l'orateur dans ce cas).
+        '${civiliteTitle(session.plancheOrateurName != null ? '' : orateur.civilite)} Orateur',
         session.plancheOrateurSignature,
       ),
       _Signer(
@@ -116,7 +119,7 @@ class EmargementScreen extends StatelessWidget {
       _Signer(
         'plancheSecretarySignature',
         secretaire.id.isNotEmpty ? secretaire.fullName : 'Secrétaire',
-        'La Sœur Secrétaire',
+        '${civiliteTitle(secretaire.civilite)} Secrétaire',
         session.plancheSecretarySignature,
       ),
     ];

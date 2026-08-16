@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/civilite.dart';
 import '../models/member.dart';
 import '../models/visitor.dart';
 import '../state/app_state.dart';
@@ -117,35 +118,42 @@ class VisitorsScreen extends StatelessWidget {
     final obedience = TextEditingController(text: visitor?.obedience ?? '');
     final email = TextEditingController(text: visitor?.email ?? '');
     final phone = TextEditingController(text: visitor?.phone ?? '');
+    var civilite = visitor?.civilite ?? '';
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: BrColors.surface,
-        title: Text(visitor == null ? 'Nouveau visiteur' : 'Modifier',
-            style: const TextStyle(color: Colors.white)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _dialogField(first, 'Prénom'),
-              _dialogField(last, 'Nom'),
-              _dialogField(lodge, 'Loge'),
-              _dialogField(orient, 'Orient'),
-              _dialogField(obedience, 'Obédience'),
-              _dialogField(email, 'Email'),
-              _dialogField(phone, 'Téléphone'),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: BrColors.surface,
+          title: Text(visitor == null ? 'Nouveau visiteur' : 'Modifier',
+              style: const TextStyle(color: Colors.white)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dialogField(first, 'Prénom'),
+                _dialogField(last, 'Nom'),
+                _dialogField(lodge, 'Loge'),
+                _dialogField(orient, 'Orient'),
+                _dialogField(obedience, 'Obédience'),
+                _dialogField(email, 'Email'),
+                _dialogField(phone, 'Téléphone'),
+                _civiliteDropdown(
+                  civilite,
+                  (v) => setDialogState(() => civilite = v),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annuler')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Enregistrer')),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Enregistrer')),
-        ],
       ),
     );
 
@@ -161,6 +169,7 @@ class VisitorsScreen extends StatelessWidget {
         email: email.text.trim(),
         phone: phone.text.trim(),
         function: visitor?.function ?? '',
+        civilite: civilite,
       );
       if (visitor == null) {
         await state.addVisitor(v);
@@ -177,6 +186,31 @@ class VisitorsScreen extends StatelessWidget {
         controller: c,
         style: const TextStyle(color: BrColors.text),
         decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
+
+  Widget _civiliteDropdown(String value, ValueChanged<String> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InputDecorator(
+        decoration: const InputDecoration(labelText: 'Civilité'),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            dropdownColor: BrColors.surface,
+            style: const TextStyle(color: BrColors.text),
+            items: [
+              for (final c in const ['', ...kCivilites])
+                DropdownMenuItem(
+                  value: c,
+                  child: Text(c.isEmpty ? 'Non renseignée' : c),
+                ),
+            ],
+            onChanged: (v) => onChanged(v ?? value),
+          ),
+        ),
       ),
     );
   }

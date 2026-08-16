@@ -62,8 +62,14 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
 
   Future<void> _shareConvocation(Session session) async {
     final messenger = ScaffoldMessenger.of(context);
+    final state = context.read<AppState>();
     try {
-      final bytes = await buildConvocationPdf(session, _chrono(session));
+      final bytes = await buildConvocationPdf(
+        session,
+        _chrono(session),
+        state.members,
+        lodgeVmName: state.lodgeVmName,
+      );
       await Printing.sharePdf(
         bytes: Uint8List.fromList(bytes),
         filename: 'Convocation_Tenue_${_chrono(session)}.pdf',
