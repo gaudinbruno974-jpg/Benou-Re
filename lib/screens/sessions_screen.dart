@@ -523,7 +523,12 @@ class SessionDetailScreen extends StatelessWidget {
             onPressed: () => _openPdf(
               context,
               'Convocation',
-              () => buildConvocationPdf(session, _chrono(session)),
+              () => buildConvocationPdf(
+                session,
+                _chrono(session),
+                state.members,
+                lodgeVmName: state.lodgeVmName,
+              ),
             ),
           ),
           if (canEdit) ...[
@@ -599,7 +604,12 @@ class SessionDetailScreen extends StatelessWidget {
       final chrono = _chrono(session);
       final files = <String, Uint8List>{
         'Convocation_Tenue_$chrono.pdf': Uint8List.fromList(
-          await buildConvocationPdf(session, chrono),
+          await buildConvocationPdf(
+            session,
+            chrono,
+            state.members,
+            lodgeVmName: state.lodgeVmName,
+          ),
         ),
         'Emargement_Tenue_$chrono.pdf': Uint8List.fromList(
           await buildEmargementPdf(

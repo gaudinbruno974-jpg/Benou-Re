@@ -27,6 +27,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
 import '../config/lodge_config.dart';
+import '../models/civilite.dart';
 import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
@@ -43,21 +44,21 @@ const _grey = PdfColor.fromInt(0xFFD9D9D9);
 
 // Placement rituel de chaque office dans le Temple.
 const Map<String, String> _officePlacement = {
-  'Trésorier': 'Orient',
-  'Hospitalier': 'Orient',
   'Secrétaire': 'Orient',
   'Orateur': 'Orient',
   'Premier Surveillant': 'Colonne du Midi',
   '1er Surveillant': 'Colonne du Midi',
+  'Trésorier': 'Colonne du Midi',
+  'Expert': 'Colonne du Midi',
+  'Maître des Banquets': 'Colonne du Midi',
   'Second Surveillant': 'Colonne du Nord',
   '2nd Surveillant': 'Colonne du Nord',
   '2ème Surveillant': 'Colonne du Nord',
-  'Expert': 'Colonne du Midi',
   'Maître des Cérémonies': 'Colonne du Nord',
-  'Couvreur': 'Occident',
-  'Maître des Banquets': 'Colonne du Midi',
+  'Hospitalier': 'Colonne du Nord',
   "Maître de l'Harmonie": 'Colonne du Nord',
   "Maître de la Colonne d'Harmonie": 'Colonne du Nord',
+  'Couvreur': 'Occident',
 };
 
 const Map<String, String> _directPlacement = {
@@ -400,6 +401,11 @@ List<pw.Widget> _convocationContent({
   required String masonicDate,
   required List<String> items,
   required String medaille,
+  required String accueilHeure,
+  required String vmName,
+  required String secretaryCivilite,
+  required String secretaryName,
+  required String telSuffix,
   required double scale,
 }) {
   return [
@@ -472,20 +478,55 @@ List<pw.Widget> _convocationContent({
       ),
     pw.SizedBox(height: 12 * _mm * scale),
     pw.Text(
+      "Je remercie tous les FF∴ et SS∴ apprentis d'arriver à $accueilHeure pour "
+      "aider à la mise en place du Temple sous la houlette du Maître Second "
+      "Surveillant et du Maître Expert.",
+      textAlign: pw.TextAlign.left,
+      style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+    ),
+    pw.SizedBox(height: 6 * _mm * scale),
+    pw.Text(
       "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide.$medaille",
       textAlign: pw.TextAlign.center,
       style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
     ),
     pw.SizedBox(height: 3 * _mm * scale),
     pw.Text(
-      "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes. Tél : 06 93 470 700",
+      "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes.$telSuffix",
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+    ),
+    pw.SizedBox(height: 8 * _mm * scale),
+    pw.Text(
+      'Par mandatement du V∴M∴ $vmName',
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+    ),
+    pw.SizedBox(height: 2 * _mm * scale),
+    pw.Text(
+      'Le $secretaryCivilite Sec∴ $secretaryName',
       textAlign: pw.TextAlign.center,
       style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
     ),
   ];
 }
 
-Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
+/// Heure d'accueil des apprentis : une heure avant la reprise des travaux.
+/// Repli « xxhxx » si l'heure de reprise n'est pas renseignée (même
+/// convention que le premier travail généré par défaut).
+String _heureMoinsUne(String dateSource) {
+  final dt = DateTime.tryParse(dateSource);
+  if (dt == null || (dt.hour == 0 && dt.minute == 0)) return 'xxhxx';
+  final before = dt.subtract(const Duration(hours: 1));
+  return '${before.hour.toString().padLeft(2, '0')}h${before.minute.toString().padLeft(2, '0')}';
+}
+
+Future<Uint8List> buildConvocationPdf(
+  Session session,
+  int chrono,
+  List<Member> members, {
+  String lodgeVmName = '',
+}) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
 
@@ -505,6 +546,19 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
   final medaille = (session.montantMedaille ?? 0) > 0
       ? ' La médaille est de ${session.montantMedaille} euros.'
       : '';
+  final accueilHeure = _heureMoinsUne(dateSource);
+  final vmName = maskPersonName(
+    plancheVmName(session, members, lodgeVmName: lodgeVmName),
+  );
+  final secretary = members
+      .where((m) => foldLabel(m.function).contains('secretaire'))
+      .firstOrNull;
+  final secretaryName = secretary != null
+      ? maskPersonName(_memberFullName(secretary))
+      : 'Secrétaire';
+  final secretaryCivilite = civiliteAbbrev(secretary?.civilite ?? '');
+  final secretaryPhone = secretary?.phone.trim() ?? '';
+  final telSuffix = secretaryPhone.isEmpty ? '' : ' Tél : $secretaryPhone';
 
   // Contrainte "une seule page, toujours" : on tente à pleine échelle, puis on
   // réduit progressivement police/interlignage/marges/logos jusqu'à ce que le
@@ -529,6 +583,11 @@ Future<Uint8List> buildConvocationPdf(Session session, int chrono) async {
           masonicDate: masonicDate,
           items: items,
           medaille: medaille,
+          accueilHeure: accueilHeure,
+          vmName: vmName,
+          secretaryCivilite: secretaryCivilite,
+          secretaryName: secretaryName,
+          telSuffix: telSuffix,
           scale: scale,
         ),
       ),
@@ -1026,6 +1085,42 @@ String? plancheOrateurName(
   return dignitary != null ? maskPersonName(dignitary.fullName) : null;
 }
 
+/// Civilité de l'Orateur retenu, avec la même résolution que
+/// [plancheOrateurName] (membre, sinon visiteur, sinon dignitaire). Vide si
+/// le nom vient du champ saisi à la main (aucune fiche associée) ou si la
+/// personne retrouvée n'a pas de civilité renseignée.
+String _orateurCivilite(
+  Session session,
+  List<Member> members,
+  List<Visitor> visitors,
+  List<Dignitary> dignitaries,
+) {
+  if (session.plancheOrateurName?.isNotEmpty == true) return '';
+  final member = members
+      .where(
+        (m) =>
+            m.function.trim() == 'Orateur' && session.presentIds.contains(m.id),
+      )
+      .firstOrNull;
+  if (member != null) return member.civilite;
+  final visitor = visitors
+      .where(
+        (v) =>
+            session.visitorIds.contains(v.id) &&
+            (session.visitorRoles[v.id] ?? v.function).trim() == 'Orateur',
+      )
+      .firstOrNull;
+  if (visitor != null) return visitor.civilite;
+  final dignitary = dignitaries
+      .where(
+        (d) =>
+            session.dignitaryIds.contains(d.id) &&
+            (session.dignitaryRoles[d.id] ?? '').trim() == 'Orateur',
+      )
+      .firstOrNull;
+  return dignitary?.civilite ?? '';
+}
+
 /// Construit le texte intégral de la planche tracée (un paragraphe par ligne).
 ///
 /// Cette fonction pure sert à la fois à pré-remplir l'éditeur de planche
@@ -1075,7 +1170,11 @@ String buildPlancheTraceeText(
       .toList();
   if (excused.isNotEmpty) {
     final noms = excused
-        .map((m) => maskPersonName(_memberFullName(m)))
+        .mapIndexed(
+          (i, m) =>
+              '${civiliteArticleAbbrev(m.civilite, capitalize: i == 0)} '
+              '${maskPersonName(_memberFullName(m))}',
+        )
         .join(', ');
     paras.add(
       '$noms membre(s) de la R∴ L∴ ${lodge.name} sont absents excusés. (Voir la liste des membres excusés)',
@@ -1116,16 +1215,18 @@ String buildPlancheTraceeText(
     return _officePlacement[role] ?? _directPlacement[role];
   }
 
-  // Sans office assigné, un dignitaire reste par défaut à l'Orient : c'est
-  // la raison d'être de la catégorie (personne à annoncer/honorer).
-  String placementOfDignitary(Dignitary d) {
+  // Sans office pris ce jour, un dignitaire n'est pas cité dans la planche
+  // tracée (certains ne souhaitent pas y apparaître) : pas de repli par
+  // défaut à l'Orient.
+  String? placementOfDignitary(Dignitary d) {
     final role = roleOfDignitary(d);
-    if (role == null) return 'Orient';
-    return _officePlacement[role] ?? _directPlacement[role] ?? 'Orient';
+    if (role == null) return null;
+    return _officePlacement[role] ?? _directPlacement[role];
   }
 
   String placementSentence(Visitor v, String placement, String role) {
-    final who = 'le F∴ S∴ ${maskPersonName(_visitorFullName(v))} (${v.lodge})';
+    final who =
+        '${civiliteArticleAbbrev(v.civilite)} ${maskPersonName(_visitorFullName(v))} (${v.lodge})';
     final qualite = isOffice(role) ? ' en qualité de $role' : '';
     switch (placement) {
       case 'Colonne du Midi':
@@ -1141,7 +1242,8 @@ String buildPlancheTraceeText(
 
   String placementSentenceDignitary(Dignitary d, String placement, String role) {
     final lodgePart = d.lodge.isNotEmpty ? ' (${d.lodge})' : '';
-    final who = 'le F∴ S∴ ${maskPersonName(d.fullName)}$lodgePart';
+    final who =
+        '${civiliteArticleAbbrev(d.civilite)} ${maskPersonName(d.fullName)}$lodgePart';
     final qualite = isOffice(role) ? ' en qualité de $role' : '';
     switch (placement) {
       case 'Colonne du Midi':
@@ -1188,9 +1290,10 @@ String buildPlancheTraceeText(
   }
 
   final orateurName = plancheOrateurName(session, members, visitors, dignitaries);
+  final orateurCivilite = _orateurCivilite(session, members, visitors, dignitaries);
   paras.add(
     orateurName != null
-        ? 'Le poste d’Orateur est occupé par le F∴ S∴ $orateurName.'
+        ? 'Le poste d’Orateur est occupé par ${civiliteArticleAbbrev(orateurCivilite)} $orateurName.'
         : 'Le poste d’Orateur est resté vide.',
   );
 
@@ -1203,19 +1306,20 @@ String buildPlancheTraceeText(
       paras.add(placementSentence(v, placement, role as String));
     } else {
       paras.add(
-        'Le F∴ S∴ ${maskPersonName(_visitorFullName(v))} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.',
+        '${civiliteArticleAbbrev(v.civilite, capitalize: true)} ${maskPersonName(_visitorFullName(v))} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.',
       );
     }
   }
 
-  // Dignitaires ayant pris un office hors Orient (ceux à l'Orient, avec ou
-  // sans office, sont déjà couverts par la phrase collective ci-dessus).
+  // Dignitaires ayant pris un office hors Orient (ceux à l'Orient sont déjà
+  // couverts par la phrase collective ci-dessus ; ceux sans office pris ne
+  // sont pas cités du tout).
   for (final d in presentDignitaries) {
     final role = roleOfDignitary(d);
+    if (role == null || role == 'Orateur') continue;
     final placement = placementOfDignitary(d);
-    if (role == 'Orateur') continue;
-    if (placement == 'Orient') continue;
-    paras.add(placementSentenceDignitary(d, placement, role as String));
+    if (placement == null || placement == 'Orient') continue;
+    paras.add(placementSentenceDignitary(d, placement, role));
   }
 
   paras.add('La planche tracée de nos derniers travaux a été adoptée.');
@@ -1410,14 +1514,23 @@ Future<Uint8List> buildPlancheTraceePdf(
   final secretaryName = secretaryMember != null
       ? maskPersonName(_memberFullName(secretaryMember))
       : '';
+  final orateurCivilite = _orateurCivilite(session, members, visitors, dignitaries);
   final sigs = <List<String?>>[
-    ['Le Frère Orateur', orateurName, session.plancheOrateurSignature],
+    [
+      '${civiliteTitle(orateurCivilite)} Orateur',
+      orateurName,
+      session.plancheOrateurSignature,
+    ],
     [
       'Le Vénérable Maître',
       maskPersonName(plancheVmName(session, members, lodgeVmName: lodgeVmName)),
       session.plancheVMSignature,
     ],
-    ['La Sœur Secrétaire', secretaryName, session.plancheSecretarySignature],
+    [
+      '${civiliteTitle(secretaryMember?.civilite ?? '')} Secrétaire',
+      secretaryName,
+      session.plancheSecretarySignature,
+    ],
   ];
   content.add(pw.SizedBox(height: 6 * _mm));
   content.add(

@@ -231,7 +231,15 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   // ─── ARCHIVAGE DRIVE À LA CRÉATION (best effort) ──────────────────
   Future<Session> _createDriveFolder(Session session, int chrono) async {
     final messenger = ScaffoldMessenger.of(context);
-    final pdf = Uint8List.fromList(await buildConvocationPdf(session, chrono));
+    final state = context.read<AppState>();
+    final pdf = Uint8List.fromList(
+      await buildConvocationPdf(
+        session,
+        chrono,
+        state.members,
+        lodgeVmName: state.lodgeVmName,
+      ),
+    );
     final res = await DriveService.instance.ensureFolderAndUpload(session, {
       'Convocation_Tenue_$chrono.pdf': pdf,
     });
