@@ -6,11 +6,12 @@
 #
 # Usage : ./deployment/build_web.sh benoure
 #         ./deployment/build_web.sh petitprince
+#         ./deployment/build_web.sh templehorus
 set -euo pipefail
 
 FLAVOR="${1:-}"
-if [[ "$FLAVOR" != "benoure" && "$FLAVOR" != "petitprince" ]]; then
-  echo "Usage: $0 <benoure|petitprince>" >&2
+if [[ "$FLAVOR" != "benoure" && "$FLAVOR" != "petitprince" && "$FLAVOR" != "templehorus" ]]; then
+  echo "Usage: $0 <benoure|petitprince|templehorus>" >&2
   exit 1
 fi
 

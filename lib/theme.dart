@@ -13,22 +13,34 @@ class BrColors {
   // compiler sans modification.
   static const gold = currentFlavor == 'petitprince'
       ? kPetitPrinceAccent
-      : kBenouReAccent;
+      : currentFlavor == 'templehorus'
+          ? kTempleHorusAccent
+          : kBenouReAccent;
   static const goldBright = currentFlavor == 'petitprince'
       ? kPetitPrinceAccentBright
-      : kBenouReAccentBright;
+      : currentFlavor == 'templehorus'
+          ? kTempleHorusAccentBright
+          : kBenouReAccentBright;
   static const teal = currentFlavor == 'petitprince'
       ? kPetitPrincePrimary
-      : kBenouRePrimary;
+      : currentFlavor == 'templehorus'
+          ? kTempleHorusPrimary
+          : kBenouRePrimary;
   static const background = currentFlavor == 'petitprince'
       ? kPetitPrinceBackground
-      : kBenouReBackground;
+      : currentFlavor == 'templehorus'
+          ? kTempleHorusBackground
+          : kBenouReBackground;
   static const backgroundDark = currentFlavor == 'petitprince'
       ? kPetitPrinceBackgroundDark
-      : kBenouReBackgroundDark;
+      : currentFlavor == 'templehorus'
+          ? kTempleHorusBackgroundDark
+          : kBenouReBackgroundDark;
   static const surface = currentFlavor == 'petitprince'
       ? kPetitPrinceSurface
-      : kBenouReSurface;
+      : currentFlavor == 'templehorus'
+          ? kTempleHorusSurface
+          : kBenouReSurface;
   static const muted = Color(0xFFC4D8D8);
   static const text = Color(0xFFF8FAFA);
 
@@ -50,12 +62,16 @@ class BrColors {
   /// Petit Prince.
   static const backgroundGradient = currentFlavor == 'petitprince'
       ? kPetitPrinceBackgroundGradient
-      : kBenouReBackgroundGradient;
+      : currentFlavor == 'templehorus'
+          ? kTempleHorusBackgroundGradient
+          : kBenouReBackgroundGradient;
 
   /// Dégradé utilisé pour les cartes contrastées (voir `BrCard`).
   static const cardGradient = currentFlavor == 'petitprince'
       ? kPetitPrinceCardGradient
-      : kBenouReCardGradient;
+      : currentFlavor == 'templehorus'
+          ? kTempleHorusCardGradient
+          : kBenouReCardGradient;
 
   /// Dégradé doré (accents, titres, boutons mis en valeur).
   static const goldGradient = LinearGradient(

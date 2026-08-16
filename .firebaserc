@@ -1,6 +1,7 @@
 {
   "projects": {
     "default": "benou-re-loge",
-    "petitprince": "petit-prince-loge"
+    "petitprince": "petit-prince-loge",
+    "templehorus": "temple-horus-loge"
   }
 }

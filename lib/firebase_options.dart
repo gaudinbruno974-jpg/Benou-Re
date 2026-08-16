@@ -15,11 +15,15 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'config/flavor.dart';
 import 'firebase_options_benoure.dart' as benoure;
 import 'firebase_options_petitprince.dart' as petitprince;
+import 'firebase_options_templehorus.dart' as templehorus;
 
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (currentFlavor == 'petitprince') {
       return petitprince.DefaultFirebaseOptions.currentPlatform;
+    }
+    if (currentFlavor == 'templehorus') {
+      return templehorus.DefaultFirebaseOptions.currentPlatform;
     }
     return benoure.DefaultFirebaseOptions.currentPlatform;
   }

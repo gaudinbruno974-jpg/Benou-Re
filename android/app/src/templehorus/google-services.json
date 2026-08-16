@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "735474234992",
+    "project_id": "temple-horus-loge",
+    "storage_bucket": "temple-horus-loge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:735474234992:android:64f433de21e541364626b5",
+        "android_client_info": {
+          "package_name": "re.gldb.templehorus"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC7DX4-KbFv9NZYDM6y1MjEeiPBbOrbUd8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

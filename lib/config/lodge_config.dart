@@ -68,6 +68,30 @@ const LinearGradient kPetitPrinceCardGradient = LinearGradient(
   colors: [Color(0xFF2A4A85), Color(0xFF1C3563)],
 );
 
+// Identité grise : même structure que les deux précédentes, teinte neutre
+// (gris ardoise) plutôt que turquoise ou bleu. Un gris n'a pas de teinte
+// pour « aider » le contraste comme le bleu ou le turquoise : la couleur
+// primaire (fond de bouton, texte blanc dessus) reste volontairement assez
+// sombre pour ne pas devenir terne/peu lisible, tandis que les accents
+// (utilisés comme texte/bordures, pas comme fond) restent clairs.
+const Color kTempleHorusPrimary = Color(0xFF64707D);
+const Color kTempleHorusAccent = Color(0xFFC3CBD6);
+const Color kTempleHorusAccentBright = Color(0xFFE2E7ED);
+const Color kTempleHorusBackground = Color(0xFF2B2E33);
+const Color kTempleHorusBackgroundDark = Color(0xFF1C1E22);
+const Color kTempleHorusSurface = Color(0xFF3B3F45);
+const LinearGradient kTempleHorusBackgroundGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF34383E), Color(0xFF262931), Color(0xFF17191D)],
+  stops: [0.0, 0.55, 1.0],
+);
+const LinearGradient kTempleHorusCardGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF454A52), Color(0xFF31353B)],
+);
+
 /// Rend une chaîne sans signes diacritiques (« Bénou Ré » → « Benou Re »).
 ///
 /// Les documents officiels écrivent le nom de la Loge en capitales non
@@ -256,9 +280,41 @@ class LodgeConfig {
     },
   );
 
+  /// Valeurs de repli, propres au flavor Le Temple d'Horus.
+  ///
+  /// Logo et dossiers Drive encore à compléter (voir suivi du déploiement) :
+  /// [lodgeLogoAsset] pointe vers un fichier pas encore ajouté aux assets —
+  /// sans conséquence tant qu'il n'est pas déclaré dans `pubspec.yaml`
+  /// (`imageFromAssetBundle` échoue alors silencieusement, cf.
+  /// `pdf_service.dart`). [driveParentFolderId] et [libraryFolders] restent
+  /// vides tant qu'aucun dossier Drive n'a été créé pour cette loge.
+  static const LodgeConfig templeHorus = LodgeConfig(
+    name: "Le Temple d'Horus",
+    number: '4',
+    orient: 'Saint-Pierre',
+    orientLong: 'Saint Pierre – Île de la Réunion',
+    obedienceAcronym: 'GLDB',
+    defaultMeetingPlace: 'Temple Thérèse Eliseman à Saint-Pierre',
+    obedienceLogoAsset: 'assets/GLDB.png',
+    lodgeLogoAsset: 'assets/Temple-Horus.png',
+    primaryColor: kTempleHorusPrimary,
+    accentColor: kTempleHorusAccent,
+    accentBrightColor: kTempleHorusAccentBright,
+    backgroundColor: kTempleHorusBackground,
+    backgroundDarkColor: kTempleHorusBackgroundDark,
+    surfaceColor: kTempleHorusSurface,
+    backgroundGradient: kTempleHorusBackgroundGradient,
+    cardGradient: kTempleHorusCardGradient,
+    driveParentFolderId: '',
+    libraryFolders: {},
+  );
+
   /// Repli propre au flavor actif (voir `lib/config/flavor.dart`).
-  static LodgeConfig get forCurrentFlavor =>
-      currentFlavor == 'petitprince' ? petitPrince : benouRe;
+  static LodgeConfig get forCurrentFlavor {
+    if (currentFlavor == 'petitprince') return petitPrince;
+    if (currentFlavor == 'templehorus') return templeHorus;
+    return benouRe;
+  }
 
   /// Configuration active. Alimentée au démarrage par [AppState] à partir de
   /// `config/settings` ; vaut le repli du flavor tant que Firestore n'a rien

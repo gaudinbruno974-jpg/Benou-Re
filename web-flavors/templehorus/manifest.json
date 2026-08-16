@@ -1,0 +1,37 @@
+{
+    "name": "Le Temple d'Horus",
+    "short_name": "Temple d'Horus",
+    "lang": "fr",
+    "start_url": "./?source=pwa",
+    "scope": ".",
+    "display": "standalone",
+    "background_color": "#2B2E33",
+    "theme_color": "#2B2E33",
+    "description": "R∴L∴ Le Temple d'Horus — gestion de la loge",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}

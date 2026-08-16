@@ -84,10 +84,46 @@ _testAccountsPetitprince = [
   ),
 ];
 
-List<({String label, String email, String password})> get _testAccounts =>
-    currentFlavor == 'petitprince'
-    ? _testAccountsPetitprince
-    : _testAccountsBenoure;
+const String _testPasswordTempleHorus = '000007';
+const List<({String label, String email, String password})>
+_testAccountsTempleHorus = [
+  (
+    label: 'Apprenti',
+    email: 'apprentis@loge.com',
+    password: _testPasswordTempleHorus,
+  ),
+  (
+    label: 'Compagnon',
+    email: 'compagnons@loge.com',
+    password: _testPasswordTempleHorus,
+  ),
+  (
+    label: 'Maître',
+    email: 'maitres@loge.com',
+    password: _testPasswordTempleHorus,
+  ),
+  (
+    label: 'Secrétaire',
+    email: 'secretaire@loge.com',
+    password: _testPasswordTempleHorus,
+  ),
+  (
+    label: 'Trésorier',
+    email: 'tresorier@loge.com',
+    password: _testPasswordTempleHorus,
+  ),
+  (
+    label: 'Vénérable Maître',
+    email: 'vm@loge.com',
+    password: _testPasswordTempleHorus,
+  ),
+];
+
+List<({String label, String email, String password})> get _testAccounts {
+  if (currentFlavor == 'petitprince') return _testAccountsPetitprince;
+  if (currentFlavor == 'templehorus') return _testAccountsTempleHorus;
+  return _testAccountsBenoure;
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});

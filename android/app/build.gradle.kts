@@ -48,6 +48,10 @@ android {
             dimension = "loge"
             applicationId = "re.gldb.petitprince"
         }
+        create("templehorus") {
+            dimension = "loge"
+            applicationId = "re.gldb.templehorus"
+        }
     }
 
     buildTypes {
