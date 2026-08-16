@@ -11,7 +11,6 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../models/session.dart';
-import '../models/visitor.dart';
 import '../services/invitation_service.dart';
 import '../services/pdf_service.dart';
 import '../services/url_opener.dart';
@@ -28,9 +27,23 @@ class SessionInvitationsScreen extends StatefulWidget {
       _SessionInvitationsScreenState();
 }
 
+/// Visiteur ou dignitaire ayant un e-mail : unifiés pour la liste des
+/// destinataires de l'invitation par e-mail.
+class _Guest {
+  final String id;
+  final String fullName;
+  final String email;
+  final String lodge;
+  const _Guest({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.lodge,
+  });
+}
+
 class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
   final _selectedGuests = <String>{};
-  bool _guestsInitialized = false;
 
   int _chrono(Session s) {
     if (s.chrono != null) return s.chrono!.toInt();
@@ -88,13 +101,20 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
     );
     final chrono = _chrono(session);
     final ordreDuJour = plancheOrdreDuJour(session);
-    final guests = state.visitors
-        .where((v) => v.email.trim().isNotEmpty)
-        .toList();
-    if (!_guestsInitialized) {
-      _selectedGuests.addAll(guests.map((v) => v.id));
-      _guestsInitialized = true;
-    }
+    // Seuls les dignitaires sont invités directement par e-mail : dans la
+    // logique maçonnique, ce sont eux qui invitent ensuite les membres de
+    // leur propre loge, pas l'application qui contacte des visiteurs isolés.
+    final guests = <_Guest>[
+      for (final d in state.dignitaries)
+        if (d.email.trim().isNotEmpty)
+          _Guest(
+            id: d.id,
+            fullName: d.fullName,
+            email: d.email.trim(),
+            lodge: d.lodge,
+          ),
+    ];
+    // Décochés par défaut : l'expéditeur choisit qui reçoit le mail.
 
     final lodgeText = lodgeInvitationText(session, chrono, ordreDuJour);
     final obedienceText = obedienceInvitationText(
@@ -104,8 +124,8 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
     );
     final emailText = emailInvitationText(session, chrono, ordreDuJour);
     final recipients = guests
-        .where((v) => _selectedGuests.contains(v.id))
-        .map((v) => v.email.trim())
+        .where((g) => _selectedGuests.contains(g.id))
+        .map((g) => g.email)
         .toList();
 
     return Scaffold(
@@ -177,7 +197,7 @@ class _InvitationCard extends StatelessWidget {
   final VoidCallback? onWhatsApp;
   final VoidCallback? onEmail;
   final VoidCallback onCopy;
-  final List<Visitor> guests;
+  final List<_Guest> guests;
   final Set<String> selectedGuests;
   final ValueChanged<String>? onGuestToggle;
 
@@ -210,20 +230,20 @@ class _InvitationCard extends StatelessWidget {
               'Destinataires',
               style: TextStyle(color: BrColors.gold, fontSize: 12),
             ),
-            for (final v in guests)
+            for (final g in guests)
               CheckboxListTile(
                 dense: true,
                 contentPadding: EdgeInsets.zero,
-                value: selectedGuests.contains(v.id),
+                value: selectedGuests.contains(g.id),
                 onChanged: onGuestToggle == null
                     ? null
-                    : (_) => onGuestToggle!(v.id),
+                    : (_) => onGuestToggle!(g.id),
                 title: Text(
-                  v.fullName,
+                  g.fullName,
                   style: const TextStyle(color: BrColors.text, fontSize: 13),
                 ),
                 subtitle: Text(
-                  [v.email, v.lodge].where((e) => e.isNotEmpty).join(' — '),
+                  [g.email, g.lodge].where((e) => e.isNotEmpty).join(' — '),
                   style: const TextStyle(color: BrColors.muted, fontSize: 11),
                 ),
               ),

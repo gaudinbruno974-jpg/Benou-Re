@@ -91,7 +91,9 @@ String invitationBody(Session session, int chrono, List<String> ordreDuJour) {
   if (session.suitAgapes) {
     final heure = (session.heureAgape ?? session.agapeTime).trim();
     final type = (session.typeRepas ?? session.agapeType).trim();
-    final prix = session.agapePrice;
+    final prix = (session.montantMedaille ?? 0) > 0
+        ? session.montantMedaille!
+        : session.agapePrice;
     final details = <String>[
       if (heure.isNotEmpty) heure,
       if (type.isNotEmpty) type,
