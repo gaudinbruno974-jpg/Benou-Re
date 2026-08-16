@@ -11,6 +11,9 @@ class Visitor {
   final String phone;
   final String function;
 
+  /// « Frère » / « Sœur », vide si non renseignée (voir civilite.dart).
+  final String civilite;
+
   const Visitor({
     required this.id,
     this.firstName = '',
@@ -21,6 +24,7 @@ class Visitor {
     this.email = '',
     this.phone = '',
     this.function = '',
+    this.civilite = '',
   });
 
   factory Visitor.fromMap(String id, Map<String, dynamic> map) {
@@ -34,6 +38,7 @@ class Visitor {
       email: (map['email'] ?? '') as String,
       phone: (map['phone'] ?? '') as String,
       function: (map['function'] ?? '') as String,
+      civilite: (map['civilite'] ?? '') as String,
     );
   }
 
@@ -48,6 +53,7 @@ class Visitor {
       'email': email,
       'phone': phone,
       'function': function,
+      'civilite': civilite,
     };
   }
 
@@ -62,6 +68,7 @@ class Visitor {
     String? email,
     String? phone,
     String? function,
+    String? civilite,
   }) {
     return Visitor(
       id: id,
@@ -73,6 +80,7 @@ class Visitor {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       function: function ?? this.function,
+      civilite: civilite ?? this.civilite,
     );
   }
 }

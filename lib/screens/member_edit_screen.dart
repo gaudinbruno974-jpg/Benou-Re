@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/civilite.dart';
 import '../models/member.dart';
 import '../services/member_account_service.dart';
 import '../state/app_state.dart';
@@ -22,6 +23,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
   late String _grade;
   late String _status;
   late String _function;
+  late String _civilite;
   late List<String> _functions;
   bool _saving = false;
   bool _inviting = false;
@@ -53,6 +55,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     };
     _grade = normalizeGrade(m?.grade ?? kApprenti);
     _status = m?.status ?? 'Actif';
+    _civilite = m?.civilite ?? '';
     _function = (m?.function ?? '').trim().isEmpty
         ? kFunctions.first
         : m!.function.trim();
@@ -96,6 +99,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           address: _ctrls['address']!.text.trim(),
           matricule: _ctrls['matricule']!.text.trim(),
           function: _function,
+          civilite: _civilite,
           motherLodge: _ctrls['motherLodge']!.text.trim(),
           sponsor: _ctrls['sponsor']!.text.trim(),
           grade: _grade,
@@ -310,6 +314,14 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                   _dropdown('Office / Fonction', _function, _functions,
                       (v) => setState(() => _function = v)),
                   const SizedBox(height: 14),
+                  _dropdown(
+                    'Civilité',
+                    _civilite,
+                    const ['', ...kCivilites],
+                    (v) => setState(() => _civilite = v),
+                    labelBuilder: (c) => c.isEmpty ? 'Non renseignée' : c,
+                  ),
+                  const SizedBox(height: 14),
                   _dropdown('Grade', _grade, _grades,
                       (v) => setState(() => _grade = v)),
                   const SizedBox(height: 14),
@@ -387,8 +399,13 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     );
   }
 
-  Widget _dropdown(String label, String value, List<String> options,
-      ValueChanged<String> onChanged) {
+  Widget _dropdown(
+    String label,
+    String value,
+    List<String> options,
+    ValueChanged<String> onChanged, {
+    String Function(String)? labelBuilder,
+  }) {
     return InputDecorator(
       decoration: InputDecoration(labelText: label),
       child: DropdownButtonHideUnderline(
@@ -399,7 +416,10 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           style: const TextStyle(color: BrColors.text),
           items: [
             for (final o in options)
-              DropdownMenuItem(value: o, child: Text(o)),
+              DropdownMenuItem(
+                value: o,
+                child: Text(labelBuilder == null ? o : labelBuilder(o)),
+              ),
           ],
           onChanged: (v) => onChanged(v ?? value),
         ),

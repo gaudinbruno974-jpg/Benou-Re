@@ -17,6 +17,9 @@ class Dignitary {
   final String email;
   final String phone;
 
+  /// « Frère » / « Sœur », vide si non renseignée (voir civilite.dart).
+  final String civilite;
+
   /// Rang protocolaire (optionnel) : plus petit = annoncé en premier. Les
   /// dignitaires sans rang sont triés par ordre alphabétique après ceux qui
   /// en ont un.
@@ -32,6 +35,7 @@ class Dignitary {
     this.obedience = '',
     this.email = '',
     this.phone = '',
+    this.civilite = '',
     this.protocolRank,
   });
 
@@ -47,6 +51,7 @@ class Dignitary {
       obedience: (map['obedience'] ?? '') as String,
       email: (map['email'] ?? '') as String,
       phone: (map['phone'] ?? '') as String,
+      civilite: (map['civilite'] ?? '') as String,
       protocolRank: rank is num ? rank.toInt() : null,
     );
   }
@@ -62,6 +67,7 @@ class Dignitary {
       'obedience': obedience,
       'email': email,
       'phone': phone,
+      'civilite': civilite,
       'protocolRank': protocolRank,
     };
   }
@@ -77,6 +83,7 @@ class Dignitary {
     String? obedience,
     String? email,
     String? phone,
+    String? civilite,
     int? protocolRank,
     bool clearProtocolRank = false,
   }) {
@@ -90,6 +97,7 @@ class Dignitary {
       obedience: obedience ?? this.obedience,
       email: email ?? this.email,
       phone: phone ?? this.phone,
+      civilite: civilite ?? this.civilite,
       protocolRank: clearProtocolRank
           ? null
           : (protocolRank ?? this.protocolRank),

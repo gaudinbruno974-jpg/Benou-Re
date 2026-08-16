@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/civilite.dart';
 import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../state/app_state.dart';
@@ -134,41 +135,48 @@ class DignitariesScreen extends StatelessWidget {
     final protocolRank = TextEditingController(
       text: dignitary?.protocolRank?.toString() ?? '',
     );
+    var civilite = dignitary?.civilite ?? '';
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: BrColors.surface,
-        title: Text(dignitary == null ? 'Nouveau dignitaire' : 'Modifier',
-            style: const TextStyle(color: Colors.white)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _dialogField(first, 'Prénom'),
-              _dialogField(last, 'Nom'),
-              _dialogField(title, 'Titre / qualité'),
-              _dialogField(lodge, 'Loge d\'origine'),
-              _dialogField(orient, 'Orient'),
-              _dialogField(obedience, 'Obédience'),
-              _dialogField(email, 'Email'),
-              _dialogField(phone, 'Téléphone'),
-              _dialogField(
-                protocolRank,
-                'Rang protocolaire (optionnel, plus petit = annoncé en premier)',
-                keyboardType: TextInputType.number,
-              ),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          backgroundColor: BrColors.surface,
+          title: Text(dignitary == null ? 'Nouveau dignitaire' : 'Modifier',
+              style: const TextStyle(color: Colors.white)),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _dialogField(first, 'Prénom'),
+                _dialogField(last, 'Nom'),
+                _dialogField(title, 'Titre / qualité'),
+                _dialogField(lodge, 'Loge d\'origine'),
+                _dialogField(orient, 'Orient'),
+                _dialogField(obedience, 'Obédience'),
+                _dialogField(email, 'Email'),
+                _dialogField(phone, 'Téléphone'),
+                _dialogField(
+                  protocolRank,
+                  'Rang protocolaire (optionnel, plus petit = annoncé en premier)',
+                  keyboardType: TextInputType.number,
+                ),
+                _civiliteDropdown(
+                  civilite,
+                  (v) => setDialogState(() => civilite = v),
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Annuler')),
+            ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Enregistrer')),
+          ],
         ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
-          ElevatedButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Enregistrer')),
-        ],
       ),
     );
 
@@ -184,6 +192,7 @@ class DignitariesScreen extends StatelessWidget {
         obedience: obedience.text.trim(),
         email: email.text.trim(),
         phone: phone.text.trim(),
+        civilite: civilite,
         protocolRank: int.tryParse(protocolRank.text.trim()),
       );
       if (dignitary == null) {
@@ -206,6 +215,31 @@ class DignitariesScreen extends StatelessWidget {
         keyboardType: keyboardType,
         style: const TextStyle(color: BrColors.text),
         decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
+
+  Widget _civiliteDropdown(String value, ValueChanged<String> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InputDecorator(
+        decoration: const InputDecoration(labelText: 'Civilité'),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            dropdownColor: BrColors.surface,
+            style: const TextStyle(color: BrColors.text),
+            items: [
+              for (final c in const ['', ...kCivilites])
+                DropdownMenuItem(
+                  value: c,
+                  child: Text(c.isEmpty ? 'Non renseignée' : c),
+                ),
+            ],
+            onChanged: (v) => onChanged(v ?? value),
+          ),
+        ),
       ),
     );
   }
