@@ -50,7 +50,7 @@ void main() {
 
   test('ordre du jour court : une page (non-régression)', () async {
     final session = _sessionWithAgenda(['Questions diverses']);
-    final bytes = await buildConvocationPdf(session, 128);
+    final bytes = await buildConvocationPdf(session, 128, const []);
     File(
       '${Directory.systemTemp.path}/pdf_convocation_court.pdf',
     ).writeAsBytesSync(bytes);
@@ -75,7 +75,7 @@ void main() {
         'Annonce de la prochaine tenue et de son ordre du jour',
       ];
       final session = _sessionWithAgenda(longItems);
-      final bytes = await buildConvocationPdf(session, 128);
+      final bytes = await buildConvocationPdf(session, 128, const []);
       File(
         '${Directory.systemTemp.path}/pdf_convocation_long.pdf',
       ).writeAsBytesSync(bytes);

@@ -90,7 +90,7 @@ void main() {
       final withVisitorOnly = buildPlancheTraceeText(
         sessionWith(
           visitorIds: const ['v1'],
-          visitorRoles: const {'v1': 'Trésorier'},
+          visitorRoles: const {'v1': 'Secrétaire'},
         ),
         const [],
         const [visitorWithOffice],
@@ -100,7 +100,7 @@ void main() {
       final withVisitorAndEmptyDignitaries = buildPlancheTraceeText(
         sessionWith(
           visitorIds: const ['v1'],
-          visitorRoles: const {'v1': 'Trésorier'},
+          visitorRoles: const {'v1': 'Secrétaire'},
         ),
         const [],
         const [visitorWithOffice],
@@ -111,19 +111,19 @@ void main() {
       expect(
         withVisitorOnly,
         contains(
-          'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : Pau∴ BER∴ (Trésorier – Les Amis Réunis).',
+          'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : Pau∴ BER∴ (Secrétaire – Les Amis Réunis).',
         ),
       );
     },
   );
 
   test(
-    'un dignitaire sans office pris est annoncé à l\'Orient avec son titre, fusionné avec les visiteurs',
+    'un dignitaire sans office pris ce jour n\'est pas cité (pas de repli par défaut à l\'Orient)',
     () {
       final text = buildPlancheTraceeText(
         sessionWith(
           visitorIds: const ['v1'],
-          visitorRoles: const {'v1': 'Trésorier'},
+          visitorRoles: const {'v1': 'Secrétaire'},
           dignitaryIds: const ['d1'],
         ),
         const [],
@@ -135,10 +135,10 @@ void main() {
         text,
         contains(
           'A l’Orient, sont venus soutenir nos travaux les dignitaires suivants : '
-          'Pau∴ BER∴ (Trésorier – Les Amis Réunis), '
-          'Ala∴ ROU∴ (Grand Maître Adjoint – Les Cœurs Réunis).',
+          'Pau∴ BER∴ (Secrétaire – Les Amis Réunis).',
         ),
       );
+      expect(text, isNot(contains('Ala∴ ROU∴')));
     },
   );
 
@@ -158,7 +158,7 @@ void main() {
       expect(
         text,
         contains(
-          'Au Nord, a pris place le F∴ S∴ Nad∴ FON∴ (Concorde) en qualité de Second Surveillant.',
+          'Au Nord, a pris place le F∴/S∴ Nad∴ FON∴ (Concorde) en qualité de Second Surveillant.',
         ),
       );
       expect(text, isNot(contains('sont venus soutenir nos travaux')));
@@ -178,7 +178,7 @@ void main() {
     );
     expect(
       text,
-      contains('Le poste d’Orateur est occupé par le F∴ S∴ Mar∴ LER∴.'),
+      contains('Le poste d’Orateur est occupé par le F∴/S∴ Mar∴ LER∴.'),
     );
   });
 }

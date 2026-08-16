@@ -46,7 +46,7 @@ void main() {
       },
     );
 
-    final bytes = await buildConvocationPdf(session, 2);
+    final bytes = await buildConvocationPdf(session, 2, const []);
     File(
       '${Directory.systemTemp.path}/pdf_convocation_petitprince.pdf',
     ).writeAsBytesSync(bytes);
@@ -73,7 +73,7 @@ void main() {
       },
     );
 
-    final bytes = await buildConvocationPdf(session, 128);
+    final bytes = await buildConvocationPdf(session, 128, const []);
     File(
       '${Directory.systemTemp.path}/pdf_convocation_benoure_temoin.pdf',
     ).writeAsBytesSync(bytes);

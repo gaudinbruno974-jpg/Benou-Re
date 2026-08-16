@@ -113,7 +113,7 @@ void main() {
       },
     );
 
-    final convoc = await buildConvocationPdf(session, 128);
+    final convoc = await buildConvocationPdf(session, 128, members);
     final emarg =
         await buildEmargementPdf(session, members, visitors, dignitaries);
     final planche = await buildPlancheTraceePdf(
