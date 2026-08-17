@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Nom affiché sous l'icône, propre au flavor de la Loge. -->
 <resources>
-    <string name="app_name">Le Temple d'Horus</string>
+    <string name="app_name">Le Temple d\'Horus</string>
 </resources>
