@@ -45,14 +45,18 @@ void main() {
     expect(whatsappShareUrl('a b'), 'https://wa.me/?text=a%20b');
   });
 
-  test('le mailto reprend destinataires, objet et corps', () {
-    final url = mailtoUrl(
-      recipients: ['x@y.fr', 'z@y.fr'],
-      subject: 'Tenue 12',
-      body: 'Bonjour',
-    );
-    expect(url, startsWith('mailto:x%40y.fr,z%40y.fr?'));
-    expect(url, contains('subject=Tenue%2012'));
-    expect(url, contains('body=Bonjour'));
-  });
+  test(
+    'le mailto met les destinataires en copie cachee (Cci), champ A vide',
+    () {
+      final url = mailtoUrl(
+        recipients: ['x@y.fr', 'z@y.fr'],
+        subject: 'Tenue 12',
+        body: 'Bonjour',
+      );
+      expect(url, startsWith('mailto:?'));
+      expect(url, contains('bcc=x%40y.fr,z%40y.fr'));
+      expect(url, contains('subject=Tenue%2012'));
+      expect(url, contains('body=Bonjour'));
+    },
+  );
 }

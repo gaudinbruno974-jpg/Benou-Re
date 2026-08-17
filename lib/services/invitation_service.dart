@@ -153,15 +153,18 @@ String emailInvitationText(
 String whatsappShareUrl(String text) =>
     'https://wa.me/?text=${Uri.encodeComponent(text)}';
 
-/// Lien mailto préremplissant destinataires, objet et corps.
+/// Lien mailto préremplissant objet et corps, destinataires en copie cachée
+/// (Cci) : les invités ne voient pas les adresses des autres destinataires.
+/// Le champ « À » reste vide.
 String mailtoUrl({
   required List<String> recipients,
   required String subject,
   required String body,
 }) {
   final query = <String>[
+    'bcc=${recipients.map(Uri.encodeComponent).join(',')}',
     'subject=${Uri.encodeComponent(subject)}',
     'body=${Uri.encodeComponent(body)}',
   ].join('&');
-  return 'mailto:${recipients.map(Uri.encodeComponent).join(',')}?$query';
+  return 'mailto:?$query';
 }
