@@ -86,10 +86,29 @@ class InventoryScreen extends StatelessWidget {
           if (items.isEmpty)
             _EmptyState(canEdit: canEdit)
           else
-            for (final item in items) _ItemCard(item: item, canEdit: canEdit),
+            for (final entry in _groupByCategory(items).entries)
+              _CategorySection(
+                category: entry.key,
+                items: entry.value,
+                canEdit: canEdit,
+              ),
         ],
       ),
     );
+  }
+
+  static Map<String, List<InventoryItem>> _groupByCategory(
+    List<InventoryItem> items,
+  ) {
+    final byCategory = <String, List<InventoryItem>>{};
+    for (final item in items) {
+      final key = item.category.trim().isEmpty
+          ? 'Sans catégorie'
+          : item.category.trim();
+      byCategory.putIfAbsent(key, () => []).add(item);
+    }
+    final sortedKeys = byCategory.keys.toList()..sort();
+    return {for (final k in sortedKeys) k: byCategory[k]!};
   }
 
   static Future<void> _openEdit(
@@ -103,11 +122,24 @@ class InventoryScreen extends StatelessWidget {
         .toSet()
         .toList()
       ..sort();
+    final memberNames = state.members
+        .map((m) => m.fullName)
+        .where((n) => n.trim().isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    var lentByValue = item?.lentBy;
+    final lentByOptions = [
+      if (lentByValue != null &&
+          lentByValue.isNotEmpty &&
+          !memberNames.contains(lentByValue))
+        lentByValue,
+      ...memberNames,
+    ];
 
     final name = TextEditingController(text: item?.name ?? '');
     final category = TextEditingController(text: item?.category ?? '');
     final quantity = TextEditingController(text: item?.quantity ?? '');
-    final lentBy = TextEditingController(text: item?.lentBy ?? '');
     final note = TextEditingController(text: item?.note ?? '');
     var property = item?.property ?? kInvPropLoge;
 
@@ -171,7 +203,32 @@ class InventoryScreen extends StatelessWidget {
                   ),
                 ),
                 if (property == kInvPropFFSS)
-                  _dialogField(lentBy, 'Prêté par (F∴ / S∴)'),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 10),
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Prêté par (F∴ / S∴)',
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: lentByValue,
+                          isExpanded: true,
+                          dropdownColor: BrColors.surface,
+                          style: const TextStyle(color: BrColors.text),
+                          hint: const Text(
+                            'Sélectionner un membre',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                          items: [
+                            for (final n in lentByOptions)
+                              DropdownMenuItem(value: n, child: Text(n)),
+                          ],
+                          onChanged: (v) =>
+                              setDialogState(() => lentByValue = v),
+                        ),
+                      ),
+                    ),
+                  ),
                 _dialogField(note, 'Note (emplacement, précision…)'),
               ],
             ),
@@ -199,9 +256,7 @@ class InventoryScreen extends StatelessWidget {
       name: name.text.trim(),
       quantity: quantity.text.trim(),
       property: property,
-      lentBy: property == kInvPropFFSS && lentBy.text.trim().isNotEmpty
-          ? lentBy.text.trim()
-          : null,
+      lentBy: property == kInvPropFFSS ? lentByValue : null,
       note: note.text.trim().isEmpty ? null : note.text.trim(),
     );
     if (item == null) {
@@ -243,7 +298,7 @@ class _EmptyState extends StatelessWidget {
             OutlinedButton.icon(
               icon: const Icon(Icons.file_download_outlined),
               label: const Text(
-                'Importer les 65 articles de référence (Rituel du 1er Degré)',
+                'Importer les articles de référence (Rituel du 1er Degré)',
               ),
               onPressed: () => _importSeed(context),
             ),
@@ -262,12 +317,13 @@ class _EmptyState extends StatelessWidget {
           'Importer la liste de référence ?',
           style: TextStyle(color: Colors.white),
         ),
-        content: const Text(
-          'Les 65 articles extraits du Rituel d\'Ouverture au 1er Degré '
-          '(Rite de Memphis-Misraïm) seront ajoutés, avec la propriété '
-          '« Loge » par défaut. Vous pourrez ensuite corriger celles qui '
-          'sont partagées avec la GLDB ou prêtées par un F∴ / une S∴.',
-          style: TextStyle(color: BrColors.muted),
+        content: Text(
+          'Les ${kInventorySeedData.length} articles extraits du Rituel '
+          'd\'Ouverture au 1er Degré (Rite de Memphis-Misraïm) seront '
+          'ajoutés, avec la propriété « Loge » par défaut. Vous pourrez '
+          'ensuite corriger celles qui sont partagées avec la GLDB ou '
+          'prêtées par un F∴ / une S∴.',
+          style: const TextStyle(color: BrColors.muted),
         ),
         actions: [
           TextButton(
@@ -341,6 +397,53 @@ class _ActionCard extends StatelessWidget {
   }
 }
 
+class _CategorySection extends StatelessWidget {
+  final String category;
+  final List<InventoryItem> items;
+  final bool canEdit;
+  const _CategorySection({
+    required this.category,
+    required this.items,
+    required this.canEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: BrCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 10),
+            leading: const Icon(
+              Icons.folder_outlined,
+              color: BrColors.menuInventaire,
+            ),
+            title: Text(
+              category,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            subtitle: Text(
+              '${items.length} article(s)',
+              style: const TextStyle(color: BrColors.muted, fontSize: 12.5),
+            ),
+            children: [
+              for (final item in items) _ItemCard(item: item, canEdit: canEdit),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ItemCard extends StatelessWidget {
   final InventoryItem item;
   final bool canEdit;
@@ -374,12 +477,6 @@ class _ItemCard extends StatelessWidget {
                     spacing: 8,
                     runSpacing: 6,
                     children: [
-                      if (item.category.isNotEmpty)
-                        BrBadge(
-                          label: item.category,
-                          color: BrColors.menuInventaire,
-                          icon: Icons.category_outlined,
-                        ),
                       if (item.quantity.isNotEmpty)
                         BrBadge(
                           label: 'Qté ${item.quantity}',
