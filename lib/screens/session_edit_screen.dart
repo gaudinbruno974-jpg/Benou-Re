@@ -306,7 +306,11 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       'ligneCloture': _cloture.text.trim(),
       'hasAgape': _hasAgape,
       'suitAgapes': _hasAgape,
-      'status': existing?.statut ?? 'Planifiée',
+      // Modifier une tenue Annulée équivaut à la reprogrammer : elle
+      // redevient active plutôt que de rester affichée comme annulée.
+      'status': existing?.statut == 'Annulée'
+          ? 'Planifiée'
+          : (existing?.statut ?? 'Planifiée'),
     };
 
     if (_hasAgape) {

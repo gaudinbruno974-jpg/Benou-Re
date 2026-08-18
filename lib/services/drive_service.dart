@@ -227,6 +227,22 @@ class DriveService {
     return files.first['id'] as String?;
   }
 
+  /// Déplace le dossier [folderId] dans la corbeille Drive (réversible),
+  /// utilisé quand une tenue est annulée : le dossier « Tenue {chrono}
+  /// {date} » ne correspond plus à rien une fois la tenue reprogrammée à
+  /// une autre date.
+  Future<void> trashFolder(String folderId) async {
+    final headers = await _authHeaders();
+    final res = await http.patch(
+      Uri.parse('https://www.googleapis.com/drive/v3/files/$folderId'),
+      headers: {...headers, 'Content-Type': 'application/json'},
+      body: jsonEncode({'trashed': true}),
+    );
+    if (res.statusCode != 200) {
+      throw DriveException('Erreur suppression dossier : ${res.body}');
+    }
+  }
+
   Future<void> _uploadPdf(
     Map<String, String> headers,
     String folderId,

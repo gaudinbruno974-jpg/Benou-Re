@@ -387,6 +387,12 @@ class SessionDetailScreen extends StatelessWidget {
                 ),
               ),
             ),
+            if (session.statut != 'Annulée')
+              IconButton(
+                icon: const Icon(Icons.event_busy_outlined),
+                tooltip: 'Annuler la tenue',
+                onPressed: () => _cancelSession(context, state, session),
+              ),
             IconButton(
               icon: const Icon(Icons.delete_outline),
               tooltip: 'Supprimer',
@@ -638,6 +644,74 @@ class SessionDetailScreen extends StatelessWidget {
     } catch (e) {
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(SnackBar(content: Text('Drive : $e')));
+    }
+  }
+
+  /// Annule une tenue (statut → Annulée, sans la supprimer) et déplace son
+  /// éventuel dossier Drive dans la corbeille : le nom du dossier porte la
+  /// date de la tenue, qui ne correspondra plus à rien si elle est
+  /// reprogrammée à une autre date. Modifier ensuite une tenue Annulée
+  /// (même écran d'édition qu'aujourd'hui) la remet automatiquement au
+  /// statut Planifiée — voir SessionEditScreen._save.
+  Future<void> _cancelSession(
+    BuildContext context,
+    AppState state,
+    Session session,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: const Text(
+          'Annuler cette tenue ?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'La tenue passe au statut Annulée (elle n\'est pas supprimée). Si '
+          'un dossier existe pour elle sur Google Drive, il sera déplacé '
+          'dans la corbeille. La modifier ensuite la reprogrammera '
+          'automatiquement.',
+          style: TextStyle(color: BrColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Retour'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Annuler la tenue'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+
+    final folderId = session.driveFolderId;
+
+    final map = session.toMap();
+    map['status'] = 'Annulée';
+    map['driveFolderId'] = null;
+    map['driveFolderUrl'] = null;
+    await state.updateSession(Session.fromMap(session.id, map));
+
+    if (folderId == null || folderId.isEmpty) {
+      messenger.showSnackBar(const SnackBar(content: Text('Tenue annulée.')));
+      return;
+    }
+    try {
+      await DriveService.instance.trashFolder(folderId);
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Tenue annulée, dossier Drive déplacé dans la corbeille.'),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Tenue annulée. Dossier Drive non supprimé : $e')),
+      );
     }
   }
 
