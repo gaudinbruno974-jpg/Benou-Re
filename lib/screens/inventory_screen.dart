@@ -37,7 +37,24 @@ class InventoryScreen extends StatelessWidget {
       });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Matériel')),
+      appBar: AppBar(
+        title: const Text('Matériel'),
+        actions: [
+          if (canEdit)
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert),
+              onSelected: (_) => _importSeed(context, items),
+              itemBuilder: (ctx) => const [
+                PopupMenuItem(
+                  value: 'reimport',
+                  child: Text(
+                    'Réimporter la liste de référence (Rituel du 1er Degré)',
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               backgroundColor: BrColors.teal,
@@ -276,6 +293,71 @@ class InventoryScreen extends StatelessWidget {
       ),
     );
   }
+
+  /// Importe le jeu de données de référence. Si des articles existent déjà
+  /// (import précédent), ils sont d'abord supprimés : la nouvelle liste
+  /// remplace toujours l'ancienne plutôt que de s'y ajouter.
+  static Future<void> _importSeed(
+    BuildContext context,
+    List<InventoryItem> existing,
+  ) async {
+    final replacing = existing.isNotEmpty;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: Text(
+          replacing
+              ? 'Remplacer la liste de référence ?'
+              : 'Importer la liste de référence ?',
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          replacing
+              ? 'Les ${existing.length} article(s) actuellement enregistrés '
+                    'seront supprimés et remplacés par les '
+                    '${kInventorySeedData.length} articles du Rituel '
+                    'd\'Ouverture au 1er Degré (Rite de Memphis-Misraïm), '
+                    'propriété « Loge » par défaut.'
+              : 'Les ${kInventorySeedData.length} articles extraits du '
+                    'Rituel d\'Ouverture au 1er Degré (Rite de '
+                    'Memphis-Misraïm) seront ajoutés, avec la propriété '
+                    '« Loge » par défaut.',
+          style: const TextStyle(color: BrColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(replacing ? 'Remplacer' : 'Importer'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+    final state = context.read<AppState>();
+    for (final item in existing) {
+      await state.deleteInventoryItem(item.id);
+    }
+    final base = DateTime.now().millisecondsSinceEpoch;
+    for (var i = 0; i < kInventorySeedData.length; i++) {
+      final row = kInventorySeedData[i];
+      await state.addInventoryItem(
+        InventoryItem(
+          id: 'inv_${base}_$i',
+          category: row['category'] ?? '',
+          name: row['name'] ?? '',
+          quantity: row['quantity'] ?? '',
+          property: kInvPropLoge,
+          note: (row['note'] ?? '').isEmpty ? null : row['note'],
+        ),
+      );
+    }
+  }
 }
 
 class _EmptyState extends StatelessWidget {
@@ -300,60 +382,12 @@ class _EmptyState extends StatelessWidget {
               label: const Text(
                 'Importer les articles de référence (Rituel du 1er Degré)',
               ),
-              onPressed: () => _importSeed(context),
+              onPressed: () => InventoryScreen._importSeed(context, const []),
             ),
           ],
         ],
       ),
     );
-  }
-
-  Future<void> _importSeed(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: BrColors.surface,
-        title: const Text(
-          'Importer la liste de référence ?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Text(
-          'Les ${kInventorySeedData.length} articles extraits du Rituel '
-          'd\'Ouverture au 1er Degré (Rite de Memphis-Misraïm) seront '
-          'ajoutés, avec la propriété « Loge » par défaut. Vous pourrez '
-          'ensuite corriger celles qui sont partagées avec la GLDB ou '
-          'prêtées par un F∴ / une S∴.',
-          style: const TextStyle(color: BrColors.muted),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Importer'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    if (!context.mounted) return;
-    final state = context.read<AppState>();
-    final base = DateTime.now().millisecondsSinceEpoch;
-    for (var i = 0; i < kInventorySeedData.length; i++) {
-      final row = kInventorySeedData[i];
-      await state.addInventoryItem(
-        InventoryItem(
-          id: 'inv_${base}_$i',
-          category: row['category'] ?? '',
-          name: row['name'] ?? '',
-          quantity: row['quantity'] ?? '',
-          property: kInvPropLoge,
-          note: (row['note'] ?? '').isEmpty ? null : row['note'],
-        ),
-      );
-    }
   }
 }
 
