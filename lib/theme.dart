@@ -52,6 +52,7 @@ class BrColors {
   static const menuRituels = Color(0xFFCE93D8);
   static const menuTresorerie = Color(0xFFEF9A9A);
   static const menuVisiteurs = Color(0xFF81C784);
+  static const menuInventaire = Color(0xFFFFB74D);
 
   // Couleur complémentaire du rite Memphis-Misraïm (accent de bordure).
   static const violet = Color(0xFF9B6FC9);

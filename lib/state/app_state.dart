@@ -6,6 +6,8 @@ import 'package:flutter/foundation.dart';
 
 import '../config/lodge_config.dart';
 import '../models/dignitary.dart';
+import '../models/inventory_check.dart';
+import '../models/inventory_item.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -27,6 +29,8 @@ class AppState extends ChangeNotifier {
   List<Session> sessions = [];
   List<Visitor> visitors = [];
   List<Dignitary> dignitaries = [];
+  List<InventoryItem> inventoryItems = [];
+  List<InventoryCheck> inventoryChecks = [];
   Member? currentUser;
 
   /// Nom du V∴M∴ en charge, lu dans `config/settings`.
@@ -44,6 +48,8 @@ class AppState extends ChangeNotifier {
   StreamSubscription? _sessionsSub;
   StreamSubscription? _visitorsSub;
   StreamSubscription? _dignitariesSub;
+  StreamSubscription? _inventoryItemsSub;
+  StreamSubscription? _inventoryChecksSub;
   StreamSubscription? _vmNameSub;
   StreamSubscription? _lodgeConfigSub;
   late final StreamSubscription _authSub;
@@ -97,6 +103,20 @@ class AppState extends ChangeNotifier {
       },
       onError: _onStreamError,
     );
+    _inventoryItemsSub = repo.inventoryItemsStream().listen(
+      (data) {
+        inventoryItems = data;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
+    _inventoryChecksSub = repo.inventoryChecksStream().listen(
+      (data) {
+        inventoryChecks = data;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
     _vmNameSub = repo.lodgeVmNameStream().listen(
       (name) {
         lodgeVmName = name;
@@ -121,18 +141,24 @@ class AppState extends ChangeNotifier {
     _sessionsSub?.cancel();
     _visitorsSub?.cancel();
     _dignitariesSub?.cancel();
+    _inventoryItemsSub?.cancel();
+    _inventoryChecksSub?.cancel();
     _vmNameSub?.cancel();
     _lodgeConfigSub?.cancel();
     _membersSub = null;
     _sessionsSub = null;
     _visitorsSub = null;
     _dignitariesSub = null;
+    _inventoryItemsSub = null;
+    _inventoryChecksSub = null;
     _vmNameSub = null;
     _lodgeConfigSub = null;
     members = [];
     sessions = [];
     visitors = [];
     dignitaries = [];
+    inventoryItems = [];
+    inventoryChecks = [];
     lodgeVmName = '';
     // Retour au repli du flavor : l'écran de connexion doit afficher l'identité
     // de la Loge sans dépendre d'une session ouverte.
@@ -198,6 +224,13 @@ class AppState extends ChangeNotifier {
 
   // Réglages de la Loge
   Future<void> updateLodgeVmName(String name) => repo.setLodgeVmName(name);
+
+  // Actions inventaire du matériel
+  Future<void> addInventoryItem(InventoryItem i) => repo.setInventoryItem(i);
+  Future<void> updateInventoryItem(InventoryItem i) => repo.setInventoryItem(i);
+  Future<void> deleteInventoryItem(String id) => repo.deleteInventoryItem(id);
+  Future<void> submitInventoryCheck(InventoryCheck c) =>
+      repo.addInventoryCheck(c);
 
   // Actions visiteurs
   Future<void> addVisitor(Visitor v) => repo.setVisitor(v);

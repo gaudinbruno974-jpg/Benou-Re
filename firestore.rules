@@ -80,6 +80,21 @@ service cloud.firestore {
       allow write: if canEditSessions();
     }
 
+    // Inventaire du matériel de Loge : module autonome, sans lien avec les
+    // tenues. Liste de référence modifiable par le bureau (mêmes droits que
+    // les tenues) ; vérifications réalisables par tout membre connecté et
+    // historisées sans possibilité de modification a posteriori.
+    match /inventoryItems/{itemId} {
+      allow read: if signedIn();
+      allow write: if canEditSessions();
+    }
+
+    match /inventoryChecks/{checkId} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
     // Réglages de la Loge (chrono, nom du V∴M∴).
     match /config/{docId} {
       allow read: if signedIn();

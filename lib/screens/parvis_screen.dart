@@ -8,6 +8,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'dignitaries_screen.dart';
+import 'inventory_screen.dart';
 import 'members_screen.dart';
 import 'sessions_screen.dart';
 import 'visitors_screen.dart';
@@ -99,6 +100,14 @@ class ParvisScreen extends StatelessWidget {
         BrColors.menuRituels,
         true,
         () => const LibraryScreen(type: 'Rituels'),
+      ),
+      _MenuItem(
+        'Matériel',
+        '${state.inventoryItems.length} article(s) référencé(s)',
+        Icons.inventory_2_outlined,
+        BrColors.menuInventaire,
+        true,
+        () => const InventoryScreen(),
       ),
       _MenuItem(
         'Trésorerie',

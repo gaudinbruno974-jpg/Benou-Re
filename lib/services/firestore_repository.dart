@@ -4,6 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../config/lodge_config.dart';
 import '../models/dignitary.dart';
+import '../models/inventory_check.dart';
+import '../models/inventory_item.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -127,6 +129,38 @@ class FirestoreRepository {
       if (data == null) return fallback;
       return fallback.mergedWith(data);
     });
+  }
+
+  // ─── Inventaire du matériel de Loge ────────────────────────────
+  // Module autonome, sans lien avec les tenues (voir InventoryScreen).
+  Stream<List<InventoryItem>> inventoryItemsStream() {
+    return _db.collection('inventoryItems').snapshots().map(
+          (snap) => snap.docs
+              .map((d) => InventoryItem.fromMap(d.id, d.data()))
+              .toList(),
+        );
+  }
+
+  Future<void> setInventoryItem(InventoryItem item) {
+    return _db.collection('inventoryItems').doc(item.id).set(item.toMap());
+  }
+
+  Future<void> deleteInventoryItem(String id) {
+    return _db.collection('inventoryItems').doc(id).delete();
+  }
+
+  Stream<List<InventoryCheck>> inventoryChecksStream() {
+    return _db.collection('inventoryChecks').snapshots().map((snap) {
+      final items = snap.docs
+          .map((d) => InventoryCheck.fromMap(d.id, d.data()))
+          .toList();
+      items.sort((a, b) => b.performedAt.compareTo(a.performedAt));
+      return items;
+    });
+  }
+
+  Future<void> addInventoryCheck(InventoryCheck check) {
+    return _db.collection('inventoryChecks').doc(check.id).set(check.toMap());
   }
 
   // ─── Chrono (config/settings) ─────────────────────────────────
