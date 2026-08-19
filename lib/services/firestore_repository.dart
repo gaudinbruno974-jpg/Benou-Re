@@ -7,6 +7,7 @@ import '../models/dignitary.dart';
 import '../models/inventory_check.dart';
 import '../models/inventory_item.dart';
 import '../models/member.dart';
+import '../models/presence_link.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
 
@@ -64,6 +65,15 @@ class FirestoreRepository {
 
   Future<void> deleteSession(String id) {
     return _db.collection('sessions').doc(id).delete();
+  }
+
+  /// Lecture ponctuelle d'une tenue (hors flux temps réel), utilisée par la
+  /// synchronisation des réponses reçues par lien (voir AppState) pour
+  /// repartir d'un état à jour avant chaque écriture.
+  Future<Session?> getSession(String id) async {
+    final doc = await _db.collection('sessions').doc(id).get();
+    if (!doc.exists) return null;
+    return Session.fromMap(doc.id, doc.data()!);
   }
 
   // ─── Visitors ─────────────────────────────────────────────────
@@ -161,6 +171,117 @@ class FirestoreRepository {
 
   Future<void> addInventoryCheck(InventoryCheck check) {
     return _db.collection('inventoryChecks').doc(check.id).set(check.toMap());
+  }
+
+  // ─── Liens de réponse individuels (collecte de présence sans connexion,
+  // Flux A — membres de la Loge) ──────────────────────────────────
+  PresenceLink _presenceLinkFromDoc(String id, Map<String, dynamic> map) {
+    DateTime? ts(dynamic v) => v is Timestamp ? v.toDate() : null;
+    return PresenceLink(
+      id: id,
+      sessionId: (map['sessionId'] ?? '') as String,
+      memberId: (map['memberId'] ?? '') as String,
+      memberName: (map['memberName'] ?? '') as String,
+      sessionLabel: (map['sessionLabel'] ?? '') as String,
+      sessionDateLabel: (map['sessionDateLabel'] ?? '') as String,
+      sessionType: (map['sessionType'] ?? '') as String,
+      sessionDegreeLabel: (map['sessionDegreeLabel'] ?? '') as String,
+      hasAgape: (map['hasAgape'] ?? false) as bool,
+      status: (map['status'] ?? kPresenceStatusPending) as String,
+      agapePresent: map['agapePresent'] as bool?,
+      respondedAt: ts(map['respondedAt']),
+      expiresAt: ts(map['expiresAt']) ?? DateTime.now(),
+      createdAt: ts(map['createdAt']) ?? DateTime.now(),
+      applied: (map['applied'] ?? false) as bool,
+    );
+  }
+
+  Map<String, dynamic> _presenceLinkToDoc(PresenceLink link) {
+    return {
+      'sessionId': link.sessionId,
+      'memberId': link.memberId,
+      'memberName': link.memberName,
+      'sessionLabel': link.sessionLabel,
+      'sessionDateLabel': link.sessionDateLabel,
+      'sessionType': link.sessionType,
+      'sessionDegreeLabel': link.sessionDegreeLabel,
+      'hasAgape': link.hasAgape,
+      'status': link.status,
+      if (link.agapePresent != null) 'agapePresent': link.agapePresent,
+      if (link.respondedAt != null)
+        'respondedAt': Timestamp.fromDate(link.respondedAt!),
+      'expiresAt': Timestamp.fromDate(link.expiresAt),
+      'createdAt': Timestamp.fromDate(link.createdAt),
+      'applied': link.applied,
+    };
+  }
+
+  Future<void> createPresenceLink(PresenceLink link) {
+    return _db
+        .collection('presenceLinks')
+        .doc(link.id)
+        .set(_presenceLinkToDoc(link));
+  }
+
+  /// Lecture publique d'un jeton précis — seul accès autorisé par les règles
+  /// à un visiteur non connecté (voir firestore.rules : `allow get`, jamais
+  /// `allow list`).
+  Future<PresenceLink?> getPresenceLink(String token) async {
+    final doc = await _db.collection('presenceLinks').doc(token).get();
+    if (!doc.exists) return null;
+    return _presenceLinkFromDoc(doc.id, doc.data()!);
+  }
+
+  /// Écriture publique de la réponse : les règles Firestore limitent cette
+  /// mise à jour aux seuls champs `status` / `agapePresent` / `respondedAt`,
+  /// et uniquement avant expiration du jeton.
+  Future<void> submitPresenceResponse(
+    String token, {
+    required String status,
+    bool? agapePresent,
+  }) {
+    final data = <String, dynamic>{
+      'status': status,
+      'respondedAt': Timestamp.fromDate(DateTime.now()),
+    };
+    if (agapePresent != null) data['agapePresent'] = agapePresent;
+    return _db.collection('presenceLinks').doc(token).update(data);
+  }
+
+  /// Jetons déjà émis pour une tenue (évite les doublons en réouvrant l'écran
+  /// Invitations) et suivi en temps réel des réponses reçues.
+  Stream<List<PresenceLink>> presenceLinksForSessionStream(String sessionId) {
+    return _db
+        .collection('presenceLinks')
+        .where('sessionId', isEqualTo: sessionId)
+        .snapshots()
+        .map(
+          (snap) => snap.docs
+              .map((d) => _presenceLinkFromDoc(d.id, d.data()))
+              .toList(),
+        );
+  }
+
+  /// Réponses reçues par lien, pas encore répercutées dans la tenue
+  /// concernée (voir AppState, qui applique puis marque `applied`).
+  Stream<List<PresenceLink>> unappliedPresenceLinksStream() {
+    return _db
+        .collection('presenceLinks')
+        .where('applied', isEqualTo: false)
+        .snapshots()
+        .map(
+          (snap) => snap.docs
+              .map((d) => _presenceLinkFromDoc(d.id, d.data()))
+              .where((l) => l.isAnswered)
+              .toList(),
+        );
+  }
+
+  Future<void> markPresenceLinkApplied(String token) {
+    return _db
+        .collection('presenceLinks')
+        .doc(token)
+        .update({'applied': true});
   }
 
   // ─── Chrono (config/settings) ─────────────────────────────────

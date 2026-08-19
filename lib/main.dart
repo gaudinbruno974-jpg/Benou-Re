@@ -11,6 +11,7 @@ import 'theme.dart';
 import 'widgets/br_decor.dart';
 import 'screens/login_screen.dart';
 import 'screens/parvis_screen.dart';
+import 'screens/presence_response_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,11 +47,28 @@ class BenouReApp extends StatelessWidget {
   }
 }
 
+/// Jeton de lien de réponse (`#/reponse/<jeton>`), si l'URL en porte un —
+/// détecté avant la porte d'authentification puisque la page de réponse est
+/// publique, accessible sans connexion (voir presence_response_screen.dart).
+String? _presenceResponseToken() {
+  final candidates = [Uri.base.fragment, Uri.base.path];
+  for (final candidate in candidates) {
+    final match = RegExp(r'reponse/([A-Za-z0-9-]+)').firstMatch(candidate);
+    if (match != null) return match.group(1);
+  }
+  return null;
+}
+
 class _Root extends StatelessWidget {
   const _Root();
 
   @override
   Widget build(BuildContext context) {
+    final token = _presenceResponseToken();
+    if (token != null) {
+      return PresenceResponseScreen(token: token);
+    }
+
     final state = context.watch<AppState>();
 
     // Écran de chargement : utilise les couleurs du thème

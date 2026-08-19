@@ -95,6 +95,24 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Liens de réponse individuels (collecte de présence sans connexion,
+    // Flux A — membres de la Loge) : l'identifiant du document EST le jeton
+    // (UUID v4) reçu dans l'URL — connaître ce jeton précis est la seule
+    // preuve d'accès nécessaire, sans authentification. `allow list` reste
+    // réservé au bureau : un visiteur non connecté ne peut donc jamais
+    // énumérer les jetons, seulement lire/écrire celui qu'il connaît déjà.
+    match /presenceLinks/{token} {
+      allow get: if true;
+      allow list: if canEditSessions();
+      allow create, delete: if canEditSessions();
+      allow update: if canEditSessions()
+        || (
+          resource.data.expiresAt > request.time
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['status', 'agapePresent', 'respondedAt'])
+        );
+    }
+
     // Réglages de la Loge (chrono, nom du V∴M∴).
     match /config/{docId} {
       allow read: if signedIn();

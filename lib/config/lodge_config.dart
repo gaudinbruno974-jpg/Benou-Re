@@ -165,6 +165,13 @@ class LodgeConfig {
   /// Dégradé des cartes contrastées (voir `BrCard`).
   final LinearGradient cardGradient;
 
+  /// Origine du site web déployé de cette loge (sans slash final), utilisée
+  /// pour construire les liens de réponse individuels envoyés hors
+  /// application (§ 2 du cahier des charges Invitations) : ce lien doit
+  /// rester correct même généré depuis l'app mobile, où `Uri.base` ne reflète
+  /// pas l'hébergement web.
+  final String webOrigin;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -190,6 +197,7 @@ class LodgeConfig {
     required this.surfaceColor,
     required this.backgroundGradient,
     required this.cardGradient,
+    required this.webOrigin,
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -221,6 +229,7 @@ class LodgeConfig {
     surfaceColor: kBenouReSurface,
     backgroundGradient: kBenouReBackgroundGradient,
     cardGradient: kBenouReCardGradient,
+    webOrigin: 'https://benou-re-loge.web.app',
     driveParentFolderId: '11Qp8SXLFG0Spfks-G6OAQ66EHMGjEOgy',
     libraryFolders: {
       'Architecture': {
@@ -260,6 +269,7 @@ class LodgeConfig {
     surfaceColor: kPetitPrinceSurface,
     backgroundGradient: kPetitPrinceBackgroundGradient,
     cardGradient: kPetitPrinceCardGradient,
+    webOrigin: 'https://petit-prince-loge.web.app',
     driveParentFolderId: '13JPdAvGz_dHCYGHs-9JrjpvvbnqgW_U5',
     libraryFolders: {
       'Architecture': {
@@ -305,6 +315,7 @@ class LodgeConfig {
     surfaceColor: kTempleHorusSurface,
     backgroundGradient: kTempleHorusBackgroundGradient,
     cardGradient: kTempleHorusCardGradient,
+    webOrigin: 'https://temple-horus-loge.web.app',
     driveParentFolderId: '',
     libraryFolders: {},
   );
@@ -351,6 +362,7 @@ class LodgeConfig {
       surfaceColor: surfaceColor,
       backgroundGradient: backgroundGradient,
       cardGradient: cardGradient,
+      webOrigin: webOrigin,
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),
     );

@@ -9,6 +9,7 @@ import '../models/dignitary.dart';
 import '../models/inventory_check.dart';
 import '../models/inventory_item.dart';
 import '../models/member.dart';
+import '../models/presence_link.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
 import '../services/auth_service.dart';
@@ -52,6 +53,7 @@ class AppState extends ChangeNotifier {
   StreamSubscription? _inventoryChecksSub;
   StreamSubscription? _vmNameSub;
   StreamSubscription? _lodgeConfigSub;
+  StreamSubscription? _presenceLinksSub;
   late final StreamSubscription _authSub;
 
   void _init() {
@@ -145,6 +147,7 @@ class AppState extends ChangeNotifier {
     _inventoryChecksSub?.cancel();
     _vmNameSub?.cancel();
     _lodgeConfigSub?.cancel();
+    _presenceLinksSub?.cancel();
     _membersSub = null;
     _sessionsSub = null;
     _visitorsSub = null;
@@ -153,6 +156,7 @@ class AppState extends ChangeNotifier {
     _inventoryChecksSub = null;
     _vmNameSub = null;
     _lodgeConfigSub = null;
+    _presenceLinksSub = null;
     members = [];
     sessions = [];
     visitors = [];
@@ -176,22 +180,88 @@ class AppState extends ChangeNotifier {
   /// rattachées, auxquelles on inscrit alors cet identifiant.
   void _matchCurrentUser() {
     final user = _firebaseUser;
-    if (user == null) return;
+    if (user == null) {
+      _syncPresenceLinksIfNeeded();
+      return;
+    }
     final uid = user.uid;
     for (final m in members) {
       if (m.authUid == uid) {
         currentUser = m;
+        _syncPresenceLinksIfNeeded();
         return;
       }
     }
     final email = user.email?.trim().toLowerCase();
-    if (email == null || email.isEmpty) return;
+    if (email == null || email.isEmpty) {
+      _syncPresenceLinksIfNeeded();
+      return;
+    }
     for (final m in members) {
       if (m.authUid.isNotEmpty) continue;
       if (m.effectiveLoginEmail.toLowerCase() != email) continue;
       currentUser = m;
       unawaited(_attachAuthUid(m, uid));
+      _syncPresenceLinksIfNeeded();
       return;
+    }
+    _syncPresenceLinksIfNeeded();
+  }
+
+  /// Synchronisation automatique des réponses reçues par lien (collecte de
+  /// présence sans connexion, Flux A) : démarre/arrête l'écoute selon que
+  /// l'utilisateur connecté a le droit d'éditer les tenues, seul habilité par
+  /// les règles Firestore à lister `presenceLinks` et à écrire dans
+  /// `sessions`.
+  void _syncPresenceLinksIfNeeded() {
+    final allowed = canEditSessions(currentUser);
+    if (allowed && _presenceLinksSub == null) {
+      _presenceLinksSub = repo.unappliedPresenceLinksStream().listen(
+        _applyPresenceLinks,
+        onError: (_) {},
+      );
+    } else if (!allowed && _presenceLinksSub != null) {
+      _presenceLinksSub?.cancel();
+      _presenceLinksSub = null;
+    }
+  }
+
+  /// Répercute chaque réponse reçue dans `session.presentIds` / `excusedIds`
+  /// / `agapeIds` — l'équivalent de ce que fait aujourd'hui le Secrétaire à
+  /// la main dans « Présents en tenue » — puis marque le jeton `applied`.
+  /// Relit la tenue juste avant chaque écriture (plutôt que de partir de
+  /// [sessions], potentiellement périmé) pour rester correct si plusieurs
+  /// réponses arrivent pour la même tenue dans un seul lot.
+  Future<void> _applyPresenceLinks(List<PresenceLink> links) async {
+    for (final link in links) {
+      try {
+        final session = await repo.getSession(link.sessionId);
+        if (session == null) {
+          await repo.markPresenceLinkApplied(link.id);
+          continue;
+        }
+        final present = List<String>.from(session.presentIds)
+          ..remove(link.memberId);
+        final excused = List<String>.from(session.excusedIds)
+          ..remove(link.memberId);
+        final agape = List<String>.from(session.agapeIds)
+          ..remove(link.memberId);
+        if (link.status == kPresenceStatusPresent) {
+          present.add(link.memberId);
+          if (link.agapePresent == true) agape.add(link.memberId);
+        } else if (link.status == kPresenceStatusAbsent) {
+          excused.add(link.memberId);
+        }
+        final map = Map<String, dynamic>.from(session.toMap());
+        map['presentIds'] = present;
+        map['excusedIds'] = excused;
+        map['agapeIds'] = agape;
+        await repo.setSession(Session.fromMap(session.id, map));
+        await repo.markPresenceLinkApplied(link.id);
+      } catch (_) {
+        // Le jeton reste `applied = false` : une prochaine mise à jour du
+        // flux retentera automatiquement l'application.
+      }
     }
   }
 
@@ -231,6 +301,23 @@ class AppState extends ChangeNotifier {
   Future<void> deleteInventoryItem(String id) => repo.deleteInventoryItem(id);
   Future<void> submitInventoryCheck(InventoryCheck c) =>
       repo.addInventoryCheck(c);
+
+  // Liens de réponse individuels (collecte de présence sans connexion)
+  Future<void> createPresenceLink(PresenceLink link) =>
+      repo.createPresenceLink(link);
+  Stream<List<PresenceLink>> presenceLinksForSession(String sessionId) =>
+      repo.presenceLinksForSessionStream(sessionId);
+  Future<PresenceLink?> getPresenceLink(String token) =>
+      repo.getPresenceLink(token);
+  Future<void> submitPresenceResponse(
+    String token, {
+    required String status,
+    bool? agapePresent,
+  }) => repo.submitPresenceResponse(
+    token,
+    status: status,
+    agapePresent: agapePresent,
+  );
 
   // Actions visiteurs
   Future<void> addVisitor(Visitor v) => repo.setVisitor(v);
