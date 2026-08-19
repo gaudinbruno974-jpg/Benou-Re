@@ -8,16 +8,47 @@ import '../models/member.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 
-class DignitariesScreen extends StatelessWidget {
+class DignitariesScreen extends StatefulWidget {
   const DignitariesScreen({super.key});
+
+  @override
+  State<DignitariesScreen> createState() => _DignitariesScreenState();
+}
+
+class _DignitariesScreenState extends State<DignitariesScreen> {
+  final _search = TextEditingController();
+  DirectoryGroupMode _mode = DirectoryGroupMode.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final dignitaries = [...state.dignitaries]
-      ..sort((a, b) => a.lastName.compareTo(b.lastName));
     final canEdit = canEditSessions(state.currentUser);
+    final filtered =
+        state.dignitaries
+            .where(
+              (d) => directoryMatches(_search.text, [
+                d.firstName,
+                d.lastName,
+                d.lodge,
+                d.obedience,
+              ]),
+            )
+            .toList()
+          ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Dignitaires')),
@@ -29,101 +60,92 @@ class DignitariesScreen extends StatelessWidget {
               onPressed: () => _openEdit(context, null),
             )
           : null,
-      body: dignitaries.isEmpty
-          ? const Center(
-              child: Text('Aucun dignitaire',
-                  style: TextStyle(color: BrColors.muted)))
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
-              itemCount: dignitaries.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, i) {
-                final d = dignitaries[i];
-                return BrCard(
-                  accent: BrColors.violet,
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      BrAvatar(
-                        firstName: d.firstName,
-                        lastName: d.lastName,
-                        size: 46,
-                        color: BrColors.violet,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(d.fullName,
-                                style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15.5,
-                                    fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              children: [
-                                if (d.title.isNotEmpty)
-                                  BrBadge(
-                                    label: d.title,
-                                    color: BrColors.violet,
-                                    icon: Icons.workspace_premium_outlined,
-                                  ),
-                                if (d.lodge.isNotEmpty)
-                                  BrBadge(
-                                    label:
-                                        '${d.lodge}${d.orient.isNotEmpty ? ' (${d.orient})' : ''}',
-                                    color: BrColors.teal,
-                                    icon: Icons.shield_outlined,
-                                  ),
-                                if (d.obedience.isNotEmpty)
-                                  BrBadge(
-                                    label: d.obedience,
-                                    color: BrColors.gold,
-                                    icon: Icons.account_balance_outlined,
-                                  ),
-                                if (d.protocolRank != null)
-                                  BrBadge(
-                                    label: 'Rang ${d.protocolRank}',
-                                    color: BrColors.muted,
-                                    icon: Icons.format_list_numbered,
-                                  ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (canEdit)
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              icon: const Icon(Icons.edit,
-                                  color: BrColors.gold, size: 20),
-                              onPressed: () => _openEdit(context, d),
-                            ),
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              icon: const Icon(Icons.delete_outline,
-                                  color: Color(0xFFFB7185), size: 20),
-                              onPressed: () => state.deleteDignitary(d.id),
-                            ),
-                          ],
-                        ),
-                    ],
-                  ),
-                );
-              },
+      body: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
+        child: Column(
+          children: [
+            DirectoryFilterBar(
+              controller: _search,
+              mode: _mode,
+              onModeChanged: (m) => setState(() => _mode = m),
             ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: state.dignitaries.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Aucun dignitaire',
+                        style: TextStyle(color: BrColors.muted),
+                      ),
+                    )
+                  : filtered.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Aucun résultat.',
+                        style: TextStyle(color: BrColors.muted),
+                      ),
+                    )
+                  : _buildList(filtered, canEdit),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildList(List<Dignitary> filtered, bool canEdit) {
+    if (_mode == DirectoryGroupMode.all) {
+      return ListView.separated(
+        padding: const EdgeInsets.only(top: 4, bottom: 90),
+        itemCount: filtered.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, i) => _dignitaryCard(filtered[i], canEdit),
+      );
+    }
+    final groups = groupDirectory(
+      filtered,
+      (d) => _mode == DirectoryGroupMode.byLodge ? d.lodge : d.obedience,
+    );
+    return ListView(
+      padding: const EdgeInsets.only(top: 4, bottom: 90),
+      children: [
+        for (final g in groups)
+          DirectoryGroupSection(
+            title: g.key,
+            count: g.value.length,
+            initiallyExpanded: groups.length == 1,
+            children: [
+              for (final d in g.value)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _dignitaryCard(d, canEdit),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _dignitaryCard(Dignitary d, bool canEdit) {
+    return _DignitaryCard(
+      dignitary: d,
+      canEdit: canEdit,
+      onEdit: () => _openEdit(context, d),
+      onDelete: () => context.read<AppState>().deleteDignitary(d.id),
     );
   }
 
   Future<void> _openEdit(BuildContext context, Dignitary? dignitary) async {
     final state = context.read<AppState>();
+    final lodgeSuggestions = distinctSuggestions([
+      for (final v in state.visitors) v.lodge,
+      for (final d in state.dignitaries) d.lodge,
+    ]);
+    final obedienceSuggestions = distinctSuggestions([
+      for (final v in state.visitors) v.obedience,
+      for (final d in state.dignitaries) d.obedience,
+    ]);
+
     final first = TextEditingController(text: dignitary?.firstName ?? '');
     final last = TextEditingController(text: dignitary?.lastName ?? '');
     final title = TextEditingController(text: dignitary?.title ?? '');
@@ -151,9 +173,17 @@ class DignitariesScreen extends StatelessWidget {
                 _dialogField(first, 'Prénom'),
                 _dialogField(last, 'Nom'),
                 _dialogField(title, 'Titre / qualité'),
-                _dialogField(lodge, 'Loge d\'origine'),
+                DirectoryAutocompleteField(
+                  controller: lodge,
+                  label: 'Loge d\'origine',
+                  suggestions: lodgeSuggestions,
+                ),
                 _dialogField(orient, 'Orient'),
-                _dialogField(obedience, 'Obédience'),
+                DirectoryAutocompleteField(
+                  controller: obedience,
+                  label: 'Obédience',
+                  suggestions: obedienceSuggestions,
+                ),
                 _dialogField(email, 'Email'),
                 _dialogField(phone, 'Téléphone'),
                 _dialogField(
@@ -240,6 +270,102 @@ class DignitariesScreen extends StatelessWidget {
             onChanged: (v) => onChanged(v ?? value),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _DignitaryCard extends StatelessWidget {
+  final Dignitary dignitary;
+  final bool canEdit;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  const _DignitaryCard({
+    required this.dignitary,
+    required this.canEdit,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final d = dignitary;
+    return BrCard(
+      accent: BrColors.violet,
+      padding: const EdgeInsets.all(14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          BrAvatar(
+            firstName: d.firstName,
+            lastName: d.lastName,
+            size: 46,
+            color: BrColors.violet,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(d.fullName,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    if (d.title.isNotEmpty)
+                      BrBadge(
+                        label: d.title,
+                        color: BrColors.violet,
+                        icon: Icons.workspace_premium_outlined,
+                      ),
+                    if (d.lodge.isNotEmpty)
+                      BrBadge(
+                        label:
+                            '${d.lodge}${d.orient.isNotEmpty ? ' (${d.orient})' : ''}',
+                        color: BrColors.teal,
+                        icon: Icons.shield_outlined,
+                      ),
+                    if (d.obedience.isNotEmpty)
+                      BrBadge(
+                        label: d.obedience,
+                        color: BrColors.gold,
+                        icon: Icons.account_balance_outlined,
+                      ),
+                    if (d.protocolRank != null)
+                      BrBadge(
+                        label: 'Rang ${d.protocolRank}',
+                        color: BrColors.muted,
+                        icon: Icons.format_list_numbered,
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          if (canEdit)
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.edit,
+                      color: BrColors.gold, size: 20),
+                  onPressed: onEdit,
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.delete_outline,
+                      color: Color(0xFFFB7185), size: 20),
+                  onPressed: onDelete,
+                ),
+              ],
+            ),
+        ],
       ),
     );
   }

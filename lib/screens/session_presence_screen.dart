@@ -16,11 +16,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
+import '../models/visitor.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 
 // Liste des offices pouvant être pris pendant la tenue par un visiteur ou un
 // dignitaire, partagée entre les deux (voir _officePlacement dans
@@ -59,6 +62,25 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
   late List<String> _visitorAgapeIds;
   bool _initialized = false;
   bool _saving = false;
+
+  final _visitorSearch = TextEditingController();
+  DirectoryGroupMode _visitorMode = DirectoryGroupMode.all;
+  final _dignitarySearch = TextEditingController();
+  DirectoryGroupMode _dignitaryMode = DirectoryGroupMode.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _visitorSearch.addListener(() => setState(() {}));
+    _dignitarySearch.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _visitorSearch.dispose();
+    _dignitarySearch.dispose();
+    super.dispose();
+  }
 
   void _initFrom(Session session) {
     _presentIds = List<String>.from(session.presentIds);
@@ -279,21 +301,16 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               padding: EdgeInsets.all(12),
               child: Text('Aucun visiteur.',
                   style: TextStyle(color: BrColors.muted)),
+            )
+          else ...[
+            DirectoryFilterBar(
+              controller: _visitorSearch,
+              mode: _visitorMode,
+              onModeChanged: (m) => setState(() => _visitorMode = m),
             ),
-          for (final v in state.visitors)
-            _VisitorTile(
-              name: v.fullName,
-              subtitle: [v.lodge, v.orient]
-                  .where((e) => e.isNotEmpty)
-                  .join(' — '),
-              isPresent: _visitorIds.contains(v.id),
-              isAgape: _visitorAgapeIds.contains(v.id),
-              role: _visitorRoles[v.id] ?? '',
-              onToggle: allowEdit ? () => _toggleVisitor(v.id) : null,
-              onAgape: allowEdit ? () => _toggleVisitorAgape(v.id) : null,
-              onRoleChanged:
-                  allowEdit ? (r) => _updateVisitorRole(v.id, r) : null,
-            ),
+            const SizedBox(height: 12),
+            ..._visitorSections(state.visitors, allowEdit),
+          ],
           const SizedBox(height: 16),
           const _SectionTitle('DIGNITAIRES — PRÉSENTS'),
           if (state.dignitaries.isEmpty)
@@ -301,25 +318,127 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               padding: EdgeInsets.all(12),
               child: Text('Aucun dignitaire.',
                   style: TextStyle(color: BrColors.muted)),
+            )
+          else ...[
+            DirectoryFilterBar(
+              controller: _dignitarySearch,
+              mode: _dignitaryMode,
+              onModeChanged: (m) => setState(() => _dignitaryMode = m),
             ),
-          for (final d in state.dignitaries)
-            _VisitorTile(
-              name: d.fullName,
-              subtitle: [
-                if (d.title.isNotEmpty) d.title,
-                d.lodge,
-              ].where((e) => e.isNotEmpty).join(' — '),
-              isPresent: _dignitaryIds.contains(d.id),
-              isAgape: false,
-              showAgape: false,
-              role: _dignitaryRoles[d.id] ?? '',
-              onToggle: allowEdit ? () => _toggleDignitary(d.id) : null,
-              onAgape: null,
-              onRoleChanged:
-                  allowEdit ? (r) => _updateDignitaryRole(d.id, r) : null,
-            ),
+            const SizedBox(height: 12),
+            ..._dignitarySections(state.dignitaries, allowEdit),
+          ],
         ],
       ),
+    );
+  }
+
+  List<Widget> _visitorSections(List<Visitor> visitors, bool allowEdit) {
+    final filtered =
+        visitors
+            .where(
+              (v) => directoryMatches(_visitorSearch.text, [
+                v.firstName,
+                v.lastName,
+                v.lodge,
+                v.obedience,
+              ]),
+            )
+            .toList()
+          ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+    if (filtered.isEmpty) {
+      return const [
+        Padding(
+          padding: EdgeInsets.all(12),
+          child: Text('Aucun résultat.', style: TextStyle(color: BrColors.muted)),
+        ),
+      ];
+    }
+    if (_visitorMode == DirectoryGroupMode.all) {
+      return [for (final v in filtered) _visitorTile(v, allowEdit)];
+    }
+    final groups = groupDirectory(
+      filtered,
+      (v) => _visitorMode == DirectoryGroupMode.byLodge ? v.lodge : v.obedience,
+    );
+    return [
+      for (final g in groups)
+        DirectoryGroupSection(
+          title: g.key,
+          count: g.value.length,
+          initiallyExpanded: groups.length == 1,
+          children: [for (final v in g.value) _visitorTile(v, allowEdit)],
+        ),
+    ];
+  }
+
+  Widget _visitorTile(Visitor v, bool allowEdit) {
+    return _VisitorTile(
+      name: v.fullName,
+      subtitle: [v.lodge, v.orient].where((e) => e.isNotEmpty).join(' — '),
+      isPresent: _visitorIds.contains(v.id),
+      isAgape: _visitorAgapeIds.contains(v.id),
+      role: _visitorRoles[v.id] ?? '',
+      onToggle: allowEdit ? () => _toggleVisitor(v.id) : null,
+      onAgape: allowEdit ? () => _toggleVisitorAgape(v.id) : null,
+      onRoleChanged: allowEdit ? (r) => _updateVisitorRole(v.id, r) : null,
+    );
+  }
+
+  List<Widget> _dignitarySections(List<Dignitary> dignitaries, bool allowEdit) {
+    final filtered =
+        dignitaries
+            .where(
+              (d) => directoryMatches(_dignitarySearch.text, [
+                d.firstName,
+                d.lastName,
+                d.lodge,
+                d.obedience,
+              ]),
+            )
+            .toList()
+          ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+    if (filtered.isEmpty) {
+      return const [
+        Padding(
+          padding: EdgeInsets.all(12),
+          child: Text('Aucun résultat.', style: TextStyle(color: BrColors.muted)),
+        ),
+      ];
+    }
+    if (_dignitaryMode == DirectoryGroupMode.all) {
+      return [for (final d in filtered) _dignitaryTile(d, allowEdit)];
+    }
+    final groups = groupDirectory(
+      filtered,
+      (d) =>
+          _dignitaryMode == DirectoryGroupMode.byLodge ? d.lodge : d.obedience,
+    );
+    return [
+      for (final g in groups)
+        DirectoryGroupSection(
+          title: g.key,
+          count: g.value.length,
+          initiallyExpanded: groups.length == 1,
+          children: [for (final d in g.value) _dignitaryTile(d, allowEdit)],
+        ),
+    ];
+  }
+
+  Widget _dignitaryTile(Dignitary d, bool allowEdit) {
+    return _VisitorTile(
+      name: d.fullName,
+      subtitle: [
+        if (d.title.isNotEmpty) d.title,
+        d.lodge,
+      ].where((e) => e.isNotEmpty).join(' — '),
+      isPresent: _dignitaryIds.contains(d.id),
+      isAgape: false,
+      showAgape: false,
+      role: _dignitaryRoles[d.id] ?? '',
+      onToggle: allowEdit ? () => _toggleDignitary(d.id) : null,
+      onAgape: null,
+      onRoleChanged: allowEdit ? (r) => _updateDignitaryRole(d.id, r) : null,
     );
   }
 }

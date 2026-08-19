@@ -22,6 +22,7 @@ import '../services/url_opener.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 
 class SessionInvitationsScreen extends StatefulWidget {
   final String sessionId;
@@ -39,11 +40,13 @@ class _Guest {
   final String fullName;
   final String email;
   final String lodge;
+  final String obedience;
   const _Guest({
     required this.id,
     required this.fullName,
     required this.email,
     required this.lodge,
+    required this.obedience,
   });
 }
 
@@ -119,6 +122,7 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
             fullName: d.fullName,
             email: d.email.trim(),
             lodge: d.lodge,
+            obedience: d.obedience,
           ),
     ];
     // Décochés par défaut : l'expéditeur choisit qui reçoit le mail.
@@ -505,7 +509,7 @@ class _PresenceLinkRow extends StatelessWidget {
   }
 }
 
-class _InvitationCard extends StatelessWidget {
+class _InvitationCard extends StatefulWidget {
   final String title;
   final String text;
   final VoidCallback? onWhatsApp;
@@ -527,68 +531,137 @@ class _InvitationCard extends StatelessWidget {
   });
 
   @override
+  State<_InvitationCard> createState() => _InvitationCardState();
+}
+
+class _InvitationCardState extends State<_InvitationCard> {
+  final _search = TextEditingController();
+  DirectoryGroupMode _mode = DirectoryGroupMode.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Widget _guestTile(_Guest g) {
+    return CheckboxListTile(
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      value: widget.selectedGuests.contains(g.id),
+      onChanged: widget.onGuestToggle == null
+          ? null
+          : (_) => widget.onGuestToggle!(g.id),
+      title: Text(
+        g.fullName,
+        style: const TextStyle(color: BrColors.text, fontSize: 13),
+      ),
+      subtitle: Text(
+        [g.email, g.lodge].where((e) => e.isNotEmpty).join(' — '),
+        style: const TextStyle(color: BrColors.muted, fontSize: 11),
+      ),
+    );
+  }
+
+  Widget _guestList() {
+    final filtered =
+        widget.guests
+            .where(
+              (g) => directoryMatches(_search.text, [
+                g.fullName,
+                g.lodge,
+                g.obedience,
+              ]),
+            )
+            .toList()
+          ..sort((a, b) => directoryCompare(a.fullName, b.fullName));
+    if (filtered.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Text('Aucun résultat.', style: TextStyle(color: BrColors.muted)),
+      );
+    }
+    if (_mode == DirectoryGroupMode.all) {
+      return Column(children: [for (final g in filtered) _guestTile(g)]);
+    }
+    final groups = groupDirectory(
+      filtered,
+      (g) => _mode == DirectoryGroupMode.byLodge ? g.lodge : g.obedience,
+    );
+    return Column(
+      children: [
+        for (final grp in groups)
+          DirectoryGroupSection(
+            title: grp.key,
+            count: grp.value.length,
+            initiallyExpanded: groups.length == 1,
+            children: [for (final g in grp.value) _guestTile(g)],
+          ),
+      ],
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BrCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BrSectionTitle(title, icon: Icons.send_outlined),
+          BrSectionTitle(widget.title, icon: Icons.send_outlined),
           const SizedBox(height: 10),
           SelectableText(
-            text,
+            widget.text,
             style: const TextStyle(color: BrColors.text, fontSize: 13),
           ),
-          if (guests.isNotEmpty) ...[
+          if (widget.guests.isNotEmpty) ...[
             const SizedBox(height: 12),
             const Text(
               'Destinataires',
               style: TextStyle(color: BrColors.gold, fontSize: 12),
             ),
-            for (final g in guests)
-              CheckboxListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                value: selectedGuests.contains(g.id),
-                onChanged: onGuestToggle == null
-                    ? null
-                    : (_) => onGuestToggle!(g.id),
-                title: Text(
-                  g.fullName,
-                  style: const TextStyle(color: BrColors.text, fontSize: 13),
-                ),
-                subtitle: Text(
-                  [g.email, g.lodge].where((e) => e.isNotEmpty).join(' — '),
-                  style: const TextStyle(color: BrColors.muted, fontSize: 11),
-                ),
-              ),
+            const SizedBox(height: 8),
+            DirectoryFilterBar(
+              controller: _search,
+              mode: _mode,
+              onModeChanged: (m) => setState(() => _mode = m),
+              hintText: 'Rechercher un dignitaire, une Loge, une Obédience…',
+            ),
+            const SizedBox(height: 8),
+            _guestList(),
           ],
           const SizedBox(height: 12),
           Wrap(
             spacing: 10,
             runSpacing: 10,
             children: [
-              if (onWhatsApp != null)
+              if (widget.onWhatsApp != null)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: BrColors.teal,
                   ),
                   icon: const Icon(Icons.chat_outlined, size: 18),
                   label: const Text('Envoyer sur WhatsApp'),
-                  onPressed: onWhatsApp,
+                  onPressed: widget.onWhatsApp,
                 ),
-              if (onEmail != null)
+              if (widget.onEmail != null)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: BrColors.violet,
                   ),
                   icon: const Icon(Icons.mail_outline, size: 18),
                   label: const Text('Envoyer par e-mail'),
-                  onPressed: onEmail,
+                  onPressed: widget.onEmail,
                 ),
               OutlinedButton.icon(
                 icon: const Icon(Icons.copy, size: 16),
                 label: const Text('Copier'),
-                onPressed: onCopy,
+                onPressed: widget.onCopy,
               ),
             ],
           ),
