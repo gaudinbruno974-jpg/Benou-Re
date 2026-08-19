@@ -521,6 +521,11 @@ String _heureMoinsUne(String dateSource) {
   return '${before.hour.toString().padLeft(2, '0')}h${before.minute.toString().padLeft(2, '0')}';
 }
 
+/// Heure d'accueil des apprentis d'une tenue (voir [_heureMoinsUne]),
+/// exposée pour le texte de convocation par lien (invitation_service.dart).
+String accueilApprentisHeure(Session session) =>
+    _heureMoinsUne(session.dateReprise ?? session.date);
+
 Future<Uint8List> buildConvocationPdf(
   Session session,
   int chrono,

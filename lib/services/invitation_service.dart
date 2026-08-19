@@ -1,35 +1,18 @@
-// Génération des textes d'invitation d'une Tenue planifiée.
-//
-// L'API WhatsApp Business ne permet ni de créer un sondage ni d'écrire dans un
-// groupe : l'app se limite donc à produire le contenu, que l'utilisateur colle
-// dans le groupe de son choix (deep link wa.me) ou envoie par e-mail (mailto).
+// Génération des textes de convocation (membres) et d'invitation
+// (dignitaires/Vénérables d'autres Loges) envoyés via un lien de réponse
+// individuel (voir presence_link.dart) — chaque texte est personnalisé, le
+// lien de réponse étant propre au destinataire : pas de texte partagé unique
+// pour tout un groupe.
 
+import 'package:collection/collection.dart';
 import 'package:intl/intl.dart';
 
+import '../config/lodge_config.dart';
+import '../models/civilite.dart';
 import '../models/member.dart';
 import '../models/session.dart';
-
-/// Compteurs de présence d'une Tenue, par degré, plus les agapes.
-class InvitationCounts {
-  final int maitres;
-  final int compagnons;
-  final int apprentis;
-  final int agapes;
-
-  const InvitationCounts({
-    this.maitres = 0,
-    this.compagnons = 0,
-    this.apprentis = 0,
-    this.agapes = 0,
-  });
-
-  int get total => maitres + compagnons + apprentis;
-}
-
-String _dateSlash(Session session) {
-  final dt = session.dateTime;
-  return dt == null ? 'jj/mm/aaaa' : DateFormat('dd/MM/yyyy').format(dt);
-}
+import '../utils/name_mask.dart';
+import 'pdf_service.dart' show accueilApprentisHeure, plancheVmName;
 
 String _dateLongue(Session session) {
   final dt = session.dateTime;
@@ -38,49 +21,68 @@ String _dateLongue(Session session) {
       : DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
 }
 
-String _degreOrdinal(String degre) => Session.degreeOrdinal(degre);
-
-/// Titre commun aux messages : « Tenue X du jj/mm/aaaa ».
-String invitationTitle(Session session, int chrono) =>
-    'Tenue $chrono du ${_dateSlash(session)}';
-
-/// Compte les membres présents par degré et le nombre d'agapes.
-InvitationCounts invitationCounts(Session session, List<Member> members) {
-  var maitres = 0;
-  var compagnons = 0;
-  var apprentis = 0;
-  for (final m in members.where((m) => session.presentIds.contains(m.id))) {
-    switch (normalizeGrade(m.grade)) {
-      case kMaitre:
-        maitres++;
-      case kCompagnon:
-        compagnons++;
-      default:
-        apprentis++;
-    }
-  }
-  return InvitationCounts(
-    maitres: maitres,
-    compagnons: compagnons,
-    apprentis: apprentis,
-    agapes: session.agapeIds.length,
-  );
+String _dateCourte(Session session) {
+  final dt = session.dateTime;
+  return dt == null ? 'jj/mm/aa' : DateFormat('dd/MM/yy').format(dt);
 }
 
-/// Corps commun aux invitations (convocation, ordre du jour, agapes).
-String invitationBody(Session session, int chrono, List<String> ordreDuJour) {
+String _degreOrdinal(String degre) => Session.degreeOrdinal(degre);
+
+/// Libellé dénormalisé d'une tenue (« Tenue X du jj/mm/aaaa »), utilisé pour
+/// l'affichage sur la page publique d'un lien de réponse (PresenceLink).
+String invitationTitle(Session session, int chrono) {
+  final dt = session.dateTime;
+  final date = dt == null
+      ? 'jj/mm/aaaa'
+      : DateFormat('dd/MM/yyyy').format(dt);
+  return 'Tenue $chrono du $date';
+}
+
+String _tenueLabel(Session session) =>
+    'Tenue ${session.typeLabel} au ${_degreOrdinal(session.degreeLabel)} '
+    'degré symbolique';
+
+String _objet(String verbe, Session session, int chrono) =>
+    '$verbe la Tenue n°$chrono (${session.typeLabel}) '
+    '(${_degreOrdinal(session.degreeLabel)} degré) de la R∴L∴ '
+    '${LodgeConfig.current.name} (${_dateCourte(session)})';
+
+/// Objet du mail envoyé à un membre de la Loge.
+String memberConvocationSubject(Session session, int chrono) =>
+    _objet('Convocation à', session, chrono);
+
+/// Objet du mail envoyé à un dignitaire ou un Vénérable d'une autre Loge.
+String dignitaryInvitationSubject(Session session, int chrono) =>
+    _objet('Invitation à', session, chrono);
+
+String _heureDebut(Session session) {
+  final h = (session.heureSuspension ?? '').trim();
+  return h.isEmpty ? 'une heure à préciser' : h;
+}
+
+String _lieu(Session session) {
+  final l = (session.lieuReunionExtra ?? session.location).trim();
+  return l.isEmpty ? LodgeConfig.current.defaultMeetingPlace : l;
+}
+
+/// Corps commun aux deux textes : annonce de la tenue, lieu/horaires, ordre
+/// du jour, ligne Agapes, et la phrase de clôture avant les paragraphes
+/// spécifiques à chaque destinataire.
+List<String> _commonLines(
+  Session session,
+  List<String> ordreDuJour, {
+  required String informerVerbe,
+}) {
   final lines = <String>[
-    invitationTitle(session, chrono),
-    '',
     'Très Chers Frères, Très Chères Sœurs,',
-    'Vous êtes invités en Tenue ${session.typeLabel} au '
-        '${_degreOrdinal(session.degreeLabel)} degré symbolique, '
-        'le ${_dateLongue(session)}.',
+    '',
+    'La R∴L∴ ${LodgeConfig.current.name} $informerVerbe de sa prochaine '
+        '${_tenueLabel(session)} qui se tiendra le ${_dateLongue(session)}.',
+    '',
+    'Nous avons le plaisir de vous convier fraternellement à participer à '
+        'nos travaux, qui se dérouleront de ${_heureDebut(session)} à '
+        '${session.closingTime} au ${_lieu(session)}.',
   ];
-  final lieu = (session.lieuReunionExtra ?? session.location).trim();
-  if (lieu.isNotEmpty) lines.add('Lieu : $lieu.');
-  final ouverture = (session.heureSuspension ?? '').trim();
-  if (ouverture.isNotEmpty) lines.add('Ouverture des travaux : $ouverture.');
   if (ordreDuJour.isNotEmpty) {
     lines.add('');
     lines.add('Ordre du jour :');
@@ -89,82 +91,112 @@ String invitationBody(Session session, int chrono, List<String> ordreDuJour) {
     }
   }
   if (session.suitAgapes) {
-    final heure = (session.heureAgape ?? session.agapeTime).trim();
-    final type = (session.typeRepas ?? session.agapeType).trim();
     final prix = (session.montantMedaille ?? 0) > 0
         ? session.montantMedaille!
         : session.agapePrice;
-    final details = <String>[
-      if (heure.isNotEmpty) heure,
-      if (type.isNotEmpty) type,
-      if (prix > 0) '$prix €',
-    ].join(' — ');
+    final medaille = prix > 0 ? ' (participation pour la médaille : $prix €)' : '';
     lines.add('');
-    lines.add('Agapes : ${details.isEmpty ? 'à confirmer' : details}.');
+    lines.add("Les travaux seront suivis d'agapes$medaille.");
   }
+  lines.add('');
+  lines.add(
+    'Votre présence et votre participation contribueront à la richesse de '
+    'nos échanges.',
+  );
+  return lines;
+}
+
+/// Paragraphe réservé aux membres de la Loge (accueil des apprentis, rappel
+/// des agapes en Salle Humide, téléphone du Secrétariat).
+List<String> _memberOnlyLines(Session session, Member? secretary) {
+  final secretaryPhone = secretary?.phone.trim() ?? '';
+  final telSuffix = secretaryPhone.isEmpty ? '' : ' Tél : $secretaryPhone';
+  return [
+    '',
+    "Je remercie tous les FF∴ et SS∴ apprentis d'arriver à "
+        '${accueilApprentisHeure(session)} pour aider à la mise en place du '
+        'Temple sous la houlette du Maître Second Surveillant et du Maître '
+        'Expert.',
+    '',
+    "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide. "
+        "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux "
+        'les Agapes.$telSuffix',
+  ];
+}
+
+List<String> _linkLines(String responseUrl) => [
+  '',
+  'Le lien ci-dessous vous permet de nous répondre directement et '
+      "d'anticiper pour l'organisation de la tenue et des agapes : vous "
+      "pouvez modifier votre réponse jusqu'à minuit la veille de la tenue.",
+  '',
+  responseUrl,
+];
+
+/// Signature commune : mandatement du V∴M∴ et du Secrétaire (noms masqués,
+/// même convention que les documents PDF — voir maskPersonName).
+List<String> _signOffLines(
+  Session session,
+  List<Member> members,
+  Member? secretary, {
+  String lodgeVmName = '',
+}) {
+  final vmName = maskPersonName(
+    plancheVmName(session, members, lodgeVmName: lodgeVmName),
+  );
+  final secretaryName = secretary != null
+      ? maskPersonName(secretary.fullName)
+      : 'Secrétaire';
+  final secretaryCivilite = civiliteAbbrev(secretary?.civilite ?? '');
+  return [
+    '',
+    'Par mandatement du V∴M∴ $vmName',
+    'Le $secretaryCivilite Sec∴ $secretaryName',
+    'Fraternellement,',
+    'Le Secrétariat',
+  ];
+}
+
+Member? _findSecretary(List<Member> members) =>
+    members.where((m) => foldLabel(m.function).contains('secretaire')).firstOrNull;
+
+/// Corps du mail/message envoyé à un membre de la Loge, avec son lien de
+/// réponse personnel inséré.
+String memberConvocationBody(
+  Session session,
+  List<String> ordreDuJour,
+  List<Member> members,
+  String responseUrl, {
+  String lodgeVmName = '',
+}) {
+  final secretary = _findSecretary(members);
+  final lines = [
+    ..._commonLines(session, ordreDuJour, informerVerbe: 'vous informe'),
+    ..._memberOnlyLines(session, secretary),
+    ..._linkLines(responseUrl),
+    ..._signOffLines(session, members, secretary, lodgeVmName: lodgeVmName),
+  ];
   return lines.join('\n');
 }
 
-/// Message destiné au groupe WhatsApp de la Loge : le corps de l'invitation
-/// suivi des 4 questions à reporter dans le sondage WhatsApp.
-String lodgeInvitationText(
+/// Corps du mail/message envoyé à un dignitaire ou un Vénérable d'une autre
+/// Loge, avec son lien de réponse personnel inséré.
+String dignitaryInvitationBody(
   Session session,
-  int chrono,
   List<String> ordreDuJour,
-) {
-  return '${invitationBody(session, chrono, ordreDuJour)}\n\n'
-      'Sondage :\n'
-      'Présent en tenue : OUI\n'
-      'Présent en tenue : NON\n'
-      'Présent en agapes : OUI\n'
-      'Présent en agapes : NON';
-}
-
-/// Message destiné au groupe WhatsApp de l'Obédience : les compteurs de
-/// présence de notre Loge, à jour au moment de l'envoi.
-String obedienceInvitationText(
-  Session session,
   List<Member> members,
-  int chrono,
-) {
-  final c = invitationCounts(session, members);
-  return '${invitationTitle(session, chrono)}\n\n'
-      'Présent tenue\n'
-      'Maîtres - ${c.maitres}\n'
-      'Compagnons - ${c.compagnons}\n'
-      'Apprentis - ${c.apprentis}\n\n'
-      'Présent agapes\n'
-      'Nombre - ${c.agapes}';
-}
-
-/// Corps de l'invitation par e-mail (mêmes informations, sans le sondage).
-String emailInvitationText(
-  Session session,
-  int chrono,
-  List<String> ordreDuJour,
-) {
-  return '${invitationBody(session, chrono, ordreDuJour)}\n\n'
-      'Merci de confirmer votre présence en tenue et aux agapes en réponse à '
-      'ce message.';
-}
-
-/// Deep link WhatsApp avec le texte prérempli (le groupe est choisi dans
-/// WhatsApp : l'API ne permet pas de cibler un groupe).
-String whatsappShareUrl(String text) =>
-    'https://wa.me/?text=${Uri.encodeComponent(text)}';
-
-/// Lien mailto préremplissant objet et corps, destinataires en copie cachée
-/// (Cci) : les invités ne voient pas les adresses des autres destinataires.
-/// Le champ « À » reste vide.
-String mailtoUrl({
-  required List<String> recipients,
-  required String subject,
-  required String body,
+  String responseUrl, {
+  String lodgeVmName = '',
 }) {
-  final query = <String>[
-    'bcc=${recipients.map(Uri.encodeComponent).join(',')}',
-    'subject=${Uri.encodeComponent(subject)}',
-    'body=${Uri.encodeComponent(body)}',
-  ].join('&');
-  return 'mailto:?$query';
+  final secretary = _findSecretary(members);
+  final lines = [
+    ..._commonLines(
+      session,
+      ordreDuJour,
+      informerVerbe: "a l'honneur de vous informer",
+    ),
+    ..._linkLines(responseUrl),
+    ..._signOffLines(session, members, secretary, lodgeVmName: lodgeVmName),
+  ];
+  return lines.join('\n');
 }

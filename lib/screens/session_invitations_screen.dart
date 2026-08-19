@@ -1,9 +1,11 @@
-// Invitations d'une Tenue planifiée : trois destinations (groupe WhatsApp de la
-// Loge, groupe WhatsApp de l'Obédience, invités par e-mail).
-//
-// L'API WhatsApp ne permet ni les sondages ni l'envoi dans un groupe : l'app
-// prépare le texte et ouvre WhatsApp (choix du groupe par l'utilisateur) ou le
-// client mail. La convocation PDF se joint via le partage système.
+// Invitations d'une Tenue planifiée : un lien de réponse individuel par
+// destinataire — « Convocation Bénou-Ré » pour les membres de la Loge (Flux
+// A, réponse nominative Présent/Absent/Agapes), « Invitation » pour les
+// dignitaires et Vénérables d'autres Loges (Flux B, décompte de délégation
+// par grade). Chaque lien porte son propre texte complet (convocation ou
+// invitation, mandatement compris), le lien de réponse étant propre au
+// destinataire — voir invitation_service.dart pour la composition des
+// textes. La convocation PDF se joint via le partage système.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,7 +25,6 @@ import '../services/url_opener.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
-import '../widgets/directory_filter.dart';
 
 class SessionInvitationsScreen extends StatefulWidget {
   final String sessionId;
@@ -34,25 +35,7 @@ class SessionInvitationsScreen extends StatefulWidget {
       _SessionInvitationsScreenState();
 }
 
-/// Visiteur ou dignitaire ayant un e-mail : unifiés pour la liste des
-/// destinataires de l'invitation par e-mail.
-class _Guest {
-  final String id;
-  final String fullName;
-  final String email;
-  final String lodge;
-  final String obedience;
-  const _Guest({
-    required this.id,
-    required this.fullName,
-    required this.email,
-    required this.lodge,
-    required this.obedience,
-  });
-}
-
 class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
-  final _selectedGuests = <String>{};
   bool _presenceLinksEnabled = false;
   bool _delegationLinksEnabled = false;
 
@@ -111,83 +94,12 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
       orElse: () => Session(id: widget.sessionId),
     );
     final chrono = _chrono(session);
-    final ordreDuJour = plancheOrdreDuJour(session);
-    // Seuls les dignitaires sont invités directement par e-mail : dans la
-    // logique maçonnique, ce sont eux qui invitent ensuite les membres de
-    // leur propre loge, pas l'application qui contacte des visiteurs isolés.
-    final guests = <_Guest>[
-      for (final d in state.dignitaries)
-        if (d.email.trim().isNotEmpty)
-          _Guest(
-            id: d.id,
-            fullName: d.fullName,
-            email: d.email.trim(),
-            lodge: d.lodge,
-            obedience: d.obedience,
-          ),
-    ];
-    // Décochés par défaut : l'expéditeur choisit qui reçoit le mail.
-
-    final lodgeText = lodgeInvitationText(session, chrono, ordreDuJour);
-    final obedienceText = obedienceInvitationText(
-      session,
-      state.members,
-      chrono,
-    );
-    final emailText = emailInvitationText(session, chrono, ordreDuJour);
-    final recipients = guests
-        .where((g) => _selectedGuests.contains(g.id))
-        .map((g) => g.email)
-        .toList();
 
     return Scaffold(
       appBar: AppBar(title: Text('Invitations — Tenue $chrono')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 18, 14, 28),
         children: [
-          const Text(
-            'WhatsApp ne permet pas de créer un sondage ni d\'écrire dans un '
-            'groupe depuis une application : le texte est préparé ici, le '
-            'groupe se choisit dans WhatsApp.',
-            style: TextStyle(color: BrColors.muted, fontSize: 12),
-          ),
-          const SizedBox(height: 18),
-          _InvitationCard(
-            title: 'GROUPE LOGE',
-            text: lodgeText,
-            onWhatsApp: () => _open(whatsappShareUrl(lodgeText)),
-            onCopy: () => _copy(lodgeText),
-          ),
-          const SizedBox(height: 18),
-          _InvitationCard(
-            title: 'GROUPE OBÉDIENCE',
-            text: obedienceText,
-            onWhatsApp: () => _open(whatsappShareUrl(obedienceText)),
-            onCopy: () => _copy(obedienceText),
-          ),
-          const SizedBox(height: 18),
-          _InvitationCard(
-            title: 'INVITÉS PAR E-MAIL',
-            text: emailText,
-            onCopy: () => _copy(emailText),
-            onEmail: recipients.isEmpty
-                ? null
-                : () => _open(
-                      mailtoUrl(
-                        recipients: recipients,
-                        subject: invitationTitle(session, chrono),
-                        body: emailText,
-                      ),
-                    ),
-            guests: guests,
-            selectedGuests: _selectedGuests,
-            onGuestToggle: (id) => setState(
-              () => _selectedGuests.contains(id)
-                  ? _selectedGuests.remove(id)
-                  : _selectedGuests.add(id),
-            ),
-          ),
-          const SizedBox(height: 18),
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               foregroundColor: BrColors.goldBright,
@@ -208,7 +120,7 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
                   onChanged: (v) =>
                       setState(() => _presenceLinksEnabled = v ?? false),
                   title: const Text(
-                    'Liens de réponse individuels (test — Bénou Ré)',
+                    'Convocation Bénou-Ré',
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
                   subtitle: const Text(
@@ -239,14 +151,13 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
                   onChanged: (v) =>
                       setState(() => _delegationLinksEnabled = v ?? false),
                   title: const Text(
-                    'Décompte de délégation (test — Bénou Ré)',
+                    'Invitation',
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
                   subtitle: const Text(
-                    'Chaque dignitaire ou Vénérable invité (Loge/obédience '
-                    'extérieure) reçoit un lien pour déclarer le nombre de '
-                    'personnes de sa délégation présentes, par grade, sans '
-                    'se connecter.',
+                    'Chaque dignitaire ou Vénérable invité reçoit un lien '
+                    'pour déclarer le nombre de personnes de sa délégation '
+                    'présentes, par grade, sans se connecter.',
                     style: TextStyle(color: BrColors.muted, fontSize: 12),
                   ),
                 ),
@@ -266,10 +177,10 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
   }
 }
 
-/// Section « Liens de réponse individuels » : un lien par membre éligible à
-/// cette tenue (même filtrage par degré que l'écran Présences), généré une
-/// fois puis stable — voir presence_link.dart et AppState pour la
-/// synchronisation automatique des réponses reçues.
+/// Section « Convocation Bénou-Ré » : un lien par membre éligible à cette
+/// tenue (même filtrage par degré que l'écran Présences), généré une fois
+/// puis stable — voir presence_link.dart et AppState pour la synchronisation
+/// automatique des réponses reçues.
 class _PresenceLinksSection extends StatefulWidget {
   final Session session;
   final int chrono;
@@ -352,6 +263,7 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final eligible = _eligibleMembers(state);
+    final ordreDuJour = plancheOrdreDuJour(widget.session);
 
     return StreamBuilder<List<PresenceLink>>(
       stream: state.presenceLinksForSession(widget.session.id),
@@ -386,6 +298,11 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
                 ),
               for (final m in eligible)
                 _PresenceLinkRow(
+                  session: widget.session,
+                  chrono: widget.chrono,
+                  ordreDuJour: ordreDuJour,
+                  allMembers: state.members,
+                  lodgeVmName: state.lodgeVmName,
                   member: m,
                   link: byMember[m.id],
                   linkUrl: byMember[m.id] != null
@@ -403,12 +320,22 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
 }
 
 class _PresenceLinkRow extends StatelessWidget {
+  final Session session;
+  final int chrono;
+  final List<String> ordreDuJour;
+  final List<Member> allMembers;
+  final String lodgeVmName;
   final Member member;
   final PresenceLink? link;
   final String? linkUrl;
   final Future<void> Function(String) onCopy;
   final Future<void> Function(String) onOpen;
   const _PresenceLinkRow({
+    required this.session,
+    required this.chrono,
+    required this.ordreDuJour,
+    required this.allMembers,
+    required this.lodgeVmName,
     required this.member,
     required this.link,
     required this.linkUrl,
@@ -446,8 +373,13 @@ class _PresenceLinkRow extends StatelessWidget {
     final url = linkUrl;
     final message = url == null
         ? ''
-        : 'Bonjour ${member.firstName}, merci de confirmer votre présence '
-              'à la prochaine tenue via ce lien : $url';
+        : memberConvocationBody(
+            session,
+            ordreDuJour,
+            allMembers,
+            url,
+            lodgeVmName: lodgeVmName,
+          );
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -470,7 +402,7 @@ class _PresenceLinkRow extends StatelessWidget {
           if (url != null) ...[
             IconButton(
               visualDensity: VisualDensity.compact,
-              tooltip: 'Copier le lien',
+              tooltip: 'Copier le texte',
               icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
               onPressed: () => onCopy(message),
             ),
@@ -493,7 +425,7 @@ class _PresenceLinkRow extends StatelessWidget {
                 preferred: member.preferredContact == kContactCourriel,
                 onPressed: () => onOpen(
                   'mailto:${member.email.trim()}'
-                  '?subject=${Uri.encodeComponent('Confirmation de présence')}'
+                  '?subject=${Uri.encodeComponent(memberConvocationSubject(session, chrono))}'
                   '&body=${Uri.encodeComponent(message)}',
                 ),
               ),
@@ -504,172 +436,9 @@ class _PresenceLinkRow extends StatelessWidget {
   }
 }
 
-class _InvitationCard extends StatefulWidget {
-  final String title;
-  final String text;
-  final VoidCallback? onWhatsApp;
-  final VoidCallback? onEmail;
-  final VoidCallback onCopy;
-  final List<_Guest> guests;
-  final Set<String> selectedGuests;
-  final ValueChanged<String>? onGuestToggle;
-
-  const _InvitationCard({
-    required this.title,
-    required this.text,
-    required this.onCopy,
-    this.onWhatsApp,
-    this.onEmail,
-    this.guests = const [],
-    this.selectedGuests = const {},
-    this.onGuestToggle,
-  });
-
-  @override
-  State<_InvitationCard> createState() => _InvitationCardState();
-}
-
-class _InvitationCardState extends State<_InvitationCard> {
-  final _search = TextEditingController();
-  DirectoryGroupMode _mode = DirectoryGroupMode.all;
-
-  @override
-  void initState() {
-    super.initState();
-    _search.addListener(() => setState(() {}));
-  }
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  Widget _guestTile(_Guest g) {
-    return CheckboxListTile(
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      value: widget.selectedGuests.contains(g.id),
-      onChanged: widget.onGuestToggle == null
-          ? null
-          : (_) => widget.onGuestToggle!(g.id),
-      title: Text(
-        g.fullName,
-        style: const TextStyle(color: BrColors.text, fontSize: 13),
-      ),
-      subtitle: Text(
-        [g.email, g.lodge].where((e) => e.isNotEmpty).join(' — '),
-        style: const TextStyle(color: BrColors.muted, fontSize: 11),
-      ),
-    );
-  }
-
-  Widget _guestList() {
-    final filtered =
-        widget.guests
-            .where(
-              (g) => directoryMatches(_search.text, [
-                g.fullName,
-                g.lodge,
-                g.obedience,
-              ]),
-            )
-            .toList()
-          ..sort((a, b) => directoryCompare(a.fullName, b.fullName));
-    if (filtered.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 8),
-        child: Text('Aucun résultat.', style: TextStyle(color: BrColors.muted)),
-      );
-    }
-    if (_mode == DirectoryGroupMode.all) {
-      return Column(children: [for (final g in filtered) _guestTile(g)]);
-    }
-    final groups = groupDirectory(
-      filtered,
-      (g) => _mode == DirectoryGroupMode.byLodge ? g.lodge : g.obedience,
-    );
-    return Column(
-      children: [
-        for (final grp in groups)
-          DirectoryGroupSection(
-            title: grp.key,
-            count: grp.value.length,
-            initiallyExpanded: groups.length == 1,
-            children: [for (final g in grp.value) _guestTile(g)],
-          ),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return BrCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          BrSectionTitle(widget.title, icon: Icons.send_outlined),
-          const SizedBox(height: 10),
-          SelectableText(
-            widget.text,
-            style: const TextStyle(color: BrColors.text, fontSize: 13),
-          ),
-          if (widget.guests.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            const Text(
-              'Destinataires',
-              style: TextStyle(color: BrColors.gold, fontSize: 12),
-            ),
-            const SizedBox(height: 8),
-            DirectoryFilterBar(
-              controller: _search,
-              mode: _mode,
-              onModeChanged: (m) => setState(() => _mode = m),
-              hintText: 'Rechercher un dignitaire, une Loge, une Obédience…',
-            ),
-            const SizedBox(height: 8),
-            _guestList(),
-          ],
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              if (widget.onWhatsApp != null)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: BrColors.teal,
-                  ),
-                  icon: const Icon(Icons.chat_outlined, size: 18),
-                  label: const Text('Envoyer sur WhatsApp'),
-                  onPressed: widget.onWhatsApp,
-                ),
-              if (widget.onEmail != null)
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: BrColors.violet,
-                  ),
-                  icon: const Icon(Icons.mail_outline, size: 18),
-                  label: const Text('Envoyer par e-mail'),
-                  onPressed: widget.onEmail,
-                ),
-              OutlinedButton.icon(
-                icon: const Icon(Icons.copy, size: 16),
-                label: const Text('Copier'),
-                onPressed: widget.onCopy,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Section « Décompte de délégation » (Flux B) : un lien par dignitaire ou
-/// Vénérable d'une autre Loge — même collection `dignitaries` que les
-/// visiteurs annoncés — avec la synthèse des réponses reçues, qui remplace
-/// la composition manuelle évoquée au § 2.3 du cahier des charges.
+/// Section « Invitation » (Flux B) : un lien par dignitaire ou Vénérable
+/// d'une autre Loge — même collection `dignitaries` que les visiteurs
+/// annoncés — avec la synthèse des réponses reçues.
 class _DelegationLinksSection extends StatefulWidget {
   final Session session;
   final int chrono;
@@ -747,6 +516,7 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
         .where((d) => d.email.trim().isNotEmpty || d.phone.trim().isNotEmpty)
         .toList()
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
+    final ordreDuJour = plancheOrdreDuJour(widget.session);
 
     return StreamBuilder<List<PresenceLink>>(
       stream: state.presenceLinksForSession(widget.session.id),
@@ -827,6 +597,11 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
                 ),
               for (final d in recipients)
                 _DelegationLinkRow(
+                  session: widget.session,
+                  chrono: widget.chrono,
+                  ordreDuJour: ordreDuJour,
+                  allMembers: state.members,
+                  lodgeVmName: state.lodgeVmName,
                   dignitary: d,
                   link: byRecipient[d.id],
                   linkUrl: byRecipient[d.id] != null
@@ -881,12 +656,22 @@ class _ChannelButton extends StatelessWidget {
 }
 
 class _DelegationLinkRow extends StatelessWidget {
+  final Session session;
+  final int chrono;
+  final List<String> ordreDuJour;
+  final List<Member> allMembers;
+  final String lodgeVmName;
   final Dignitary dignitary;
   final PresenceLink? link;
   final String? linkUrl;
   final Future<void> Function(String) onCopy;
   final Future<void> Function(String) onOpen;
   const _DelegationLinkRow({
+    required this.session,
+    required this.chrono,
+    required this.ordreDuJour,
+    required this.allMembers,
+    required this.lodgeVmName,
     required this.dignitary,
     required this.link,
     required this.linkUrl,
@@ -915,9 +700,13 @@ class _DelegationLinkRow extends StatelessWidget {
     final url = linkUrl;
     final message = url == null
         ? ''
-        : 'Bonjour ${dignitary.firstName}, merci d\'indiquer via ce lien le '
-              'nombre de personnes de votre délégation présentes à la '
-              'prochaine tenue : $url';
+        : dignitaryInvitationBody(
+            session,
+            ordreDuJour,
+            allMembers,
+            url,
+            lodgeVmName: lodgeVmName,
+          );
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -940,7 +729,7 @@ class _DelegationLinkRow extends StatelessWidget {
           if (url != null) ...[
             IconButton(
               visualDensity: VisualDensity.compact,
-              tooltip: 'Copier le lien',
+              tooltip: 'Copier le texte',
               icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
               onPressed: () => onCopy(message),
             ),
@@ -963,7 +752,7 @@ class _DelegationLinkRow extends StatelessWidget {
                 preferred: dignitary.preferredContact == kContactCourriel,
                 onPressed: () => onOpen(
                   'mailto:${dignitary.email.trim()}'
-                  '?subject=${Uri.encodeComponent('Décompte de délégation')}'
+                  '?subject=${Uri.encodeComponent(dignitaryInvitationSubject(session, chrono))}'
                   '&body=${Uri.encodeComponent(message)}',
                 ),
               ),
