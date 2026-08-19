@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../models/civilite.dart';
 import '../models/member.dart';
+import '../models/preferred_contact.dart';
 import '../services/member_account_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -24,6 +25,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
   late String _status;
   late String _function;
   late String _civilite;
+  late String _preferredContact;
   late List<String> _functions;
   bool _saving = false;
   bool _inviting = false;
@@ -56,6 +58,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     _grade = normalizeGrade(m?.grade ?? kApprenti);
     _status = m?.status ?? 'Actif';
     _civilite = m?.civilite ?? '';
+    _preferredContact = m?.preferredContact ?? '';
     _function = (m?.function ?? '').trim().isEmpty
         ? kFunctions.first
         : m!.function.trim();
@@ -100,6 +103,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           matricule: _ctrls['matricule']!.text.trim(),
           function: _function,
           civilite: _civilite,
+          preferredContact: _preferredContact,
           motherLodge: _ctrls['motherLodge']!.text.trim(),
           sponsor: _ctrls['sponsor']!.text.trim(),
           grade: _grade,
@@ -265,6 +269,14 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                       keyboard: TextInputType.emailAddress),
                   _field('phone', 'Téléphone', keyboard: TextInputType.phone),
                   _field('address', 'Adresse', last: true),
+                  const SizedBox(height: 14),
+                  _dropdown(
+                    'Canal préféré',
+                    _preferredContact,
+                    const ['', ...kPreferredContacts],
+                    (v) => setState(() => _preferredContact = v),
+                    labelBuilder: (c) => c.isEmpty ? 'Vide' : c,
+                  ),
                 ],
               ),
             ),

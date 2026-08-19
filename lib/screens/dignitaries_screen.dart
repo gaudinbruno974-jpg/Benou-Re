@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/civilite.dart';
 import '../models/dignitary.dart';
 import '../models/member.dart';
+import '../models/preferred_contact.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -158,6 +159,7 @@ class _DignitariesScreenState extends State<DignitariesScreen> {
       text: dignitary?.protocolRank?.toString() ?? '',
     );
     var civilite = dignitary?.civilite ?? '';
+    var preferredContact = dignitary?.preferredContact ?? '';
 
     final saved = await showDialog<bool>(
       context: context,
@@ -195,6 +197,10 @@ class _DignitariesScreenState extends State<DignitariesScreen> {
                   civilite,
                   (v) => setDialogState(() => civilite = v),
                 ),
+                _preferredContactDropdown(
+                  preferredContact,
+                  (v) => setDialogState(() => preferredContact = v),
+                ),
               ],
             ),
           ),
@@ -223,6 +229,7 @@ class _DignitariesScreenState extends State<DignitariesScreen> {
         email: email.text.trim(),
         phone: phone.text.trim(),
         civilite: civilite,
+        preferredContact: preferredContact,
         protocolRank: int.tryParse(protocolRank.text.trim()),
       );
       if (dignitary == null) {
@@ -265,6 +272,34 @@ class _DignitariesScreenState extends State<DignitariesScreen> {
                 DropdownMenuItem(
                   value: c,
                   child: Text(c.isEmpty ? 'Non renseignée' : c),
+                ),
+            ],
+            onChanged: (v) => onChanged(v ?? value),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _preferredContactDropdown(
+    String value,
+    ValueChanged<String> onChanged,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InputDecorator(
+        decoration: const InputDecoration(labelText: 'Canal préféré'),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            dropdownColor: BrColors.surface,
+            style: const TextStyle(color: BrColors.text),
+            items: [
+              for (final c in const ['', ...kPreferredContacts])
+                DropdownMenuItem(
+                  value: c,
+                  child: Text(c.isEmpty ? 'Vide' : c),
                 ),
             ],
             onChanged: (v) => onChanged(v ?? value),

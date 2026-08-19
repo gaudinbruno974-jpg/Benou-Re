@@ -20,6 +20,10 @@ class Dignitary {
   /// « Frère » / « Sœur », vide si non renseignée (voir civilite.dart).
   final String civilite;
 
+  /// Canal préféré pour les invitations individuelles (« WhatsApp » /
+  /// « Courriel »), vide si non renseigné — voir preferred_contact.dart.
+  final String preferredContact;
+
   /// Rang protocolaire (optionnel) : plus petit = annoncé en premier. Les
   /// dignitaires sans rang sont triés par ordre alphabétique après ceux qui
   /// en ont un.
@@ -36,6 +40,7 @@ class Dignitary {
     this.email = '',
     this.phone = '',
     this.civilite = '',
+    this.preferredContact = '',
     this.protocolRank,
   });
 
@@ -52,6 +57,7 @@ class Dignitary {
       email: (map['email'] ?? '') as String,
       phone: (map['phone'] ?? '') as String,
       civilite: (map['civilite'] ?? '') as String,
+      preferredContact: (map['preferredContact'] ?? '') as String,
       protocolRank: rank is num ? rank.toInt() : null,
     );
   }
@@ -68,6 +74,7 @@ class Dignitary {
       'email': email,
       'phone': phone,
       'civilite': civilite,
+      'preferredContact': preferredContact,
       'protocolRank': protocolRank,
     };
   }
@@ -84,6 +91,7 @@ class Dignitary {
     String? email,
     String? phone,
     String? civilite,
+    String? preferredContact,
     int? protocolRank,
     bool clearProtocolRank = false,
   }) {
@@ -98,6 +106,7 @@ class Dignitary {
       email: email ?? this.email,
       phone: phone ?? this.phone,
       civilite: civilite ?? this.civilite,
+      preferredContact: preferredContact ?? this.preferredContact,
       protocolRank: clearProtocolRank
           ? null
           : (protocolRank ?? this.protocolRank),

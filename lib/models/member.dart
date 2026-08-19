@@ -213,6 +213,10 @@ class Member {
 
   /// « Frère » / « Sœur », vide si non renseignée (voir civilite.dart).
   final String civilite;
+
+  /// Canal préféré pour les invitations individuelles (« WhatsApp » /
+  /// « Courriel »), vide si non renseigné — voir preferred_contact.dart.
+  final String preferredContact;
   final String motherLodge;
   final String sponsor;
   final String loginId;
@@ -255,6 +259,7 @@ class Member {
     this.grade = kApprenti,
     this.function = 'Aucun',
     this.civilite = '',
+    this.preferredContact = '',
     this.motherLodge = '',
     this.sponsor = '',
     this.loginId = '',
@@ -310,6 +315,7 @@ class Member {
       grade: normalizeGrade(map['grade'] as String?),
       function: (map['function'] ?? 'Aucun') as String,
       civilite: (map['civilite'] ?? '') as String,
+      preferredContact: (map['preferredContact'] ?? '') as String,
       motherLodge: (map['motherLodge'] ?? '') as String,
       sponsor: (map['sponsor'] ?? '') as String,
       loginId: (map['loginId'] ?? '') as String,
@@ -347,6 +353,7 @@ class Member {
       'grade': grade,
       'function': function,
       'civilite': civilite,
+      'preferredContact': preferredContact,
       'motherLodge': motherLodge,
       'sponsor': sponsor,
       'loginId': loginId,
@@ -412,6 +419,7 @@ class Member {
     String? grade,
     String? function,
     String? civilite,
+    String? preferredContact,
     String? motherLodge,
     String? sponsor,
     String? loginId,
@@ -444,6 +452,7 @@ class Member {
       grade: grade ?? this.grade,
       function: function ?? this.function,
       civilite: civilite ?? this.civilite,
+      preferredContact: preferredContact ?? this.preferredContact,
       motherLodge: motherLodge ?? this.motherLodge,
       sponsor: sponsor ?? this.sponsor,
       loginId: loginId ?? this.loginId,

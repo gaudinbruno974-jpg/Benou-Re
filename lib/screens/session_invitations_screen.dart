@@ -14,6 +14,7 @@ import 'package:provider/provider.dart';
 import '../config/lodge_config.dart';
 import '../models/dignitary.dart';
 import '../models/member.dart';
+import '../models/preferred_contact.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
 import '../services/invitation_service.dart';
@@ -474,28 +475,22 @@ class _PresenceLinkRow extends StatelessWidget {
               onPressed: () => onCopy(message),
             ),
             if (member.phone.trim().isNotEmpty)
-              IconButton(
-                visualDensity: VisualDensity.compact,
+              _ChannelButton(
+                icon: Icons.chat_outlined,
+                color: BrColors.teal,
                 tooltip: 'Envoyer sur WhatsApp',
-                icon: const Icon(
-                  Icons.chat_outlined,
-                  size: 18,
-                  color: BrColors.teal,
-                ),
+                preferred: member.preferredContact == kContactWhatsApp,
                 onPressed: () => onOpen(
                   'https://wa.me/${_digitsOnly(member.phone)}'
                   '?text=${Uri.encodeComponent(message)}',
                 ),
               ),
             if (member.email.trim().isNotEmpty)
-              IconButton(
-                visualDensity: VisualDensity.compact,
+              _ChannelButton(
+                icon: Icons.mail_outline,
+                color: BrColors.violet,
                 tooltip: 'Envoyer par e-mail',
-                icon: const Icon(
-                  Icons.mail_outline,
-                  size: 18,
-                  color: BrColors.violet,
-                ),
+                preferred: member.preferredContact == kContactCourriel,
                 onPressed: () => onOpen(
                   'mailto:${member.email.trim()}'
                   '?subject=${Uri.encodeComponent('Confirmation de présence')}'
@@ -848,6 +843,43 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
   }
 }
 
+/// Bouton d'envoi (WhatsApp / e-mail) d'une ligne de lien, mis en évidence
+/// par un liseré quand ce canal est le « Canal préféré » de la fiche —
+/// l'autre bouton reste cliquable, ce n'est qu'un repère visuel.
+class _ChannelButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final bool preferred;
+  final VoidCallback onPressed;
+  const _ChannelButton({
+    required this.icon,
+    required this.color,
+    required this.tooltip,
+    required this.preferred,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final button = IconButton(
+      visualDensity: VisualDensity.compact,
+      tooltip: preferred ? '$tooltip (préféré)' : tooltip,
+      icon: Icon(icon, size: 18, color: color),
+      onPressed: onPressed,
+    );
+    if (!preferred) return button;
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.16),
+        border: Border.all(color: color.withValues(alpha: 0.6)),
+      ),
+      child: button,
+    );
+  }
+}
+
 class _DelegationLinkRow extends StatelessWidget {
   final Dignitary dignitary;
   final PresenceLink? link;
@@ -913,28 +945,22 @@ class _DelegationLinkRow extends StatelessWidget {
               onPressed: () => onCopy(message),
             ),
             if (dignitary.phone.trim().isNotEmpty)
-              IconButton(
-                visualDensity: VisualDensity.compact,
+              _ChannelButton(
+                icon: Icons.chat_outlined,
+                color: BrColors.teal,
                 tooltip: 'Envoyer sur WhatsApp',
-                icon: const Icon(
-                  Icons.chat_outlined,
-                  size: 18,
-                  color: BrColors.teal,
-                ),
+                preferred: dignitary.preferredContact == kContactWhatsApp,
                 onPressed: () => onOpen(
                   'https://wa.me/${_digitsOnly(dignitary.phone)}'
                   '?text=${Uri.encodeComponent(message)}',
                 ),
               ),
             if (dignitary.email.trim().isNotEmpty)
-              IconButton(
-                visualDensity: VisualDensity.compact,
+              _ChannelButton(
+                icon: Icons.mail_outline,
+                color: BrColors.violet,
                 tooltip: 'Envoyer par e-mail',
-                icon: const Icon(
-                  Icons.mail_outline,
-                  size: 18,
-                  color: BrColors.violet,
-                ),
+                preferred: dignitary.preferredContact == kContactCourriel,
                 onPressed: () => onOpen(
                   'mailto:${dignitary.email.trim()}'
                   '?subject=${Uri.encodeComponent('Décompte de délégation')}'
