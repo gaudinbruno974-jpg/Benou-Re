@@ -243,19 +243,20 @@ class DriveService {
     }
   }
 
-  Future<void> _uploadPdf(
+  Future<void> _uploadFile(
     Map<String, String> headers,
     String folderId,
     String fileName,
-    Uint8List bytes,
-  ) async {
+    Uint8List bytes, {
+    String contentType = 'application/pdf',
+  }) async {
     final existingId = await _findFile(headers, folderId, fileName);
     if (existingId != null) {
       final res = await http.patch(
         Uri.parse(
           'https://www.googleapis.com/upload/drive/v3/files/$existingId?uploadType=media',
         ),
-        headers: {...headers, 'Content-Type': 'application/pdf'},
+        headers: {...headers, 'Content-Type': contentType},
         body: bytes,
       );
       if (res.statusCode != 200) {
@@ -276,7 +277,7 @@ class DriveService {
       ),
     );
     body.addAll(
-      utf8.encode('--$boundary\r\nContent-Type: application/pdf\r\n\r\n'),
+      utf8.encode('--$boundary\r\nContent-Type: $contentType\r\n\r\n'),
     );
     body.addAll(bytes);
     body.addAll(utf8.encode('\r\n--$boundary--'));
@@ -294,6 +295,20 @@ class DriveService {
     if (res.statusCode != 200) {
       throw DriveException('Erreur upload « $fileName » : ${res.body}');
     }
+  }
+
+  /// Dépose [bytes] sous [fileName] dans [folderId] (remplace le fichier de
+  /// même nom s'il existe déjà) — utilisé pour les sauvegardes d'export,
+  /// hors du cycle de vie d'une tenue.
+  Future<void> uploadFileToFolder(
+    String folderId,
+    String fileName,
+    Uint8List bytes, {
+    String contentType =
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  }) async {
+    final headers = await _authHeaders();
+    await _uploadFile(headers, folderId, fileName, bytes, contentType: contentType);
   }
 
   /// Archive une liste de PDF dans le dossier de la tenue.
@@ -336,7 +351,7 @@ class DriveService {
             LodgeConfig.current.driveParentFolderId,
           );
     for (final entry in files.entries) {
-      await _uploadPdf(headers, folderId, entry.key, entry.value);
+      await _uploadFile(headers, folderId, entry.key, entry.value);
     }
     return (
       folderId: folderId,

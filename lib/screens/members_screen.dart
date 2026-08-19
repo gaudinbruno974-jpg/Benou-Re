@@ -6,6 +6,8 @@ import '../models/member.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'directory_export_actions.dart';
+import 'directory_import_screen.dart';
 import 'member_edit_screen.dart';
 
 class MembersScreen extends StatelessWidget {
@@ -26,7 +28,27 @@ class MembersScreen extends StatelessWidget {
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Membres')),
+      appBar: AppBar(
+        title: const Text('Membres'),
+        actions: canEdit
+            ? [
+                IconButton(
+                  tooltip: 'Exporter (Membres/Visiteurs/Dignitaires) vers le Drive',
+                  icon: const Icon(Icons.file_upload_outlined),
+                  onPressed: () => exportDirectoriesToDrive(context),
+                ),
+                IconButton(
+                  tooltip: 'Importer depuis un classeur .xlsx',
+                  icon: const Icon(Icons.file_download_outlined),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const DirectoryImportScreen(),
+                    ),
+                  ),
+                ),
+              ]
+            : null,
+      ),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               backgroundColor: BrColors.teal,
