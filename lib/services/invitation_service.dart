@@ -55,9 +55,25 @@ String memberConvocationSubject(Session session, int chrono) =>
 String dignitaryInvitationSubject(Session session, int chrono) =>
     _objet('Invitation à', session, chrono);
 
+/// Heure de reprise des travaux, lue sur la date/heure de la tenue — pas sur
+/// `heureSuspension`, qui malgré son nom porte en réalité l'heure de
+/// clôture (même valeur que `closingTime`, voir session_edit_screen.dart).
 String _heureDebut(Session session) {
-  final h = (session.heureSuspension ?? '').trim();
-  return h.isEmpty ? 'une heure à préciser' : h;
+  final dt = session.dateTime;
+  if (dt == null || (dt.hour == 0 && dt.minute == 0)) {
+    return 'une heure à préciser';
+  }
+  return '${dt.hour.toString().padLeft(2, '0')}h'
+      '${dt.minute.toString().padLeft(2, '0')}';
+}
+
+/// Heure et type d'agapes (« à 20h00 (Agape partage) »), pour compléter la
+/// ligne de participation sans dupliquer cette lecture ailleurs.
+String _agapeDetails(Session session) {
+  final heure = (session.heureAgape ?? session.agapeTime).trim();
+  final type = (session.typeRepas ?? session.agapeType).trim();
+  final parts = [if (heure.isNotEmpty) 'à $heure', if (type.isNotEmpty) '($type)'];
+  return parts.isEmpty ? '' : ' ${parts.join(' ')}';
 }
 
 String _lieu(Session session) {
@@ -96,7 +112,9 @@ List<String> _commonLines(
         : session.agapePrice;
     final medaille = prix > 0 ? ' (participation pour la médaille : $prix €)' : '';
     lines.add('');
-    lines.add("Les travaux seront suivis d'agapes$medaille.");
+    lines.add(
+      "Les travaux seront suivis d'agapes${_agapeDetails(session)}$medaille.",
+    );
   }
   lines.add('');
   lines.add(

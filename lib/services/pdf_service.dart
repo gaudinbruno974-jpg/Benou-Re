@@ -401,6 +401,7 @@ List<pw.Widget> _convocationContent({
   required String masonicDate,
   required List<String> items,
   required String medaille,
+  required String agapeDetails,
   required String accueilHeure,
   required String vmName,
   required String secretaryCivilite,
@@ -486,7 +487,7 @@ List<pw.Widget> _convocationContent({
     ),
     pw.SizedBox(height: 6 * _mm * scale),
     pw.Text(
-      "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide.$medaille",
+      "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide$agapeDetails.$medaille",
       textAlign: pw.TextAlign.center,
       style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
     ),
@@ -551,6 +552,15 @@ Future<Uint8List> buildConvocationPdf(
   final medaille = (session.montantMedaille ?? 0) > 0
       ? ' La médaille est de ${session.montantMedaille} euros.'
       : '';
+  final agapeHeure = (session.heureAgape ?? session.agapeTime).trim();
+  final agapeType = (session.typeRepas ?? session.agapeType).trim();
+  final agapeDetailsParts = [
+    if (agapeHeure.isNotEmpty) 'à $agapeHeure',
+    if (agapeType.isNotEmpty) '($agapeType)',
+  ];
+  final agapeDetails = agapeDetailsParts.isEmpty
+      ? ''
+      : ' ${agapeDetailsParts.join(' ')}';
   final accueilHeure = _heureMoinsUne(dateSource);
   final vmName = maskPersonName(
     plancheVmName(session, members, lodgeVmName: lodgeVmName),
@@ -588,6 +598,7 @@ Future<Uint8List> buildConvocationPdf(
           masonicDate: masonicDate,
           items: items,
           medaille: medaille,
+          agapeDetails: agapeDetails,
           accueilHeure: accueilHeure,
           vmName: vmName,
           secretaryCivilite: secretaryCivilite,

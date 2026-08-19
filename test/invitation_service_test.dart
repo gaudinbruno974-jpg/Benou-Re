@@ -33,8 +33,14 @@ void main() {
     'type': 'Ordinaire',
     'degree': 'Apprenti',
     'closingTime': '18:30',
+    // Champ malgré son nom porteur de l'heure de clôture (voir
+    // session_edit_screen.dart) : distincte de la vraie heure de reprise, ci
+    // -dessus dans `dateReprise` — sert à vérifier qu'on ne les confond pas.
+    'heureSuspension': '18:30',
     'hasAgape': true,
     'montantMedaille': 15,
+    'heureAgape': '20:00',
+    'typeRepas': 'Agape partage',
   });
 
   const url = 'https://benou-re-loge.web.app/#/reponse/abc-123';
@@ -85,15 +91,26 @@ void main() {
     },
   );
 
-  test('la ligne agapes reprend le montant de la médaille', () {
+  test('la ligne agapes reprend heure, type et montant de la médaille', () {
     final body = memberConvocationBody(session, const [], members, url);
     expect(
       body,
       contains(
-        "Les travaux seront suivis d'agapes (participation pour la médaille : 15 €).",
+        "Les travaux seront suivis d'agapes à 20:00 (Agape partage) "
+        '(participation pour la médaille : 15 €).',
       ),
     );
   });
+
+  test(
+    'l\'heure de reprise vient de la date de la tenue, pas de heureSuspension '
+    '(qui porte en réalité la clôture)',
+    () {
+      final body = memberConvocationBody(session, const [], members, url);
+      expect(body, contains('de 14h00 à 18:30'));
+      expect(body, isNot(contains('de 18:30 à 18:30')));
+    },
+  );
 
   test("l'ordre du jour est numéroté dans les deux textes", () {
     final body = dignitaryInvitationBody(
