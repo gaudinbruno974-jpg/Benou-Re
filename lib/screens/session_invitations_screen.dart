@@ -12,6 +12,7 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
+import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
@@ -49,6 +50,7 @@ class _Guest {
 class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
   final _selectedGuests = <String>{};
   bool _presenceLinksEnabled = false;
+  bool _delegationLinksEnabled = false;
 
   int _chrono(Session s) {
     if (s.chrono != null) return s.chrono!.toInt();
@@ -213,6 +215,38 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
                 ),
                 if (_presenceLinksEnabled)
                   _PresenceLinksSection(
+                    session: session,
+                    chrono: chrono,
+                    onCopy: _copy,
+                    onOpen: _open,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          BrCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _delegationLinksEnabled,
+                  onChanged: (v) =>
+                      setState(() => _delegationLinksEnabled = v ?? false),
+                  title: const Text(
+                    'Décompte de délégation (test — Bénou Ré)',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Chaque dignitaire ou Vénérable invité (Loge/obédience '
+                    'extérieure) reçoit un lien pour déclarer le nombre de '
+                    'personnes de sa délégation présentes, par grade, sans '
+                    'se connecter.',
+                    style: TextStyle(color: BrColors.muted, fontSize: 12),
+                  ),
+                ),
+                if (_delegationLinksEnabled)
+                  _DelegationLinksSection(
                     session: session,
                     chrono: chrono,
                     onCopy: _copy,
@@ -558,6 +592,283 @@ class _InvitationCard extends StatelessWidget {
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Section « Décompte de délégation » (Flux B) : un lien par dignitaire ou
+/// Vénérable d'une autre Loge — même collection `dignitaries` que les
+/// visiteurs annoncés — avec la synthèse des réponses reçues, qui remplace
+/// la composition manuelle évoquée au § 2.3 du cahier des charges.
+class _DelegationLinksSection extends StatefulWidget {
+  final Session session;
+  final int chrono;
+  final Future<void> Function(String) onCopy;
+  final Future<void> Function(String) onOpen;
+  const _DelegationLinksSection({
+    required this.session,
+    required this.chrono,
+    required this.onCopy,
+    required this.onOpen,
+  });
+
+  @override
+  State<_DelegationLinksSection> createState() =>
+      _DelegationLinksSectionState();
+}
+
+class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
+  bool _generating = false;
+
+  String _linkUrl(String token) =>
+      '${LodgeConfig.current.webOrigin}/#/reponse/$token';
+
+  Future<void> _generateMissing(
+    List<Dignitary> recipients,
+    List<PresenceLink> existing,
+  ) async {
+    final dt = widget.session.dateTime;
+    if (dt == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'La tenue doit avoir une date pour générer les liens.',
+          ),
+        ),
+      );
+      return;
+    }
+    setState(() => _generating = true);
+    final state = context.read<AppState>();
+    final expiresAt = DateTime(dt.year, dt.month, dt.day);
+    final existingRecipientIds = existing.map((l) => l.recipientId).toSet();
+    final sessionLabel = invitationTitle(widget.session, widget.chrono);
+    final sessionDateLabel = DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
+    for (final d in recipients) {
+      if (existingRecipientIds.contains(d.id)) continue;
+      await state.createPresenceLink(
+        PresenceLink(
+          id: generatePresenceToken(),
+          kind: kPresenceLinkKindDelegation,
+          sessionId: widget.session.id,
+          sessionLabel: sessionLabel,
+          sessionDateLabel: sessionDateLabel,
+          sessionType: widget.session.typeLabel,
+          sessionDegreeLabel: Session.degreeOrdinal(
+            widget.session.degreeLabel,
+          ),
+          hasAgape: widget.session.suitAgapes,
+          recipientId: d.id,
+          recipientName: d.fullName,
+          expiresAt: expiresAt,
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+    if (mounted) setState(() => _generating = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    // Tout dignitaire joignable (e-mail ou téléphone) peut être destinataire
+    // d'un lien : le bureau choisit ensuite, ligne par ligne, à qui l'envoyer.
+    final recipients = state.dignitaries
+        .where((d) => d.email.trim().isNotEmpty || d.phone.trim().isNotEmpty)
+        .toList()
+      ..sort((a, b) => a.lastName.compareTo(b.lastName));
+
+    return StreamBuilder<List<PresenceLink>>(
+      stream: state.presenceLinksForSession(widget.session.id),
+      builder: (context, snapshot) {
+        final all = snapshot.data ?? const <PresenceLink>[];
+        final existing = all
+            .where((l) => l.kind == kPresenceLinkKindDelegation)
+            .toList();
+        final byRecipient = {for (final l in existing) l.recipientId: l};
+        final missing = recipients
+            .where((d) => !byRecipient.containsKey(d.id))
+            .length;
+        final answered = existing.where((l) => l.isAnswered).toList();
+        final totalApprenti = answered.fold<int>(
+          0,
+          (sum, l) => sum + (l.apprentiCount ?? 0),
+        );
+        final totalCompagnon = answered.fold<int>(
+          0,
+          (sum, l) => sum + (l.compagnonCount ?? 0),
+        );
+        final totalMaitre = answered.fold<int>(
+          0,
+          (sum, l) => sum + (l.maitreCount ?? 0),
+        );
+        final totalAgapes = answered.fold<int>(
+          0,
+          (sum, l) => sum + (l.agapeTotal ?? 0),
+        );
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (missing > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: OutlinedButton.icon(
+                    icon: _generating
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.link, size: 16),
+                    label: Text('Générer les liens ($missing manquant(s))'),
+                    onPressed: _generating
+                        ? null
+                        : () => _generateMissing(recipients, existing),
+                  ),
+                ),
+              if (answered.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      BrBadge(
+                        label: '$totalApprenti Apprenti(s)',
+                        color: BrColors.menuArchitecture,
+                      ),
+                      BrBadge(
+                        label: '$totalCompagnon Compagnon(s)',
+                        color: BrColors.menuVisiteurs,
+                      ),
+                      BrBadge(
+                        label: '$totalMaitre Maître(s)',
+                        color: BrColors.gold,
+                      ),
+                      BrBadge(
+                        label: '$totalAgapes agapes',
+                        color: BrColors.teal,
+                      ),
+                    ],
+                  ),
+                ),
+              for (final d in recipients)
+                _DelegationLinkRow(
+                  dignitary: d,
+                  link: byRecipient[d.id],
+                  linkUrl: byRecipient[d.id] != null
+                      ? _linkUrl(byRecipient[d.id]!.id)
+                      : null,
+                  onCopy: widget.onCopy,
+                  onOpen: widget.onOpen,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _DelegationLinkRow extends StatelessWidget {
+  final Dignitary dignitary;
+  final PresenceLink? link;
+  final String? linkUrl;
+  final Future<void> Function(String) onCopy;
+  final Future<void> Function(String) onOpen;
+  const _DelegationLinkRow({
+    required this.dignitary,
+    required this.link,
+    required this.linkUrl,
+    required this.onCopy,
+    required this.onOpen,
+  });
+
+  String get _statusLabel {
+    final l = link;
+    if (l == null) return 'Lien non généré';
+    if (!l.isAnswered) return 'En attente';
+    return '${l.apprentiCount ?? 0}A · ${l.compagnonCount ?? 0}C · '
+        '${l.maitreCount ?? 0}M · ${l.agapeTotal ?? 0} agapes';
+  }
+
+  Color get _statusColor {
+    final l = link;
+    if (l == null || !l.isAnswered) return BrColors.muted;
+    return BrColors.menuVisiteurs;
+  }
+
+  String _digitsOnly(String phone) => phone.replaceAll(RegExp(r'[^\d+]'), '');
+
+  @override
+  Widget build(BuildContext context) {
+    final url = linkUrl;
+    final message = url == null
+        ? ''
+        : 'Bonjour ${dignitary.firstName}, merci d\'indiquer via ce lien le '
+              'nombre de personnes de votre délégation présentes à la '
+              'prochaine tenue : $url';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dignitary.fullName,
+                  style: const TextStyle(color: BrColors.text, fontSize: 13),
+                ),
+                Text(
+                  _statusLabel,
+                  style: TextStyle(color: _statusColor, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          if (url != null) ...[
+            IconButton(
+              visualDensity: VisualDensity.compact,
+              tooltip: 'Copier le lien',
+              icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
+              onPressed: () => onCopy(message),
+            ),
+            if (dignitary.phone.trim().isNotEmpty)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Envoyer sur WhatsApp',
+                icon: const Icon(
+                  Icons.chat_outlined,
+                  size: 18,
+                  color: BrColors.teal,
+                ),
+                onPressed: () => onOpen(
+                  'https://wa.me/${_digitsOnly(dignitary.phone)}'
+                  '?text=${Uri.encodeComponent(message)}',
+                ),
+              ),
+            if (dignitary.email.trim().isNotEmpty)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Envoyer par e-mail',
+                icon: const Icon(
+                  Icons.mail_outline,
+                  size: 18,
+                  color: BrColors.violet,
+                ),
+                onPressed: () => onOpen(
+                  'mailto:${dignitary.email.trim()}'
+                  '?subject=${Uri.encodeComponent('Décompte de délégation')}'
+                  '&body=${Uri.encodeComponent(message)}',
+                ),
+              ),
+          ],
         ],
       ),
     );

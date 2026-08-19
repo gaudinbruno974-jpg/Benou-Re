@@ -173,22 +173,31 @@ class FirestoreRepository {
     return _db.collection('inventoryChecks').doc(check.id).set(check.toMap());
   }
 
-  // ─── Liens de réponse individuels (collecte de présence sans connexion,
-  // Flux A — membres de la Loge) ──────────────────────────────────
+  // ─── Liens de réponse individuels (collecte de présence sans connexion) ─
+  // Flux A (membres de la Loge) et Flux B (dignitaire/Vénérable d'une autre
+  // Loge, même collection `dignitaries`) — voir presence_link.dart.
   PresenceLink _presenceLinkFromDoc(String id, Map<String, dynamic> map) {
     DateTime? ts(dynamic v) => v is Timestamp ? v.toDate() : null;
+    int? intOrNull(dynamic v) => v is num ? v.toInt() : null;
     return PresenceLink(
       id: id,
+      kind: (map['kind'] ?? kPresenceLinkKindMember) as String,
       sessionId: (map['sessionId'] ?? '') as String,
-      memberId: (map['memberId'] ?? '') as String,
-      memberName: (map['memberName'] ?? '') as String,
       sessionLabel: (map['sessionLabel'] ?? '') as String,
       sessionDateLabel: (map['sessionDateLabel'] ?? '') as String,
       sessionType: (map['sessionType'] ?? '') as String,
       sessionDegreeLabel: (map['sessionDegreeLabel'] ?? '') as String,
       hasAgape: (map['hasAgape'] ?? false) as bool,
+      memberId: (map['memberId'] ?? '') as String,
+      memberName: (map['memberName'] ?? '') as String,
       status: (map['status'] ?? kPresenceStatusPending) as String,
       agapePresent: map['agapePresent'] as bool?,
+      recipientId: (map['recipientId'] ?? '') as String,
+      recipientName: (map['recipientName'] ?? '') as String,
+      apprentiCount: intOrNull(map['apprentiCount']),
+      compagnonCount: intOrNull(map['compagnonCount']),
+      maitreCount: intOrNull(map['maitreCount']),
+      agapeTotal: intOrNull(map['agapeTotal']),
       respondedAt: ts(map['respondedAt']),
       expiresAt: ts(map['expiresAt']) ?? DateTime.now(),
       createdAt: ts(map['createdAt']) ?? DateTime.now(),
@@ -198,16 +207,23 @@ class FirestoreRepository {
 
   Map<String, dynamic> _presenceLinkToDoc(PresenceLink link) {
     return {
+      'kind': link.kind,
       'sessionId': link.sessionId,
-      'memberId': link.memberId,
-      'memberName': link.memberName,
       'sessionLabel': link.sessionLabel,
       'sessionDateLabel': link.sessionDateLabel,
       'sessionType': link.sessionType,
       'sessionDegreeLabel': link.sessionDegreeLabel,
       'hasAgape': link.hasAgape,
+      'memberId': link.memberId,
+      'memberName': link.memberName,
       'status': link.status,
       if (link.agapePresent != null) 'agapePresent': link.agapePresent,
+      'recipientId': link.recipientId,
+      'recipientName': link.recipientName,
+      if (link.apprentiCount != null) 'apprentiCount': link.apprentiCount,
+      if (link.compagnonCount != null) 'compagnonCount': link.compagnonCount,
+      if (link.maitreCount != null) 'maitreCount': link.maitreCount,
+      if (link.agapeTotal != null) 'agapeTotal': link.agapeTotal,
       if (link.respondedAt != null)
         'respondedAt': Timestamp.fromDate(link.respondedAt!),
       'expiresAt': Timestamp.fromDate(link.expiresAt),
@@ -248,6 +264,24 @@ class FirestoreRepository {
     return _db.collection('presenceLinks').doc(token).update(data);
   }
 
+  /// Écriture publique du décompte de délégation (Flux B) : même portée de
+  /// champs modifiables que [submitPresenceResponse], voir firestore.rules.
+  Future<void> submitDelegationResponse(
+    String token, {
+    required int apprentiCount,
+    required int compagnonCount,
+    required int maitreCount,
+    required int agapeTotal,
+  }) {
+    return _db.collection('presenceLinks').doc(token).update({
+      'apprentiCount': apprentiCount,
+      'compagnonCount': compagnonCount,
+      'maitreCount': maitreCount,
+      'agapeTotal': agapeTotal,
+      'respondedAt': Timestamp.fromDate(DateTime.now()),
+    });
+  }
+
   /// Jetons déjà émis pour une tenue (évite les doublons en réouvrant l'écran
   /// Invitations) et suivi en temps réel des réponses reçues.
   Stream<List<PresenceLink>> presenceLinksForSessionStream(String sessionId) {
@@ -262,8 +296,11 @@ class FirestoreRepository {
         );
   }
 
-  /// Réponses reçues par lien, pas encore répercutées dans la tenue
-  /// concernée (voir AppState, qui applique puis marque `applied`).
+  /// Réponses de membres (Flux A) reçues par lien, pas encore répercutées
+  /// dans la tenue concernée (voir AppState, qui applique puis marque
+  /// `applied`). Le Flux B (délégation) n'alimente aucune fiche nommée et
+  /// reste donc hors de ce flux — lu en direct par l'écran Invitations via
+  /// [presenceLinksForSessionStream].
   Stream<List<PresenceLink>> unappliedPresenceLinksStream() {
     return _db
         .collection('presenceLinks')
@@ -272,7 +309,7 @@ class FirestoreRepository {
         .map(
           (snap) => snap.docs
               .map((d) => _presenceLinkFromDoc(d.id, d.data()))
-              .where((l) => l.isAnswered)
+              .where((l) => l.isAnswered && l.kind == kPresenceLinkKindMember)
               .toList(),
         );
   }

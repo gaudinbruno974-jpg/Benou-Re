@@ -1,7 +1,8 @@
-// Page publique de réponse à un lien de présence (collecte sans connexion,
-// Flux A — membres de la Loge). Accessible sans authentification classique :
-// voir main.dart pour la détection de route et firestore.rules pour la
-// portée exacte des droits accordés au jeton.
+// Page publique de réponse à un lien de présence (collecte sans connexion) :
+// Flux A (membre de la Loge, réponse nominative) et Flux B (dignitaire ou
+// Vénérable d'une autre Loge, décompte de délégation). Accessible sans
+// authentification classique : voir main.dart pour la détection de route et
+// firestore.rules pour la portée exacte des droits accordés au jeton.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,6 +28,10 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
   bool _submitting = false;
   String? _pendingStatus;
   bool? _pendingAgape;
+  int _apprenti = 0;
+  int _compagnon = 0;
+  int _maitre = 0;
+  int _agapeTotal = 0;
 
   @override
   void initState() {
@@ -55,11 +60,15 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
           ? null
           : link.status;
       _pendingAgape = link.agapePresent;
+      _apprenti = link.apprentiCount ?? 0;
+      _compagnon = link.compagnonCount ?? 0;
+      _maitre = link.maitreCount ?? 0;
+      _agapeTotal = link.agapeTotal ?? 0;
       _state = _LoadState.ready;
     });
   }
 
-  Future<void> _submit() async {
+  Future<void> _submitMember() async {
     final status = _pendingStatus;
     if (status == null) return;
     final link = _link;
@@ -73,6 +82,28 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
         agapePresent: status == kPresenceStatusPresent && link.hasAgape
             ? (_pendingAgape ?? false)
             : null,
+      );
+      if (!mounted) return;
+      setState(() => _state = _LoadState.submitted);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Erreur d\'envoi : $e')),
+      );
+    }
+  }
+
+  Future<void> _submitDelegation() async {
+    setState(() => _submitting = true);
+    try {
+      final appState = context.read<AppState>();
+      await appState.submitDelegationResponse(
+        widget.token,
+        apprentiCount: _apprenti,
+        compagnonCount: _compagnon,
+        maitreCount: _maitre,
+        agapeTotal: _agapeTotal,
       );
       if (!mounted) return;
       setState(() => _state = _LoadState.submitted);
@@ -135,11 +166,13 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
           color: BrColors.menuVisiteurs,
         );
       case _LoadState.ready:
-        return _buildForm(_link!);
+        return _link!.kind == kPresenceLinkKindDelegation
+            ? _buildDelegationForm(_link!)
+            : _buildMemberForm(_link!);
     }
   }
 
-  Widget _buildForm(PresenceLink link) {
+  Widget _buildMemberForm(PresenceLink link) {
     final showAgape = link.hasAgape && _pendingStatus == kPresenceStatusPresent;
     return Column(
       children: [
@@ -253,14 +286,16 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
                   )
                 : const Icon(Icons.send_outlined),
             label: const Text('Envoyer ma réponse'),
-            onPressed: _canSubmit() && !_submitting ? _submit : null,
+            onPressed: _canSubmitMember() && !_submitting
+                ? _submitMember
+                : null,
           ),
         ),
       ],
     );
   }
 
-  bool _canSubmit() {
+  bool _canSubmitMember() {
     if (_pendingStatus == null) return false;
     if (_pendingStatus == kPresenceStatusPresent &&
         (_link?.hasAgape ?? false) &&
@@ -268,6 +303,96 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
       return false;
     }
     return true;
+  }
+
+  Widget _buildDelegationForm(PresenceLink link) {
+    return Column(
+      children: [
+        BrCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                link.recipientName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 19,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                link.sessionLabel,
+                style: const TextStyle(color: BrColors.gold, fontSize: 14),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Tenue ${link.sessionType} au ${link.sessionDegreeLabel} '
+                'degré, le ${link.sessionDateLabel}',
+                style: const TextStyle(color: BrColors.muted, fontSize: 13),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                'Merci d\'indiquer le nombre de personnes de votre '
+                'délégation présentes à cette tenue, par grade.',
+                style: TextStyle(color: BrColors.muted, fontSize: 12.5),
+              ),
+              if (link.isAnswered) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'Réponse déjà enregistrée : vous pouvez la modifier.',
+                  style: TextStyle(
+                    color: BrColors.muted.withValues(alpha: 0.85),
+                    fontSize: 12,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        _CounterField(
+          label: 'Apprentis présents en tenue',
+          value: _apprenti,
+          onChanged: (v) => setState(() => _apprenti = v),
+        ),
+        const SizedBox(height: 12),
+        _CounterField(
+          label: 'Compagnons présents en tenue',
+          value: _compagnon,
+          onChanged: (v) => setState(() => _compagnon = v),
+        ),
+        const SizedBox(height: 12),
+        _CounterField(
+          label: 'Maîtres présents en tenue',
+          value: _maitre,
+          onChanged: (v) => setState(() => _maitre = v),
+        ),
+        const SizedBox(height: 18),
+        _CounterField(
+          label: 'Total présents aux agapes',
+          value: _agapeTotal,
+          onChanged: (v) => setState(() => _agapeTotal = v),
+        ),
+        const SizedBox(height: 24),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            icon: _submitting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.send_outlined),
+            label: const Text('Envoyer le décompte'),
+            onPressed: _submitting ? null : _submitDelegation,
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -304,6 +429,54 @@ class _MessageCard extends StatelessWidget {
             message,
             textAlign: TextAlign.center,
             style: const TextStyle(color: BrColors.muted, fontSize: 13.5, height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CounterField extends StatelessWidget {
+  final String label;
+  final int value;
+  final ValueChanged<int> onChanged;
+  const _CounterField({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BrCard(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: const TextStyle(color: BrColors.text, fontSize: 13.5),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.remove_circle_outline, color: BrColors.muted),
+            onPressed: value > 0 ? () => onChanged(value - 1) : null,
+          ),
+          SizedBox(
+            width: 28,
+            child: Text(
+              '$value',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline, color: BrColors.gold),
+            onPressed: () => onChanged(value + 1),
           ),
         ],
       ),

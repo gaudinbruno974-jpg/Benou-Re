@@ -95,12 +95,14 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Liens de réponse individuels (collecte de présence sans connexion,
-    // Flux A — membres de la Loge) : l'identifiant du document EST le jeton
-    // (UUID v4) reçu dans l'URL — connaître ce jeton précis est la seule
-    // preuve d'accès nécessaire, sans authentification. `allow list` reste
-    // réservé au bureau : un visiteur non connecté ne peut donc jamais
-    // énumérer les jetons, seulement lire/écrire celui qu'il connaît déjà.
+    // Liens de réponse individuels (collecte de présence sans connexion) :
+    // Flux A (membre de la Loge, réponse nominative) et Flux B (dignitaire ou
+    // Vénérable d'une autre Loge, décompte de délégation), même collection.
+    // L'identifiant du document EST le jeton (UUID v4) reçu dans l'URL —
+    // connaître ce jeton précis est la seule preuve d'accès nécessaire, sans
+    // authentification. `allow list` reste réservé au bureau : un
+    // destinataire non connecté ne peut donc jamais énumérer les jetons,
+    // seulement lire/écrire celui qu'il connaît déjà.
     match /presenceLinks/{token} {
       allow get: if true;
       allow list: if canEditSessions();
@@ -109,7 +111,11 @@ service cloud.firestore {
         || (
           resource.data.expiresAt > request.time
           && request.resource.data.diff(resource.data).affectedKeys()
-               .hasOnly(['status', 'agapePresent', 'respondedAt'])
+               .hasOnly([
+                 'status', 'agapePresent', 'respondedAt',
+                 'apprentiCount', 'compagnonCount', 'maitreCount',
+                 'agapeTotal',
+               ])
         );
     }
 

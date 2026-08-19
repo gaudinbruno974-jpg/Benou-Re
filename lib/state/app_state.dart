@@ -318,6 +318,19 @@ class AppState extends ChangeNotifier {
     status: status,
     agapePresent: agapePresent,
   );
+  Future<void> submitDelegationResponse(
+    String token, {
+    required int apprentiCount,
+    required int compagnonCount,
+    required int maitreCount,
+    required int agapeTotal,
+  }) => repo.submitDelegationResponse(
+    token,
+    apprentiCount: apprentiCount,
+    compagnonCount: compagnonCount,
+    maitreCount: maitreCount,
+    agapeTotal: agapeTotal,
+  );
 
   // Actions visiteurs
   Future<void> addVisitor(Visitor v) => repo.setVisitor(v);
