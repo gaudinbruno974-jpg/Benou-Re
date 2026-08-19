@@ -26,6 +26,7 @@ import '../services/url_opener.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 
 /// Lien d'envoi d'un e-mail. `mailto:` ne fonctionne que si le navigateur a
 /// un client mail natif associé (souvent absent chez les utilisateurs
@@ -222,6 +223,9 @@ class _PresenceLinksSection extends StatefulWidget {
 class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
   bool _generating = false;
 
+  // Pas de recherche/bascule Par Loge ici : contrairement aux Visiteurs et
+  // Dignitaires, les membres appartiennent tous à la Loge courante — même
+  // exclusion que le panneau Membres de « Présents en tenue ».
   List<Member> _eligibleMembers(AppState state) {
     final rank = Session.degreeRank(widget.session.degreeLabel);
     final members = state.members
@@ -482,9 +486,53 @@ class _DelegationLinksSection extends StatefulWidget {
 
 class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
   bool _generating = false;
+  final _search = TextEditingController();
+  DirectoryGroupMode _mode = DirectoryGroupMode.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   String _linkUrl(String token) =>
       '${LodgeConfig.current.webOrigin}/#/reponse/$token';
+
+  List<Widget> _delegationList(
+    List<Dignitary> visible,
+    Widget Function(Dignitary) row,
+  ) {
+    if (visible.isEmpty) {
+      return const [
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: 8),
+          child: Text('Aucun résultat.', style: TextStyle(color: BrColors.muted)),
+        ),
+      ];
+    }
+    if (_mode == DirectoryGroupMode.all) {
+      return [for (final d in visible) row(d)];
+    }
+    final groups = groupDirectory(
+      visible,
+      (d) => _mode == DirectoryGroupMode.byLodge ? d.lodge : d.obedience,
+    );
+    return [
+      for (final g in groups)
+        DirectoryGroupSection(
+          title: g.key,
+          count: g.value.length,
+          initiallyExpanded: groups.length == 1,
+          children: [for (final d in g.value) row(d)],
+        ),
+    ];
+  }
 
   Future<void> _generateMissing(
     List<Dignitary> recipients,
@@ -570,6 +618,33 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
           0,
           (sum, l) => sum + (l.agapeTotal ?? 0),
         );
+        final visible =
+            recipients
+                .where(
+                  (d) => directoryMatches(_search.text, [
+                    d.firstName,
+                    d.lastName,
+                    d.lodge,
+                    d.obedience,
+                  ]),
+                )
+                .toList()
+              ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+
+        Widget row(Dignitary d) => _DelegationLinkRow(
+          session: widget.session,
+          chrono: widget.chrono,
+          ordreDuJour: ordreDuJour,
+          allMembers: state.members,
+          lodgeVmName: state.lodgeVmName,
+          dignitary: d,
+          link: byRecipient[d.id],
+          linkUrl: byRecipient[d.id] != null
+              ? _linkUrl(byRecipient[d.id]!.id)
+              : null,
+          onCopy: widget.onCopy,
+          onOpen: widget.onOpen,
+        );
 
         return Padding(
           padding: const EdgeInsets.only(top: 8),
@@ -619,21 +694,15 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
                     ],
                   ),
                 ),
-              for (final d in recipients)
-                _DelegationLinkRow(
-                  session: widget.session,
-                  chrono: widget.chrono,
-                  ordreDuJour: ordreDuJour,
-                  allMembers: state.members,
-                  lodgeVmName: state.lodgeVmName,
-                  dignitary: d,
-                  link: byRecipient[d.id],
-                  linkUrl: byRecipient[d.id] != null
-                      ? _linkUrl(byRecipient[d.id]!.id)
-                      : null,
-                  onCopy: widget.onCopy,
-                  onOpen: widget.onOpen,
+              if (recipients.length > 1) ...[
+                DirectoryFilterBar(
+                  controller: _search,
+                  mode: _mode,
+                  onModeChanged: (m) => setState(() => _mode = m),
                 ),
+                const SizedBox(height: 10),
+              ],
+              ..._delegationList(visible, row),
             ],
           ),
         );
