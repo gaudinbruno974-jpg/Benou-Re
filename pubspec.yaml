@@ -46,6 +46,13 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   flutter_launcher_icons: "^0.13.1"
 
+# file_picker (Android) est publié figé à compileSdk 34 ; les versions de
+# flutter_plugin_android_lifecycle >= 2.0.25 exigent compileSdk 36, ce qui
+# casse le build APK release (CheckAarMetadataWorkAction). 2.0.24 est la
+# dernière version encore figée à compileSdk 34, compatible avec file_picker.
+dependency_overrides:
+  flutter_plugin_android_lifecycle: 2.0.24
+
 flutter_launcher_icons:
   image_path: "assets/icon/LogoApkBenou.png"
   android: true

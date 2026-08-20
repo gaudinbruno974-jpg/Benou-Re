@@ -9,7 +9,10 @@ plugins {
 
 android {
     namespace = "re.benou.benou_re"
-    compileSdk = flutter.compileSdkVersion
+    // flutter_plugin_android_lifecycle (dépendance transitive de file_picker)
+    // exige compileSdk >= 36 : flutter.compileSdkVersion (fourni par le SDK
+    // Flutter installé) reste en 34, d'où ce forçage explicite.
+    compileSdk = 36
     ndkVersion = "27.0.12077973"
 
     compileOptions {
