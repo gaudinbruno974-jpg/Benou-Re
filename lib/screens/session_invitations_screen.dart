@@ -142,9 +142,9 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
                   value: _presenceLinksEnabled,
                   onChanged: (v) =>
                       setState(() => _presenceLinksEnabled = v ?? false),
-                  title: const Text(
-                    'Convocation Bénou-Ré',
-                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  title: Text(
+                    'Convocation ${LodgeConfig.current.name}',
+                    style: const TextStyle(color: Colors.white, fontSize: 14),
                   ),
                   subtitle: const Text(
                     'Chaque membre reçoit un lien personnel : il répond '
