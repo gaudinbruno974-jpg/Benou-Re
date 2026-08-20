@@ -307,6 +307,7 @@ class LodgeConfig {
     defaultMeetingPlace: 'Temple Thérèse Eliseman à Saint-Pierre',
     obedienceLogoAsset: 'assets/GLDB.png',
     lodgeLogoAsset: 'assets/Temple-Horus.png',
+    pdfHeaderStacked: true,
     primaryColor: kTempleHorusPrimary,
     accentColor: kTempleHorusAccent,
     accentBrightColor: kTempleHorusAccentBright,
