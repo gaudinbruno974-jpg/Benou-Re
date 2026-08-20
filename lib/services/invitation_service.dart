@@ -145,8 +145,9 @@ List<String> _memberOnlyLines(Session session, Member? secretary) {
 List<String> _linkLines(String responseUrl) => [
   '',
   'Le lien ci-dessous vous permet de nous répondre directement et '
-      "d'anticiper pour l'organisation de la tenue et des agapes : vous "
-      "pouvez modifier votre réponse jusqu'à minuit la veille de la tenue.",
+      "d'anticiper pour l'organisation de la tenue et des agapes :",
+  '',
+  "Vous pouvez modifier votre réponse jusqu'à minuit la veille de la tenue.",
   '',
   responseUrl,
 ];

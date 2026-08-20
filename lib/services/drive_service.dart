@@ -297,20 +297,6 @@ class DriveService {
     }
   }
 
-  /// Dépose [bytes] sous [fileName] dans [folderId] (remplace le fichier de
-  /// même nom s'il existe déjà) — utilisé pour les sauvegardes d'export,
-  /// hors du cycle de vie d'une tenue.
-  Future<void> uploadFileToFolder(
-    String folderId,
-    String fileName,
-    Uint8List bytes, {
-    String contentType =
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  }) async {
-    final headers = await _authHeaders();
-    await _uploadFile(headers, folderId, fileName, bytes, contentType: contentType);
-  }
-
   /// Archive une liste de PDF dans le dossier de la tenue.
   /// [files] : nom de fichier -> contenu PDF.
   /// Renvoie l'e-mail Google utilisé.

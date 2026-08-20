@@ -175,11 +175,6 @@ class LodgeConfig {
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
-  /// Dossier Drive dans lequel sont déposées les sauvegardes d'export
-  /// (classeurs Membres/Visiteurs/Dignitaires) — distinct du dossier des
-  /// tenues. Vide tant que la Loge ne l'a pas renseigné.
-  final String backupFolderId;
-
   /// Dossiers Drive de la bibliothèque, par type de document puis par grade.
   /// Exemple : `{'Rituels': {'Apprenti': '1HUM…'}}`.
   final Map<String, Map<String, String>> libraryFolders;
@@ -204,7 +199,6 @@ class LodgeConfig {
     required this.cardGradient,
     required this.webOrigin,
     required this.driveParentFolderId,
-    this.backupFolderId = '',
     required this.libraryFolders,
   });
 
@@ -237,7 +231,6 @@ class LodgeConfig {
     cardGradient: kBenouReCardGradient,
     webOrigin: 'https://benou-re-loge.web.app',
     driveParentFolderId: '11Qp8SXLFG0Spfks-G6OAQ66EHMGjEOgy',
-    backupFolderId: '1SeglfH888RukPdK2Q5z4zykx9BEuG56l',
     libraryFolders: {
       'Architecture': {
         'Apprenti': '16o7qUPDk31feVoX97NIB-JQezxGn9weV',
@@ -371,7 +364,6 @@ class LodgeConfig {
       cardGradient: cardGradient,
       webOrigin: webOrigin,
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
-      backupFolderId: text('backupFolderId', backupFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),
     );
   }

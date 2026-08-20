@@ -374,53 +374,34 @@ class DignitaryImportRow {
   }
 }
 
-class DirectoryImportPreview {
-  final List<MemberImportRow> members;
-  final List<VisitorImportRow> visitors;
-  final List<DignitaryImportRow> dignitaries;
-  const DirectoryImportPreview({
-    required this.members,
-    required this.visitors,
-    required this.dignitaries,
-  });
-}
+/// Catégorie traitée par un écran de répertoire — chaque écran ne lit/écrit
+/// que la feuille correspondante d'un classeur importé, même si les autres
+/// feuilles sont présentes dans le même fichier.
+enum DirectoryCategory { members, visitors, dignitaries }
 
 int? _tryParseInt(String v) => v.trim().isEmpty ? null : int.tryParse(v.trim());
 
-/// Analyse un classeur importé : associe chaque ligne à une fiche existante
-/// (nom + prénom) si elle en trouve une, avec une action par défaut
-/// (mise à jour pour un doublon détecté, création sinon) — modifiable
-/// ensuite ligne par ligne dans l'écran de prévisualisation. Les lignes sans
-/// prénom ni nom sont ignorées (lignes vides en fin de tableau).
-DirectoryImportPreview parseDirectoryWorkbook(
-  List<int> bytes, {
-  required List<Member> existingMembers,
-  required List<Visitor> existingVisitors,
-  required List<Dignitary> existingDignitaries,
-}) {
-  final sheets = readXlsx(bytes, [
-    kSheetMembers,
-    kSheetVisitors,
-    kSheetDignitaries,
-  ]);
-
-  final membersByKey = {
+/// Lignes de la feuille « Membres » d'un classeur importé, associées à une
+/// fiche existante (nom + prénom) si elle en trouve une, avec une action par
+/// défaut (mise à jour pour un doublon détecté, création sinon) —
+/// modifiable ensuite ligne par ligne dans l'écran de prévisualisation. Les
+/// autres feuilles du classeur, s'il y en a, ne sont pas lues. Les lignes
+/// sans prénom ni nom sont ignorées (lignes vides en fin de tableau).
+List<MemberImportRow> parseMemberSheet(
+  List<int> bytes,
+  List<Member> existingMembers,
+) {
+  final rows = readXlsx(bytes, [kSheetMembers])[kSheetMembers] ?? const [];
+  final byKey = {
     for (final m in existingMembers) nameKey(m.firstName, m.lastName): m,
   };
-  final visitorsByKey = {
-    for (final v in existingVisitors) nameKey(v.firstName, v.lastName): v,
-  };
-  final dignitariesByKey = {
-    for (final d in existingDignitaries) nameKey(d.firstName, d.lastName): d,
-  };
-
-  final memberRows = <MemberImportRow>[];
-  for (final row in (sheets[kSheetMembers] ?? const []).skip(1)) {
+  final result = <MemberImportRow>[];
+  for (final row in rows.skip(1)) {
     final firstName = _cell(row, 1);
     final lastName = _cell(row, 2);
     if (firstName.isEmpty && lastName.isEmpty) continue;
-    final existing = membersByKey[nameKey(firstName, lastName)];
-    memberRows.add(
+    final existing = byKey[nameKey(firstName, lastName)];
+    result.add(
       MemberImportRow(
         civilite: _cell(row, 0),
         firstName: firstName,
@@ -443,14 +424,26 @@ DirectoryImportPreview parseDirectoryWorkbook(
       ),
     );
   }
+  return result;
+}
 
-  final visitorRows = <VisitorImportRow>[];
-  for (final row in (sheets[kSheetVisitors] ?? const []).skip(1)) {
+/// Lignes de la feuille « Visiteurs » d'un classeur importé — voir
+/// [parseMemberSheet] pour le principe général.
+List<VisitorImportRow> parseVisitorSheet(
+  List<int> bytes,
+  List<Visitor> existingVisitors,
+) {
+  final rows = readXlsx(bytes, [kSheetVisitors])[kSheetVisitors] ?? const [];
+  final byKey = {
+    for (final v in existingVisitors) nameKey(v.firstName, v.lastName): v,
+  };
+  final result = <VisitorImportRow>[];
+  for (final row in rows.skip(1)) {
     final firstName = _cell(row, 1);
     final lastName = _cell(row, 2);
     if (firstName.isEmpty && lastName.isEmpty) continue;
-    final existing = visitorsByKey[nameKey(firstName, lastName)];
-    visitorRows.add(
+    final existing = byKey[nameKey(firstName, lastName)];
+    result.add(
       VisitorImportRow(
         civilite: _cell(row, 0),
         firstName: firstName,
@@ -466,14 +459,27 @@ DirectoryImportPreview parseDirectoryWorkbook(
       ),
     );
   }
+  return result;
+}
 
-  final dignitaryRows = <DignitaryImportRow>[];
-  for (final row in (sheets[kSheetDignitaries] ?? const []).skip(1)) {
+/// Lignes de la feuille « Dignitaires » d'un classeur importé — voir
+/// [parseMemberSheet] pour le principe général.
+List<DignitaryImportRow> parseDignitarySheet(
+  List<int> bytes,
+  List<Dignitary> existingDignitaries,
+) {
+  final rows =
+      readXlsx(bytes, [kSheetDignitaries])[kSheetDignitaries] ?? const [];
+  final byKey = {
+    for (final d in existingDignitaries) nameKey(d.firstName, d.lastName): d,
+  };
+  final result = <DignitaryImportRow>[];
+  for (final row in rows.skip(1)) {
     final firstName = _cell(row, 1);
     final lastName = _cell(row, 2);
     if (firstName.isEmpty && lastName.isEmpty) continue;
-    final existing = dignitariesByKey[nameKey(firstName, lastName)];
-    dignitaryRows.add(
+    final existing = byKey[nameKey(firstName, lastName)];
+    result.add(
       DignitaryImportRow(
         civilite: _cell(row, 0),
         firstName: firstName,
@@ -491,10 +497,5 @@ DirectoryImportPreview parseDirectoryWorkbook(
       ),
     );
   }
-
-  return DirectoryImportPreview(
-    members: memberRows,
-    visitors: visitorRows,
-    dignitaries: dignitaryRows,
-  );
+  return result;
 }

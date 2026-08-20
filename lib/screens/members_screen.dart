@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../models/member.dart';
+import '../services/directory_xlsx_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -35,14 +36,16 @@ class MembersScreen extends StatelessWidget {
                 IconButton(
                   tooltip: 'Exporter (Membres/Visiteurs/Dignitaires) vers le Drive',
                   icon: const Icon(Icons.file_upload_outlined),
-                  onPressed: () => exportDirectoriesToDrive(context),
+                  onPressed: () => exportDirectories(context),
                 ),
                 IconButton(
                   tooltip: 'Importer depuis un classeur .xlsx',
                   icon: const Icon(Icons.file_download_outlined),
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => const DirectoryImportScreen(),
+                      builder: (_) => const DirectoryImportScreen(
+                        category: DirectoryCategory.members,
+                      ),
                     ),
                   ),
                 ),

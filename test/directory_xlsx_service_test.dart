@@ -11,58 +11,52 @@ void main() {
     });
   });
 
-  group('export puis import (aller-retour)', () {
-    final members = [
-      const Member(
-        id: 'm1',
-        civilite: 'Frère',
-        firstName: 'Bruno',
-        lastName: 'GAUDIN',
-        grade: kMaitre,
-        function: 'Vénérable Maître',
-        status: 'Actif',
-        email: 'bruno@example.com',
-        phone: '0692000000',
-        preferredContact: 'WhatsApp',
-      ),
-    ];
-    final visitors = [
-      const Visitor(
-        id: 'v1',
-        firstName: 'Jean',
-        lastName: 'Dupont',
-        lodge: 'La Fraternelle',
-        obedience: 'GLNF',
-      ),
-    ];
-    final dignitaries = [
-      const Dignitary(
-        id: 'd1',
-        firstName: 'Marie',
-        lastName: 'Martin',
-        title: 'Grand Maître Adjoint',
-        protocolRank: 1,
-      ),
-    ];
+  final members = [
+    const Member(
+      id: 'm1',
+      civilite: 'Frère',
+      firstName: 'Bruno',
+      lastName: 'GAUDIN',
+      grade: kMaitre,
+      function: 'Vénérable Maître',
+      status: 'Actif',
+      email: 'bruno@example.com',
+      phone: '0692000000',
+      preferredContact: 'WhatsApp',
+    ),
+  ];
+  final visitors = [
+    const Visitor(
+      id: 'v1',
+      firstName: 'Jean',
+      lastName: 'Dupont',
+      lodge: 'La Fraternelle',
+      obedience: 'GLNF',
+    ),
+  ];
+  final dignitaries = [
+    const Dignitary(
+      id: 'd1',
+      firstName: 'Marie',
+      lastName: 'Martin',
+      title: 'Grand Maître Adjoint',
+      protocolRank: 1,
+    ),
+  ];
 
+  group('export puis import ciblé sur une seule feuille', () {
     test('un membre déjà présent (même nom) est reconnu comme doublon', () {
       final bytes = buildDirectoryWorkbook(
         members: members,
         visitors: const [],
         dignitaries: const [],
       );
-      final preview = parseDirectoryWorkbook(
-        bytes,
-        existingMembers: members,
-        existingVisitors: const [],
-        existingDignitaries: const [],
-      );
-      expect(preview.members, hasLength(1));
-      final row = preview.members.single;
-      expect(row.existing?.id, 'm1');
-      expect(row.action, ImportAction.update);
-      expect(row.email, 'bruno@example.com');
-      expect(row.preferredContact, 'WhatsApp');
+      final rows = parseMemberSheet(bytes, members);
+      expect(rows, hasLength(1));
+      expect(rows.single.existing?.id, 'm1');
+      expect(rows.single.action, ImportAction.update);
+      expect(rows.single.email, 'bruno@example.com');
+      expect(rows.single.preferredContact, 'WhatsApp');
     });
 
     test('un nom absent du répertoire est proposé en création', () {
@@ -71,17 +65,29 @@ void main() {
         visitors: visitors,
         dignitaries: const [],
       );
-      final preview = parseDirectoryWorkbook(
-        bytes,
-        existingMembers: const [],
-        existingVisitors: const [],
-        existingDignitaries: const [],
-      );
-      final row = preview.visitors.single;
+      final rows = parseVisitorSheet(bytes, const []);
+      final row = rows.single;
       expect(row.existing, isNull);
       expect(row.action, ImportAction.create);
       expect(row.lodge, 'La Fraternelle');
     });
+
+    test(
+      "l'import ciblé sur une feuille ignore les autres feuilles présentes "
+      'dans le même classeur',
+      () {
+        final bytes = buildDirectoryWorkbook(
+          members: members,
+          visitors: visitors,
+          dignitaries: dignitaries,
+        );
+        // Le classeur contient les trois feuilles ; ne demander que les
+        // dignitaires ne doit renvoyer que les dignitaires.
+        final rows = parseDignitarySheet(bytes, const []);
+        expect(rows, hasLength(1));
+        expect(rows.single.firstName, 'Marie');
+      },
+    );
 
     test('resolve() applique la mise à jour sans toucher aux champs non exportés', () {
       final bytes = buildDirectoryWorkbook(
@@ -89,15 +95,11 @@ void main() {
         visitors: const [],
         dignitaries: const [],
       );
-      final preview = parseDirectoryWorkbook(
-        bytes,
-        existingMembers: [
-          members.single.copyWith(isAdmin: true, loginEmail: 'x@y.fr'),
-        ],
-        existingVisitors: const [],
-        existingDignitaries: const [],
-      );
-      final resolved = preview.members.single.resolve(() => 'unused');
+      final existing = [
+        members.single.copyWith(isAdmin: true, loginEmail: 'x@y.fr'),
+      ];
+      final rows = parseMemberSheet(bytes, existing);
+      final resolved = rows.single.resolve(() => 'unused');
       expect(resolved, isNotNull);
       expect(resolved!.isAdmin, isTrue); // non exporté : conservé
       expect(resolved.loginEmail, 'x@y.fr'); // non exporté : conservé
@@ -110,14 +112,9 @@ void main() {
         visitors: const [],
         dignitaries: const [],
       );
-      final preview = parseDirectoryWorkbook(
-        bytes,
-        existingMembers: members,
-        existingVisitors: const [],
-        existingDignitaries: const [],
-      );
-      preview.members.single.action = ImportAction.skip;
-      expect(preview.members.single.resolve(() => 'id'), isNull);
+      final rows = parseMemberSheet(bytes, members);
+      rows.single.action = ImportAction.skip;
+      expect(rows.single.resolve(() => 'id'), isNull);
     });
 
     test('un dignitaire créé reprend son rang protocolaire', () {
@@ -126,13 +123,8 @@ void main() {
         visitors: const [],
         dignitaries: dignitaries,
       );
-      final preview = parseDirectoryWorkbook(
-        bytes,
-        existingMembers: const [],
-        existingVisitors: const [],
-        existingDignitaries: const [],
-      );
-      final resolved = preview.dignitaries.single.resolve(() => 'd_new');
+      final rows = parseDignitarySheet(bytes, const []);
+      final resolved = rows.single.resolve(() => 'd_new');
       expect(resolved?.protocolRank, 1);
       expect(resolved?.title, 'Grand Maître Adjoint');
     });
@@ -143,28 +135,16 @@ void main() {
         visitors: const [],
         dignitaries: const [],
       );
-      final preview = parseDirectoryWorkbook(
-        bytes,
-        existingMembers: const [],
-        existingVisitors: const [],
-        existingDignitaries: const [],
-      );
-      expect(preview.members, isEmpty);
-      expect(preview.visitors, isEmpty);
-      expect(preview.dignitaries, isEmpty);
+      expect(parseMemberSheet(bytes, const []), isEmpty);
+      expect(parseVisitorSheet(bytes, const []), isEmpty);
+      expect(parseDignitarySheet(bytes, const []), isEmpty);
     });
   });
 
   test('le modèle ne contient que les en-têtes, sur les trois onglets', () {
     final bytes = buildDirectoryTemplate();
-    final preview = parseDirectoryWorkbook(
-      bytes,
-      existingMembers: const [],
-      existingVisitors: const [],
-      existingDignitaries: const [],
-    );
-    expect(preview.members, isEmpty);
-    expect(preview.visitors, isEmpty);
-    expect(preview.dignitaries, isEmpty);
+    expect(parseMemberSheet(bytes, const []), isEmpty);
+    expect(parseVisitorSheet(bytes, const []), isEmpty);
+    expect(parseDignitarySheet(bytes, const []), isEmpty);
   });
 }
