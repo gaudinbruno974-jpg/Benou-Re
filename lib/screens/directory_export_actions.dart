@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
 import '../services/directory_xlsx_service.dart';
+import '../services/local_file_saver.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 
@@ -21,6 +22,12 @@ Future<void> _saveLocally(
 ) async {
   final messenger = ScaffoldMessenger.of(context);
   try {
+    // Web : `FilePicker.platform.saveFile` n'y est pas implémenté (voir
+    // local_file_saver_web.dart) — on passe par la boîte de dialogue
+    // « Enregistrer sous » native du navigateur à la place. Sur les autres
+    // plateformes (Android), trySaveFileNatively renvoie toujours `false` et
+    // on garde FilePicker, qui y fonctionne déjà.
+    if (await trySaveFileNatively(fileName, bytes)) return;
     final path = await FilePicker.platform.saveFile(
       fileName: fileName,
       bytes: Uint8List.fromList(bytes),
