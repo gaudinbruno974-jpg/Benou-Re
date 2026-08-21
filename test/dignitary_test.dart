@@ -181,4 +181,63 @@ void main() {
       contains('Le poste d’Orateur est occupé par le F∴/S∴ Mar∴ LER∴.'),
     );
   });
+
+  group('dignitariesToAnnounce', () {
+    const dignitaryVenerable = Dignitary(
+      id: 'd4',
+      firstName: 'Jean',
+      lastName: 'DUPUIS',
+      title: 'Vénérable Maître',
+      lodge: 'Les Trois Vertus',
+      protocolRank: 9,
+    );
+
+    test(
+      'un dignitaire sans office (à l’Orient par défaut) est annoncé',
+      () {
+        final result = dignitariesToAnnounce(
+          sessionWith(dignitaryIds: const ['d1']),
+          const [dignitaryNoRole],
+        );
+        expect(result, [dignitaryNoRole]);
+      },
+    );
+
+    test(
+      'un dignitaire avec un office ce jour-là entre avec le collège des '
+      'officiers et n’est pas annoncé',
+      () {
+        final result = dignitariesToAnnounce(
+          sessionWith(
+            dignitaryIds: const ['d2'],
+            dignitaryRoles: const {'d2': 'Second Surveillant'},
+          ),
+          const [dignitaryColonneNord],
+        );
+        expect(result, isEmpty);
+      },
+    );
+
+    test(
+      'le Vénérable Maître passe toujours en premier, avant le rang '
+      'protocolaire',
+      () {
+        final result = dignitariesToAnnounce(
+          sessionWith(dignitaryIds: const ['d1', 'd4']),
+          const [dignitaryNoRole, dignitaryVenerable], // d1 : rang non défini
+        );
+        expect(result.first, dignitaryVenerable);
+      },
+    );
+
+    test('à défaut de Vénérable Maître, le tri par rang protocolaire reste inchangé', () {
+      const higherRank = Dignitary(id: 'd5', lastName: 'A', protocolRank: 1);
+      const lowerRank = Dignitary(id: 'd6', lastName: 'B', protocolRank: 2);
+      final result = dignitariesToAnnounce(
+        sessionWith(dignitaryIds: const ['d6', 'd5']),
+        const [lowerRank, higherRank],
+      );
+      expect(result, [higherRank, lowerRank]);
+    });
+  });
 }

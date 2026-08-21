@@ -22,22 +22,7 @@ class SessionDignitairesAnnounceScreen extends StatelessWidget {
       orElse: () => Session(id: sessionId),
     );
 
-    final present = state.dignitaries
-        .where((d) => session.dignitaryIds.contains(d.id))
-        .toList()
-      ..sort((a, b) {
-        final ra = a.protocolRank;
-        final rb = b.protocolRank;
-        if (ra != null && rb != null) {
-          final cmp = ra.compareTo(rb);
-          if (cmp != 0) return cmp;
-        } else if (ra != null) {
-          return -1;
-        } else if (rb != null) {
-          return 1;
-        }
-        return a.lastName.compareTo(b.lastName);
-      });
+    final present = dignitariesToAnnounce(session, state.dignitaries);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Annonce des Dignitaires')),

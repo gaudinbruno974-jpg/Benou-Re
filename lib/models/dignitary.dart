@@ -2,6 +2,9 @@
 // d'obédience...), annoncé par le Maître des Cérémonies avant l'entrée en
 // loge du Vénérable Maître. Même structure que Visitor (voir visitor.dart) :
 // répertoire indépendant, présence et office pris gérés par tenue.
+import 'member.dart' show foldLabel;
+import 'session.dart';
+
 class Dignitary {
   final String id;
   final String firstName;
@@ -112,4 +115,46 @@ class Dignitary {
           : (protocolRank ?? this.protocolRank),
     );
   }
+}
+
+/// Dignitaires à annoncer par le Maître des Cérémonies avant l'entrée en
+/// loge du Vénérable Maître, dans l'ordre d'annonce.
+///
+/// Un dignitaire ayant pris un office ce jour-là (Second Surveillant,
+/// Orateur...) entre en loge avec le collège des officiers : il n'est pas
+/// annoncé séparément — voir buildPlancheTraceeText dans pdf_service.dart,
+/// qui lui réserve déjà sa propre phrase de placement. Seuls les
+/// dignitaires sans office, placés à l'Orient par défaut, sont annoncés.
+/// Le Vénérable Maître (de sa propre Loge) est toujours annoncé en premier,
+/// avant le tri par rang protocolaire.
+List<Dignitary> dignitariesToAnnounce(
+  Session session,
+  List<Dignitary> allDignitaries,
+) {
+  bool hasOfficeToday(Dignitary d) =>
+      (session.dignitaryRoles[d.id] ?? '').trim().isNotEmpty;
+  bool isVenerable(Dignitary d) =>
+      foldLabel(d.title).contains('venerable maitre');
+
+  return allDignitaries
+      .where(
+        (d) => session.dignitaryIds.contains(d.id) && !hasOfficeToday(d),
+      )
+      .toList()
+    ..sort((a, b) {
+      final va = isVenerable(a);
+      final vb = isVenerable(b);
+      if (va != vb) return va ? -1 : 1;
+      final ra = a.protocolRank;
+      final rb = b.protocolRank;
+      if (ra != null && rb != null) {
+        final cmp = ra.compareTo(rb);
+        if (cmp != 0) return cmp;
+      } else if (ra != null) {
+        return -1;
+      } else if (rb != null) {
+        return 1;
+      }
+      return a.lastName.compareTo(b.lastName);
+    });
 }
