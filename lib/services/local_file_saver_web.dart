@@ -15,15 +15,8 @@ import 'package:web/web.dart' as web;
 const _xlsxMimeType =
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
-extension type _AcceptMap._(JSObject _) implements JSObject {
-  external factory _AcceptMap();
-
-  @JS(_xlsxMimeType)
-  external set xlsx(JSArray<JSString> value);
-}
-
 extension type _FileTypeOption._(JSObject _) implements JSObject {
-  external factory _FileTypeOption({String? description, _AcceptMap? accept});
+  external factory _FileTypeOption({String? description, JSObject? accept});
 }
 
 extension type _SaveFilePickerOptions._(JSObject _) implements JSObject {
@@ -48,7 +41,12 @@ Future<bool> trySaveFileNatively(String fileName, List<int> bytes) async {
     return true;
   }
   try {
-    final accept = _AcceptMap()..xlsx = [ '.xlsx'.toJS ].toJS;
+    // Objet JS `{ [mimeType]: ['.xlsx'] }` : la clé (le type MIME) est
+    // dynamique, d'où setProperty plutôt qu'un extension type dédié — un
+    // `external factory` sans paramètre échoue à la compilation (« is not
+    // a constructor »), ce n'est valable qu'avec des champs nommés fixes.
+    final accept = JSObject()
+      ..setProperty(_xlsxMimeType.toJS, <JSString>['.xlsx'.toJS].toJS);
     final options = _SaveFilePickerOptions(
       suggestedName: fileName,
       types: [
