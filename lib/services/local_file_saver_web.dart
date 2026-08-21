@@ -61,9 +61,19 @@ Future<bool> trySaveFileNatively(String fileName, List<int> bytes) async {
     await writable.close().toDart;
     return true;
   } catch (e) {
-    // AbortError : l'utilisateur a annulé la boîte de dialogue — ne pas
-    // forcer un téléchargement dans ce cas, comme le ferait un dialogue
-    // « Enregistrer sous » natif classique.
+    final name = e.isA<JSObject>()
+        ? (e as JSObject).getProperty<JSString?>('name'.toJS)?.toDart
+        : null;
+    if (name == 'AbortError') {
+      // L'utilisateur a annulé la boîte de dialogue — ne pas forcer un
+      // téléchargement dans ce cas, comme le ferait un dialogue
+      // « Enregistrer sous » natif classique.
+      return true;
+    }
+    // Erreur inattendue (permission refusée par le navigateur, contexte
+    // restreint, etc.) : se rabattre sur le téléchargement classique
+    // plutôt que d'échouer en silence sans le moindre retour visible.
+    _downloadViaAnchor(fileName, data);
     return true;
   }
 }
