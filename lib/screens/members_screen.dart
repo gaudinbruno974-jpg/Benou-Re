@@ -14,17 +14,10 @@ import 'member_edit_screen.dart';
 class MembersScreen extends StatelessWidget {
   const MembersScreen({super.key});
 
-  bool _canEdit(Member user) {
-    final fn = user.function.trim();
-    return user.isAdmin ||
-        fn.contains('Vénérable Maître') ||
-        fn.contains('Secrétaire');
-  }
-
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final canEdit = _canEdit(state.currentUser!);
+    final canEdit = canEditSessions(state.currentUser);
     final members = [...state.members]
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
 
