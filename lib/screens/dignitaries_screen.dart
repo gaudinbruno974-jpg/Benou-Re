@@ -60,7 +60,7 @@ class _DignitariesScreenState extends State<DignitariesScreen> {
         actions: canEdit
             ? [
                 IconButton(
-                  tooltip: 'Exporter (Membres/Visiteurs/Dignitaires) vers le Drive',
+                  tooltip: 'Exporter (Membres/Visiteurs/Dignitaires) en .xlsx',
                   icon: const Icon(Icons.file_upload_outlined),
                   onPressed: () => exportDirectories(context),
                 ),
