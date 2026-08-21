@@ -1,5 +1,6 @@
 // Création / édition d'un membre.
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/civilite.dart';
@@ -52,6 +53,9 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
       'matricule': TextEditingController(text: m?.matricule ?? ''),
       'motherLodge': TextEditingController(text: m?.motherLodge ?? ''),
       'sponsor': TextEditingController(text: m?.sponsor ?? ''),
+      'birthDate': TextEditingController(text: m?.birthDate ?? ''),
+      'initiationDate': TextEditingController(text: m?.initiationDate ?? ''),
+      'entryDate': TextEditingController(text: m?.entryDate ?? ''),
       'lodgeDues': TextEditingController(text: '${m?.lodgeDues ?? 0}'),
       'orderDues': TextEditingController(text: '${m?.orderDues ?? 0}'),
     };
@@ -101,6 +105,9 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           phone: _ctrls['phone']!.text.trim(),
           address: _ctrls['address']!.text.trim(),
           matricule: _ctrls['matricule']!.text.trim(),
+          birthDate: _ctrls['birthDate']!.text.trim(),
+          initiationDate: _ctrls['initiationDate']!.text.trim(),
+          entryDate: _ctrls['entryDate']!.text.trim(),
           function: _function,
           civilite: _civilite,
           preferredContact: _preferredContact,
@@ -268,7 +275,8 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                   _field('email', 'Email de contact',
                       keyboard: TextInputType.emailAddress),
                   _field('phone', 'Téléphone', keyboard: TextInputType.phone),
-                  _field('address', 'Adresse', last: true),
+                  _field('address', 'Adresse'),
+                  _dateField('birthDate', 'Date de naissance', last: true),
                   const SizedBox(height: 14),
                   _dropdown(
                     'Canal préféré',
@@ -321,7 +329,9 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                 children: [
                   _field('matricule', 'Matricule'),
                   _field('motherLodge', 'Loge mère'),
-                  _field('sponsor', 'Parrain', last: true),
+                  _field('sponsor', 'Parrain'),
+                  _dateField('initiationDate', "Date d'initiation"),
+                  _dateField('entryDate', "Date d'entrée", last: true),
                   const SizedBox(height: 14),
                   _dropdown('Office / Fonction', _function, _functions,
                       (v) => setState(() => _function = v)),
@@ -407,6 +417,45 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
         validator: required
             ? (v) => (v == null || v.trim().isEmpty) ? 'Requis' : null
             : null,
+      ),
+    );
+  }
+
+  /// Champ de date : saisie libre (compatible avec les valeurs importées
+  /// d'un classeur .xlsx, qui ne sont pas forcément au format jj/mm/aaaa) ou
+  /// sélection via le calendrier, qui écrit alors ce format.
+  Widget _dateField(String key, String label, {bool last = false}) {
+    final ctrl = _ctrls[key]!;
+    return Padding(
+      padding: EdgeInsets.only(bottom: last ? 0 : 14),
+      child: TextFormField(
+        controller: ctrl,
+        style: const TextStyle(color: BrColors.text),
+        decoration: InputDecoration(
+          labelText: label,
+          suffixIcon: IconButton(
+            icon: const Icon(Icons.calendar_today_outlined, size: 20),
+            onPressed: () async {
+              DateTime initial;
+              try {
+                initial = DateFormat('dd/MM/yyyy').parseStrict(
+                  ctrl.text.trim(),
+                );
+              } catch (_) {
+                initial = DateTime.now();
+              }
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: initial,
+                firstDate: DateTime(1900),
+                lastDate: DateTime(2100),
+              );
+              if (picked != null) {
+                ctrl.text = DateFormat('dd/MM/yyyy').format(picked);
+              }
+            },
+          ),
+        ),
       ),
     );
   }
