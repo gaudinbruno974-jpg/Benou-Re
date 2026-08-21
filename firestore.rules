@@ -114,7 +114,7 @@ service cloud.firestore {
                .hasOnly([
                  'status', 'agapePresent', 'respondedAt',
                  'apprentiCount', 'compagnonCount', 'maitreCount',
-                 'agapeTotal',
+                 'agapeTotal', 'recipientAgapePresent',
                ])
         );
     }

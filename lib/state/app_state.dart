@@ -324,12 +324,14 @@ class AppState extends ChangeNotifier {
     required int compagnonCount,
     required int maitreCount,
     required int agapeTotal,
+    bool? recipientAgapePresent,
   }) => repo.submitDelegationResponse(
     token,
     apprentiCount: apprentiCount,
     compagnonCount: compagnonCount,
     maitreCount: maitreCount,
     agapeTotal: agapeTotal,
+    recipientAgapePresent: recipientAgapePresent,
   );
 
   // Actions visiteurs

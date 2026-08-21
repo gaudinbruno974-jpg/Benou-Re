@@ -776,8 +776,12 @@ class _DelegationLinkRow extends StatelessWidget {
     final l = link;
     if (l == null) return 'Lien non généré';
     if (!l.isAnswered) return 'En attente';
+    final self = l.recipientAgapePresent;
+    final selfLabel = self == null
+        ? ''
+        : (self ? ' · lui-même : agapes' : ' · lui-même : sans agapes');
     return '${l.apprentiCount ?? 0}A · ${l.compagnonCount ?? 0}C · '
-        '${l.maitreCount ?? 0}M · ${l.agapeTotal ?? 0} agapes';
+        '${l.maitreCount ?? 0}M · ${l.agapeTotal ?? 0} agapes$selfLabel';
   }
 
   Color get _statusColor {

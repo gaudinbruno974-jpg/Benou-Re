@@ -198,6 +198,7 @@ class FirestoreRepository {
       compagnonCount: intOrNull(map['compagnonCount']),
       maitreCount: intOrNull(map['maitreCount']),
       agapeTotal: intOrNull(map['agapeTotal']),
+      recipientAgapePresent: map['recipientAgapePresent'] as bool?,
       respondedAt: ts(map['respondedAt']),
       expiresAt: ts(map['expiresAt']) ?? DateTime.now(),
       createdAt: ts(map['createdAt']) ?? DateTime.now(),
@@ -224,6 +225,8 @@ class FirestoreRepository {
       if (link.compagnonCount != null) 'compagnonCount': link.compagnonCount,
       if (link.maitreCount != null) 'maitreCount': link.maitreCount,
       if (link.agapeTotal != null) 'agapeTotal': link.agapeTotal,
+      if (link.recipientAgapePresent != null)
+        'recipientAgapePresent': link.recipientAgapePresent,
       if (link.respondedAt != null)
         'respondedAt': Timestamp.fromDate(link.respondedAt!),
       'expiresAt': Timestamp.fromDate(link.expiresAt),
@@ -272,12 +275,15 @@ class FirestoreRepository {
     required int compagnonCount,
     required int maitreCount,
     required int agapeTotal,
+    bool? recipientAgapePresent,
   }) {
     return _db.collection('presenceLinks').doc(token).update({
       'apprentiCount': apprentiCount,
       'compagnonCount': compagnonCount,
       'maitreCount': maitreCount,
       'agapeTotal': agapeTotal,
+      if (recipientAgapePresent != null)
+        'recipientAgapePresent': recipientAgapePresent,
       'respondedAt': Timestamp.fromDate(DateTime.now()),
     });
   }

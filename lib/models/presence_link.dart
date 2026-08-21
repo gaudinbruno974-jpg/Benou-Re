@@ -55,6 +55,10 @@ class PresenceLink {
   final int? compagnonCount;
   final int? maitreCount;
   final int? agapeTotal;
+  /// Présence du dignitaire lui-même aux agapes — distincte d'[agapeTotal],
+  /// qui ne compte que sa délégation : il peut déléguer des FF∴/SS∴ de sa
+  /// Loge sans venir en personne.
+  final bool? recipientAgapePresent;
 
   final DateTime? respondedAt;
   final DateTime expiresAt;
@@ -84,6 +88,7 @@ class PresenceLink {
     this.compagnonCount,
     this.maitreCount,
     this.agapeTotal,
+    this.recipientAgapePresent,
     this.respondedAt,
     required this.expiresAt,
     required this.createdAt,

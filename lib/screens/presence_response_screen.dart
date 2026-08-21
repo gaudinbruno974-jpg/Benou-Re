@@ -32,6 +32,7 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
   int _compagnon = 0;
   int _maitre = 0;
   int _agapeTotal = 0;
+  bool? _pendingRecipientAgape;
 
   @override
   void initState() {
@@ -64,6 +65,7 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
       _compagnon = link.compagnonCount ?? 0;
       _maitre = link.maitreCount ?? 0;
       _agapeTotal = link.agapeTotal ?? 0;
+      _pendingRecipientAgape = link.recipientAgapePresent;
       _state = _LoadState.ready;
     });
   }
@@ -104,6 +106,7 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
         compagnonCount: _compagnon,
         maitreCount: _maitre,
         agapeTotal: _agapeTotal,
+        recipientAgapePresent: _pendingRecipientAgape,
       );
       if (!mounted) return;
       setState(() => _state = _LoadState.submitted);
@@ -352,6 +355,37 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
             ],
           ),
         ),
+        if (link.hasAgape) ...[
+          const SizedBox(height: 18),
+          const Text(
+            'Serez-vous vous-même présent(e) aux agapes ?',
+            style: TextStyle(color: BrColors.text, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _ChoiceButton(
+                  label: 'Oui',
+                  icon: Icons.restaurant_outlined,
+                  color: BrColors.teal,
+                  selected: _pendingRecipientAgape == true,
+                  onTap: () => setState(() => _pendingRecipientAgape = true),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ChoiceButton(
+                  label: 'Non',
+                  icon: Icons.remove_circle_outline,
+                  color: BrColors.muted,
+                  selected: _pendingRecipientAgape == false,
+                  onTap: () => setState(() => _pendingRecipientAgape = false),
+                ),
+              ),
+            ],
+          ),
+        ],
         const SizedBox(height: 18),
         _CounterField(
           label: 'Apprentis présents en tenue',
@@ -372,7 +406,7 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
         ),
         const SizedBox(height: 18),
         _CounterField(
-          label: 'Total présents aux agapes',
+          label: 'Total agapes de la délégation (vous compris si présent)',
           value: _agapeTotal,
           onChanged: (v) => setState(() => _agapeTotal = v),
         ),
