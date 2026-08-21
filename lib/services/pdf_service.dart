@@ -116,56 +116,68 @@ List<String> _collectOrdreDuJour(Session s) {
       .toList();
 }
 
-// Calendrier égyptien du R∴A∴P∴M∴M∴ (porté depuis lodgeHeader.ts -> getMasonicDate).
+// Calendrier égyptien du R∴A∴P∴M∴M∴ (système Robert Ambelain) : Nouvel An
+// (1er Thot) le 29 août, précédé des 5 jours Épagomènes (24-28 août), puis 12
+// mois de 30 jours exacts chaînés depuis Thot. Voir
+// consigne_calendrier_ambelain.txt (fourni par l'utilisateur) pour la
+// spécification complète — remplace l'ancien calcul (Nouvel An au 19
+// juillet, noms de mois erronés) porté depuis lodgeHeader.ts.
+//
+// Chaînage depuis Thot plutôt que dates de calendrier fixes par mois : la
+// table « fixe alexandrine » donnée en référence associe à chaque mois une
+// date de début figée (ex. Pharmouthi = 27 mars chaque année), mais un
+// jour bissextile (29 février) s'intercale alors entre deux dates fixes
+// distantes de piste exactement 30 jours en année non bissextile,
+// laissant un jour orphelin (ex. 26 mars 2028) que ni l'un ni l'autre mois
+// ne couvre. Chaîner 12 blocs de 30 jours depuis le seul point fixe (29
+// août) élimine ce trou : les mois restent tous des multiples exacts de 30
+// jours et ne dérivent que d'un jour, après un 29 février, par rapport aux
+// dates de calendrier de la table de référence.
 const _egMonths = [
-  ['THOT', 'SCHA'],
-  ['PAOPHI', 'SCHA'],
-  ['ATHYR', 'SCHA'],
-  ['KHAOIAK', 'SCHA'],
-  ['TYBI', 'PRE'],
-  ['MEKHEIN', 'PRE'],
-  ['PHAMENOTH', 'PRE'],
-  ['PHARMOUTHI', 'PRE'],
-  ['PAKHOUS', 'SCHEMON'],
-  ['PSYRIE', 'SCHEMON'],
-  ['EPIPHI', 'SCHEMON'],
-  ['MESORI', 'SCHEMON'],
+  'Thot',
+  'Paophi',
+  'Athyr',
+  'Khoiak',
+  'Tybi',
+  'Mekhir',
+  'Phamenoth',
+  'Pharmouthi',
+  'Pakhons',
+  'Payni',
+  'Epiphi',
+  'Mesori',
 ];
-const _egEpagomenes = ['OSIRIS', 'HORUS', 'SETH', 'ISIS', 'NEPHTHYS'];
+const _egEpagomenes = [
+  'Naissance d’Osiris',
+  'Naissance d’Horus',
+  'Naissance de Seth',
+  'Naissance d’Isis',
+  'Naissance de Nephthys',
+];
 
 String getMasonicDate(DateTime? date) {
   if (date == null) return 'Date inconnue';
   final d = DateTime(date.year, date.month, date.day, 12);
-  final civilYear = d.year;
-  final newYear = DateTime(civilYear, 7, 19, 12);
-  final DateTime start;
-  final int egYear;
-  if (!d.isBefore(newYear)) {
-    start = newYear;
-    egYear = civilYear + 1292;
-  } else {
-    start = DateTime(civilYear - 1, 7, 19, 12);
-    egYear = civilYear - 1 + 1292;
+  const suffixe = 'A.E.';
+  String ordinal(int n) => n == 1 ? '1er' : '$nème';
+
+  if (d.month == 8 && d.day >= 24 && d.day <= 28) {
+    final idx = d.day - 24;
+    final egYear = d.year + 1291;
+    return 'Le ${ordinal(idx + 1)} jour Épagomène (${_egEpagomenes[idx]}) '
+        'de l’An $egYear $suffixe';
   }
-  final offset = d.difference(start).inDays;
-  const suffixe = 'de la Lumière d’Égypte';
-  if (offset >= 360) {
-    final idx = (offset - 360).clamp(0, _egEpagomenes.length - 1);
-    final ord = idx + 1;
-    final ordStr = ord == 1
-        ? '1er'
-        : '$ord'
-              'ème';
-    return 'Le $ordStr jour épagomène (Naissance de ${_egEpagomenes[idx]}) De l’an $egYear $suffixe';
-  }
+
+  final beforeNewYear = d.month < 8 || (d.month == 8 && d.day < 24);
+  final egYear = d.year + (beforeNewYear ? 1291 : 1292);
+  final thotStart = beforeNewYear
+      ? DateTime(d.year - 1, 8, 29, 12)
+      : DateTime(d.year, 8, 29, 12);
+  final offset = d.difference(thotStart).inDays;
   final monthIndex = (offset ~/ 30).clamp(0, _egMonths.length - 1);
   final dayInMonth = (offset % 30) + 1;
-  final month = _egMonths[monthIndex];
-  final dayStr = dayInMonth == 1
-      ? '1er'
-      : '$dayInMonth'
-            'ème';
-  return 'Le $dayStr jour du mois de ${month[0]} de la saison ${month[1]} De l’an $egYear $suffixe';
+  return 'Le ${ordinal(dayInMonth)} jour du mois de ${_egMonths[monthIndex]} '
+      'de l’An $egYear $suffixe';
 }
 
 String _degreToOrdinalLong(String? degre) {
