@@ -9,6 +9,7 @@ import '../models/dignitary.dart';
 import '../models/inventory_check.dart';
 import '../models/inventory_item.dart';
 import '../models/member.dart';
+import '../models/passport_token.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -335,6 +336,12 @@ class AppState extends ChangeNotifier {
   );
   Future<void> syncPresenceLinkRecipientAlone(String token, bool alone) =>
       repo.syncPresenceLinkRecipientAlone(token, alone);
+
+  // Passeport Maçonnique (jeton de vérification à durée de vie courte)
+  Future<void> createPassportToken(PassportToken token) =>
+      repo.createPassportToken(token);
+  Future<PassportToken?> getPassportToken(String token) =>
+      repo.getPassportToken(token);
 
   // Actions visiteurs
   Future<void> addVisitor(Visitor v) => repo.setVisitor(v);

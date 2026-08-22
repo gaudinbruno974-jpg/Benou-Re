@@ -391,6 +391,40 @@ class DriveService {
     return currentEmail ?? 'compte Google';
   }
 
+  /// Archive le Passeport Maçonnique d'un membre, un fichier par membre,
+  /// directement dans le dossier configuré (pas de sous-dossier annuel, ce
+  /// document n'est pas rattaché à une année) — voir
+  /// [LodgeConfig.passportDriveFolderId].
+  Future<String> archivePassportDocument({
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final folderId = LodgeConfig.current.passportDriveFolderId.trim();
+    if (folderId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive de Passeports configuré pour cette Loge '
+        '(passportDriveFolderId).',
+      );
+    }
+    try {
+      return await _archivePassportDocument(folderId, fileName, bytes);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archivePassportDocument(folderId, fileName, bytes);
+    }
+  }
+
+  Future<String> _archivePassportDocument(
+    String folderId,
+    String fileName,
+    Uint8List bytes,
+  ) async {
+    final headers = await _authHeaders();
+    await _uploadFile(headers, folderId, fileName, bytes);
+    return currentEmail ?? 'compte Google';
+  }
+
   // ─── Gmail : brouillon avec pièce jointe réelle ──────────────────────
   // Un lien mailto:/Gmail compose ne permet aucune pièce jointe (limite de
   // ces schémas d'URL, aucun contournement possible) : on passe donc par

@@ -119,6 +119,18 @@ service cloud.firestore {
         );
     }
 
+    // Jetons de vérification du Passeport Maçonnique : générés à la demande
+    // par un membre connecté (1 heure de validité), lus par un tiers non
+    // connecté qui scanne le QR — même principe que presenceLinks (`allow
+    // get`, jamais `allow list`, jeton non devinable comme seule preuve
+    // d'accès). Jamais modifiés ni supprimés : un jeton périmé reste inerte.
+    match /passportTokens/{token} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
     // Réglages de la Loge (chrono, nom du V∴M∴).
     match /config/{docId} {
       allow read: if signedIn();

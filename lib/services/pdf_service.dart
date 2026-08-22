@@ -1830,3 +1830,122 @@ Future<Uint8List> buildQuitusPdf(
   'QUITUS DE COTISATION $year',
   quitusBody(member, year, members, lodgeVmName: lodgeVmName),
 );
+
+// ══════════════════════════════════════════════════════════════════
+// PASSEPORT MAÇONNIQUE — document d'identité personnel, sans QR (voir
+// member_passport_screen.dart pour le mécanisme de vérification, un jeton
+// à durée de vie d'une heure généré à la demande, distinct de ce PDF
+// d'archive).
+// ══════════════════════════════════════════════════════════════════
+
+/// Nom du V∴M∴, sans dépendre d'une tenue précise (le passeport n'en cite
+/// aucune) — même repli que treasury_document_service.dart : réglage de la
+/// Loge, sinon le membre portant l'office.
+String _passportVmName(List<Member> members, String lodgeVmName) {
+  if (lodgeVmName.trim().isNotEmpty) return lodgeVmName.trim();
+  final vm = members
+      .where((m) => foldLabel(m.function).contains('venerable'))
+      .firstOrNull;
+  return vm != null ? _memberFullName(vm) : 'Vénérable Maître';
+}
+
+Future<Uint8List> buildPassportPdf(
+  Member member,
+  List<Member> members, {
+  String lodgeVmName = '',
+}) async {
+  final fonts = await _loadLodgeFonts();
+  final logos = await _loadLogos();
+  final lodge = LodgeConfig.current;
+  final vmName = maskPersonName(_passportVmName(members, lodgeVmName));
+
+  pw.Widget row(String label, String value) {
+    if (value.trim().isEmpty) return pw.SizedBox();
+    return pw.Padding(
+      padding: pw.EdgeInsets.only(bottom: 3 * _mm),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 45 * _mm,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 10,
+                color: PdfColors.grey700,
+              ),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(font: fonts.base, fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  final doc = pw.Document();
+  doc.addPage(
+    pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.all(18 * _mm),
+      build: (context) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _lodgeHeader(fonts, logos[0], logos[1]),
+          pw.SizedBox(height: 6 * _mm),
+          pw.Center(
+            child: pw.Text(
+              'PASSEPORT MAÇONNIQUE',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: _navy),
+            ),
+          ),
+          pw.SizedBox(height: 8 * _mm),
+          pw.Center(
+            child: pw.Text(
+              '${civiliteTitle(member.civilite)} ${member.fullName}'.trim(),
+              style: pw.TextStyle(font: fonts.bold, fontSize: 15),
+            ),
+          ),
+          pw.SizedBox(height: 10 * _mm),
+          pw.Container(
+            padding: pw.EdgeInsets.all(10 * _mm),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey400),
+              borderRadius: pw.BorderRadius.circular(4),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                row('Grade', member.grade),
+                row('Loge', lodge.shortTitle),
+                row('Orient', lodge.orientLong),
+                row('Obédience', lodge.obedienceAcronym),
+                row("Date d'initiation", member.initiationDate),
+                row("Date d'entrée", member.entryDate),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 14 * _mm),
+          pw.Text(
+            'Le présent document atteste que le porteur est régulièrement '
+            'affilié à la R∴L∴ ${lodge.name} N°${lodge.number}, à '
+            "l'Orient de ${lodge.orient}, sous l'obédience de la Grande "
+            'Loge de Bourbon.',
+            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+          ),
+          pw.SizedBox(height: 10 * _mm),
+          pw.Text(
+            'Par mandatement du V∴M∴ $vmName',
+            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+          ),
+        ],
+      ),
+    ),
+  );
+  return doc.save();
+}

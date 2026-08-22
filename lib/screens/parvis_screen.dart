@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'dignitaries_screen.dart';
 import 'inventory_screen.dart';
+import 'member_passport_screen.dart';
 import 'members_screen.dart';
 import 'sessions_screen.dart';
 import 'visitors_screen.dart';
@@ -108,6 +109,14 @@ class ParvisScreen extends StatelessWidget {
         BrColors.menuInventaire,
         true,
         () => const InventoryScreen(),
+      ),
+      _MenuItem(
+        'Mon Passeport',
+        'Identité et vérification QR',
+        Icons.badge_outlined,
+        BrColors.gold,
+        true,
+        () => MemberPassportScreen(member: user),
       ),
       _MenuItem(
         'Trésorerie',

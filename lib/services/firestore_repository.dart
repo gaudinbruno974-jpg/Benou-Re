@@ -7,6 +7,7 @@ import '../models/dignitary.dart';
 import '../models/inventory_check.dart';
 import '../models/inventory_item.dart';
 import '../models/member.dart';
+import '../models/passport_token.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -339,6 +340,49 @@ class FirestoreRepository {
         .collection('presenceLinks')
         .doc(token)
         .update({'applied': true});
+  }
+
+  // ─── Passeport Maçonnique (jetons de vérification) ─────────────
+  Future<void> createPassportToken(PassportToken token) {
+    return _db.collection('passportTokens').doc(token.id).set({
+      'memberId': token.memberId,
+      'memberName': token.memberName,
+      'civilite': token.civilite,
+      'grade': token.grade,
+      'initiationDate': token.initiationDate,
+      'entryDate': token.entryDate,
+      'lodgeName': token.lodgeName,
+      'lodgeNumber': token.lodgeNumber,
+      'lodgeOrient': token.lodgeOrient,
+      'lodgeObedience': token.lodgeObedience,
+      'createdAt': Timestamp.fromDate(token.createdAt),
+      'expiresAt': Timestamp.fromDate(token.expiresAt),
+    });
+  }
+
+  /// Lecture publique d'un jeton précis — même principe que
+  /// [getPresenceLink] : seul accès autorisé par les règles à un visiteur
+  /// non connecté (`allow get`, jamais `allow list`).
+  Future<PassportToken?> getPassportToken(String token) async {
+    final doc = await _db.collection('passportTokens').doc(token).get();
+    if (!doc.exists) return null;
+    final map = doc.data()!;
+    DateTime? ts(dynamic v) => v is Timestamp ? v.toDate() : null;
+    return PassportToken(
+      id: doc.id,
+      memberId: (map['memberId'] ?? '') as String,
+      memberName: (map['memberName'] ?? '') as String,
+      civilite: (map['civilite'] ?? '') as String,
+      grade: (map['grade'] ?? '') as String,
+      initiationDate: (map['initiationDate'] ?? '') as String,
+      entryDate: (map['entryDate'] ?? '') as String,
+      lodgeName: (map['lodgeName'] ?? '') as String,
+      lodgeNumber: (map['lodgeNumber'] ?? '') as String,
+      lodgeOrient: (map['lodgeOrient'] ?? '') as String,
+      lodgeObedience: (map['lodgeObedience'] ?? '') as String,
+      createdAt: ts(map['createdAt']) ?? DateTime.now(),
+      expiresAt: ts(map['expiresAt']) ?? DateTime.now(),
+    );
   }
 
   // ─── Chrono (config/settings) ─────────────────────────────────

@@ -184,6 +184,10 @@ class LodgeConfig {
   /// « Capitations {année} » / « Quitus {année} » (voir drive_service.dart).
   final String treasuryDriveFolderId;
 
+  /// Dossier Drive dans lequel sont archivés les Passeports Maçonniques
+  /// (un fichier par membre, voir drive_service.dart).
+  final String passportDriveFolderId;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -213,6 +217,7 @@ class LodgeConfig {
     this.treasuryAssociationName = '',
     this.treasuryRib = '',
     this.treasuryDriveFolderId = '',
+    this.passportDriveFolderId = '',
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -387,6 +392,10 @@ class LodgeConfig {
       treasuryDriveFolderId: text(
         'treasuryDriveFolderId',
         treasuryDriveFolderId,
+      ),
+      passportDriveFolderId: text(
+        'passportDriveFolderId',
+        passportDriveFolderId,
       ),
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),

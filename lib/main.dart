@@ -11,6 +11,7 @@ import 'theme.dart';
 import 'widgets/br_decor.dart';
 import 'screens/login_screen.dart';
 import 'screens/parvis_screen.dart';
+import 'screens/passport_verify_screen.dart';
 import 'screens/presence_response_screen.dart';
 
 Future<void> main() async {
@@ -59,6 +60,18 @@ String? _presenceResponseToken() {
   return null;
 }
 
+/// Jeton de vérification du Passeport Maçonnique (`#/passeport/<jeton>`),
+/// même principe que [_presenceResponseToken] — page publique, détectée
+/// avant la porte d'authentification.
+String? _passportVerifyToken() {
+  final candidates = [Uri.base.fragment, Uri.base.path];
+  for (final candidate in candidates) {
+    final match = RegExp(r'passeport/([A-Za-z0-9-]+)').firstMatch(candidate);
+    if (match != null) return match.group(1);
+  }
+  return null;
+}
+
 class _Root extends StatelessWidget {
   const _Root();
 
@@ -67,6 +80,10 @@ class _Root extends StatelessWidget {
     final token = _presenceResponseToken();
     if (token != null) {
       return PresenceResponseScreen(token: token);
+    }
+    final passportToken = _passportVerifyToken();
+    if (passportToken != null) {
+      return PassportVerifyScreen(token: passportToken);
     }
 
     final state = context.watch<AppState>();
