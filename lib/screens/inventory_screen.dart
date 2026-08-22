@@ -41,49 +41,47 @@ class InventoryScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Matériel'),
-        actions: [
-          if (canEdit)
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              onSelected: (value) {
-                switch (value) {
-                  case 'export':
-                    exportInventory(context);
-                  case 'template':
-                    exportInventoryTemplate(context);
-                  case 'import':
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const InventoryImportScreen(),
-                      ),
-                    );
-                  case 'reimport':
-                    _importSeed(context, items);
-                }
-              },
-              itemBuilder: (ctx) => const [
-                PopupMenuItem(
-                  value: 'export',
-                  child: Text('Exporter en .xlsx'),
+        actions: canEdit
+            ? [
+                IconButton(
+                  tooltip: 'Exporter en .xlsx',
+                  icon: const Icon(Icons.file_upload_outlined),
+                  onPressed: () => exportInventory(context),
                 ),
-                PopupMenuItem(
-                  value: 'import',
-                  child: Text('Importer depuis un .xlsx'),
-                ),
-                PopupMenuItem(
-                  value: 'template',
-                  child: Text('Télécharger un modèle vide (.xlsx)'),
-                ),
-                PopupMenuDivider(),
-                PopupMenuItem(
-                  value: 'reimport',
-                  child: Text(
-                    'Réimporter la liste de référence (Rituel du 1er Degré)',
+                IconButton(
+                  tooltip: 'Importer depuis un classeur .xlsx',
+                  icon: const Icon(Icons.file_download_outlined),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const InventoryImportScreen(),
+                    ),
                   ),
                 ),
-              ],
-            ),
-        ],
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert),
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'template':
+                        exportInventoryTemplate(context);
+                      case 'reimport':
+                        _importSeed(context, items);
+                    }
+                  },
+                  itemBuilder: (ctx) => const [
+                    PopupMenuItem(
+                      value: 'template',
+                      child: Text('Télécharger un modèle vide (.xlsx)'),
+                    ),
+                    PopupMenuItem(
+                      value: 'reimport',
+                      child: Text(
+                        'Réimporter la liste de référence (Rituel du 1er Degré)',
+                      ),
+                    ),
+                  ],
+                ),
+              ]
+            : null,
       ),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(

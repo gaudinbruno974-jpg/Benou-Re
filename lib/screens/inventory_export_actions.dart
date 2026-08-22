@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
-import '../config/lodge_config.dart';
 import '../services/inventory_xlsx_service.dart';
 import '../state/app_state.dart';
 import 'directory_export_actions.dart' show saveFileLocally;
@@ -14,9 +13,8 @@ import 'directory_export_actions.dart' show saveFileLocally;
 Future<void> exportInventory(BuildContext context) async {
   final state = context.read<AppState>();
   final bytes = buildInventoryWorkbook(state.inventoryItems);
-  final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
-  final fileName =
-      'Materiel_${LodgeConfig.current.name.replaceAll(' ', '_')}_$date.xlsx';
+  final date = DateFormat('dd-MM-yyyy').format(DateTime.now());
+  final fileName = 'Inventaire du $date.xlsx';
   await saveFileLocally(context, fileName, bytes);
 }
 
