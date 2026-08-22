@@ -10,6 +10,7 @@ import '../widgets/br_decor.dart';
 import 'directory_export_actions.dart';
 import 'directory_import_screen.dart';
 import 'member_edit_screen.dart';
+import 'passport_actions.dart';
 
 class MembersScreen extends StatelessWidget {
   const MembersScreen({super.key});
@@ -63,6 +64,7 @@ class MembersScreen extends StatelessWidget {
               separatorBuilder: (context, index) => const SizedBox(height: 12),
               itemBuilder: (context, i) {
                 final m = members[i];
+                final isSelf = m.id == state.currentUser?.id;
                 return BrCard(
                   accent: BrColors.forGrade(m.grade),
                   padding: const EdgeInsets.all(14),
@@ -114,25 +116,37 @@ class MembersScreen extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 4),
-                      canEdit
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  icon: const Icon(Icons.edit,
-                                      color: BrColors.gold, size: 20),
-                                  onPressed: () => _openEdit(context, m),
-                                ),
-                                IconButton(
-                                  visualDensity: VisualDensity.compact,
-                                  icon: const Icon(Icons.delete_outline,
-                                      color: Color(0xFFFB7185), size: 20),
-                                  onPressed: () => _confirmDelete(context, m),
-                                ),
-                              ],
-                            )
-                          : _StatusChip(status: m.status),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Seul le membre connecté génère son propre QR de
+                          // vérification (Passeport Maçonnique) — jamais un
+                          // tiers en son nom, même autorisé à modifier.
+                          if (isSelf)
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: 'Afficher mon QR (Passeport)',
+                              icon: const Icon(Icons.qr_code_2,
+                                  color: BrColors.violet, size: 20),
+                              onPressed: () => showMemberPassportQr(context, m),
+                            ),
+                          if (canEdit) ...[
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.edit,
+                                  color: BrColors.gold, size: 20),
+                              onPressed: () => _openEdit(context, m),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              icon: const Icon(Icons.delete_outline,
+                                  color: Color(0xFFFB7185), size: 20),
+                              onPressed: () => _confirmDelete(context, m),
+                            ),
+                          ] else
+                            _StatusChip(status: m.status),
+                        ],
+                      ),
                     ],
                   ),
                 );

@@ -1,12 +1,17 @@
 // Création / édition d'un membre.
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../models/civilite.dart';
 import '../models/member.dart';
 import '../models/preferred_contact.dart';
+import '../services/drive_service.dart';
 import '../services/member_account_service.dart';
+import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -30,6 +35,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
   late List<String> _functions;
   bool _saving = false;
   bool _inviting = false;
+  bool _passportBusy = false;
 
   static const _grades = kGrades;
   static const _statuses = [
@@ -250,13 +256,52 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     await _sendInvitation(address, newLoginEmail: true);
   }
 
+  /// Génère le Passeport Maçonnique (PDF, sans QR) et l'archive sur Drive —
+  /// réservé au bureau, pour n'importe quelle fiche (voir _passportSection).
+  Future<void> _generatePassportPdf() async {
+    final member = widget.member;
+    if (member == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final state = context.read<AppState>();
+    setState(() => _passportBusy = true);
+    try {
+      final bytes = Uint8List.fromList(
+        await buildPassportPdf(
+          member,
+          state.members,
+          lodgeVmName: state.lodgeVmName,
+        ),
+      );
+      final fileName = 'Passeport - ${member.lastName} ${member.firstName}.pdf';
+      try {
+        await DriveService.instance.archivePassportDocument(
+          fileName: fileName,
+          bytes: bytes,
+        );
+      } catch (e) {
+        messenger.showSnackBar(
+          SnackBar(content: Text('Archivage Drive : $e')),
+        );
+      }
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur PDF : $e')));
+    } finally {
+      if (mounted) setState(() => _passportBusy = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isNew = widget.member == null;
     final loginEmail = widget.member?.effectiveLoginEmail ?? '';
-    final canManageAccount =
-        !isNew && canEditSessions(context.watch<AppState>().currentUser);
+    final currentUser = context.watch<AppState>().currentUser;
+    final canManageAccount = !isNew && canEditSessions(currentUser);
     final canInvite = canManageAccount && loginEmail.isNotEmpty;
+    // Le PDF (archive) reste au bureau, sur n'importe quelle fiche : le QR de
+    // vérification, lui, n'a de sens que généré par l'intéressé lui-même —
+    // voir le bouton dédié sur sa propre ligne dans members_screen.dart.
+    final canGeneratePassportPdf = canManageAccount;
     return Scaffold(
       appBar: AppBar(
           title: Text(isNew ? 'Nouveau membre' : 'Modifier le membre')),
@@ -316,6 +361,31 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                         label: const Text("Changer l'e-mail de connexion"),
                       ),
                     ],
+                  ],
+                ),
+              ),
+            ],
+            if (!isNew && canGeneratePassportPdf) ...[
+              const SizedBox(height: 24),
+              const BrSectionTitle('PASSEPORT MAÇONNIQUE',
+                  icon: Icons.badge_outlined),
+              const SizedBox(height: 14),
+              BrCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.picture_as_pdf_outlined),
+                      label: const Text('Générer le PDF (archive Drive)'),
+                      onPressed: _passportBusy ? null : _generatePassportPdf,
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      "Document d'archive/impression, sans QR : le QR de "
+                      'vérification se génère uniquement par le membre '
+                      'lui-même, depuis sa propre ligne dans « Membres ».',
+                      style: TextStyle(color: BrColors.muted, fontSize: 11),
+                    ),
                   ],
                 ),
               ),

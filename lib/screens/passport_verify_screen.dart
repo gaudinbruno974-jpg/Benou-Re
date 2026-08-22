@@ -59,6 +59,8 @@ class _PassportVerifyScreenState extends State<PassportVerifyScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Image.asset('assets/GLDB.png', height: 72),
+                  const SizedBox(height: 10),
                   const Text(
                     'GRANDE LOGE DE BOURBON',
                     textAlign: TextAlign.center,
