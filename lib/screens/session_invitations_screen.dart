@@ -19,6 +19,7 @@ import '../models/member.dart';
 import '../models/preferred_contact.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
+import '../services/drive_service.dart';
 import '../services/email_link.dart';
 import '../services/invitation_service.dart';
 import '../services/pdf_service.dart';
@@ -27,6 +28,62 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import '../widgets/directory_filter.dart';
+
+/// Résultat d'un envoi groupé (voir _sendBulkGmailDrafts) : un brouillon
+/// Gmail séparé et personnalisé par destinataire, jamais un CCI unique — le
+/// lien de réponse (et le montant, pour la Trésorerie) est propre à chacun.
+class _BulkSendResult {
+  final int sent;
+  final int skippedNoEmail;
+  final int failed;
+  const _BulkSendResult({
+    required this.sent,
+    required this.skippedNoEmail,
+    required this.failed,
+  });
+
+  String get summary {
+    final parts = <String>['$sent brouillon(s) créé(s)'];
+    if (skippedNoEmail > 0) {
+      parts.add('$skippedNoEmail ignoré(s) (pas d\'e-mail)');
+    }
+    if (failed > 0) parts.add('$failed échec(s)');
+    return '${parts.join(', ')}.';
+  }
+}
+
+/// Crée un brouillon Gmail par destinataire (même PDF joint à chacun, texte
+/// et lien de réponse propres à chacun) — voir treasury_screen.dart pour le
+/// même principe côté Trésorerie.
+Future<_BulkSendResult> _sendBulkGmailDrafts({
+  required Uint8List pdfBytes,
+  required String attachmentName,
+  required List<({String email, String subject, String body})> recipients,
+  required void Function(int done, int total) onProgress,
+}) async {
+  var sent = 0, skipped = 0, failed = 0, done = 0;
+  for (final r in recipients) {
+    done++;
+    onProgress(done, recipients.length);
+    if (r.email.trim().isEmpty) {
+      skipped++;
+      continue;
+    }
+    try {
+      await DriveService.instance.createGmailDraftWithAttachment(
+        to: r.email.trim(),
+        subject: r.subject,
+        body: r.body,
+        attachmentName: attachmentName,
+        attachmentBytes: pdfBytes,
+      );
+      sent++;
+    } catch (_) {
+      failed++;
+    }
+  }
+  return _BulkSendResult(sent: sent, skippedNoEmail: skipped, failed: failed);
+}
 
 class SessionInvitationsScreen extends StatefulWidget {
   final String sessionId;
@@ -201,6 +258,10 @@ class _PresenceLinksSection extends StatefulWidget {
 
 class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
   bool _generating = false;
+  final Set<String> _selectedIds = {};
+  bool _sendingBulk = false;
+  int _bulkDone = 0;
+  int _bulkTotal = 0;
 
   // Pas de recherche/bascule Par Loge ici : contrairement aux Visiteurs et
   // Dignitaires, les membres appartiennent tous à la Loge courante — même
@@ -264,6 +325,68 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
     if (mounted) setState(() => _generating = false);
   }
 
+  /// Envoi groupé : un brouillon Gmail personnalisé par membre coché (son
+  /// propre lien de réponse), tous avec la même convocation PDF jointe,
+  /// générée une seule fois.
+  Future<void> _sendSelected(
+    List<Member> eligible,
+    Map<String, PresenceLink> byMember,
+    List<String> ordreDuJour,
+    List<Member> allMembers,
+    String lodgeVmName,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final targets = eligible
+        .where((m) => _selectedIds.contains(m.id) && byMember[m.id] != null)
+        .toList();
+    if (targets.isEmpty) return;
+    setState(() {
+      _sendingBulk = true;
+      _bulkDone = 0;
+      _bulkTotal = targets.length;
+    });
+    try {
+      final pdfBytes = Uint8List.fromList(
+        await buildConvocationPdf(
+          widget.session,
+          widget.chrono,
+          allMembers,
+          lodgeVmName: lodgeVmName,
+        ),
+      );
+      final recipients = [
+        for (final m in targets)
+          (
+            email: m.email,
+            subject: memberConvocationSubject(widget.session, widget.chrono),
+            body: memberConvocationBody(
+              widget.session,
+              ordreDuJour,
+              allMembers,
+              _linkUrl(byMember[m.id]!.id),
+              lodgeVmName: lodgeVmName,
+            ),
+          ),
+      ];
+      final result = await _sendBulkGmailDrafts(
+        pdfBytes: pdfBytes,
+        attachmentName: 'Convocation_Tenue_${widget.chrono}.pdf',
+        recipients: recipients,
+        onProgress: (done, total) {
+          if (mounted) setState(() => _bulkDone = done);
+        },
+      );
+      if (!mounted) return;
+      await openExternalUrl('https://mail.google.com/mail/u/0/#drafts');
+      messenger.showSnackBar(SnackBar(content: Text(result.summary)));
+      setState(() => _selectedIds.clear());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur : $e')));
+    } finally {
+      if (mounted) setState(() => _sendingBulk = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -278,6 +401,12 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
         final missing = eligible
             .where((m) => !byMember.containsKey(m.id))
             .length;
+        final selectableIds = eligible
+            .where((m) => byMember.containsKey(m.id))
+            .map((m) => m.id)
+            .toSet();
+        final allSelected =
+            selectableIds.isNotEmpty && selectableIds.every(_selectedIds.contains);
 
         return Padding(
           padding: const EdgeInsets.only(top: 8),
@@ -301,6 +430,52 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
                         : () => _generateMissing(eligible, existing),
                   ),
                 ),
+              if (selectableIds.isNotEmpty) ...[
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: allSelected,
+                  onChanged: (v) => setState(() {
+                    if (v ?? false) {
+                      _selectedIds.addAll(selectableIds);
+                    } else {
+                      _selectedIds.removeAll(selectableIds);
+                    }
+                  }),
+                  title: const Text(
+                    'Envoi groupé (tout sélectionner)',
+                    style: TextStyle(color: BrColors.text, fontSize: 13),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: BrColors.violet),
+                    icon: _sendingBulk
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.mail_outline, size: 16),
+                    label: Text(
+                      _sendingBulk
+                          ? 'Envoi $_bulkDone/$_bulkTotal…'
+                          : 'Envoyer la sélection (${_selectedIds.length})',
+                    ),
+                    onPressed: _sendingBulk || _selectedIds.isEmpty
+                        ? null
+                        : () => _sendSelected(
+                              eligible,
+                              byMember,
+                              ordreDuJour,
+                              state.members,
+                              state.lodgeVmName,
+                            ),
+                  ),
+                ),
+              ],
               for (final m in eligible)
                 _PresenceLinkRow(
                   session: widget.session,
@@ -313,6 +488,16 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
                   linkUrl: byMember[m.id] != null
                       ? _linkUrl(byMember[m.id]!.id)
                       : null,
+                  selected: _selectedIds.contains(m.id),
+                  onSelectedChanged: byMember[m.id] == null
+                      ? null
+                      : (v) => setState(() {
+                            if (v ?? false) {
+                              _selectedIds.add(m.id);
+                            } else {
+                              _selectedIds.remove(m.id);
+                            }
+                          }),
                   onCopy: widget.onCopy,
                   onOpen: widget.onOpen,
                 ),
@@ -333,6 +518,8 @@ class _PresenceLinkRow extends StatelessWidget {
   final Member member;
   final PresenceLink? link;
   final String? linkUrl;
+  final bool selected;
+  final ValueChanged<bool?>? onSelectedChanged;
   final Future<void> Function(String) onCopy;
   final Future<void> Function(String) onOpen;
   const _PresenceLinkRow({
@@ -344,6 +531,8 @@ class _PresenceLinkRow extends StatelessWidget {
     required this.member,
     required this.link,
     required this.linkUrl,
+    required this.selected,
+    required this.onSelectedChanged,
     required this.onCopy,
     required this.onOpen,
   });
@@ -389,6 +578,14 @@ class _PresenceLinkRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
+          SizedBox(
+            width: 32,
+            child: Checkbox(
+              value: selected,
+              onChanged: onSelectedChanged,
+              side: const BorderSide(color: BrColors.muted),
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -467,6 +664,10 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
   bool _generating = false;
   final _search = TextEditingController();
   DirectoryGroupMode _mode = DirectoryGroupMode.all;
+  final Set<String> _selectedIds = {};
+  bool _sendingBulk = false;
+  int _bulkDone = 0;
+  int _bulkTotal = 0;
 
   @override
   void initState() {
@@ -558,6 +759,70 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
     if (mounted) setState(() => _generating = false);
   }
 
+  /// Envoi groupé : un brouillon Gmail personnalisé par dignitaire coché
+  /// (son propre lien de délégation), tous avec la même convocation PDF
+  /// jointe, générée une seule fois.
+  Future<void> _sendSelected(
+    List<Dignitary> recipients,
+    Map<String, PresenceLink> byRecipient,
+    List<String> ordreDuJour,
+    List<Member> allMembers,
+    String lodgeVmName,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final targets = recipients
+        .where(
+          (d) => _selectedIds.contains(d.id) && byRecipient[d.id] != null,
+        )
+        .toList();
+    if (targets.isEmpty) return;
+    setState(() {
+      _sendingBulk = true;
+      _bulkDone = 0;
+      _bulkTotal = targets.length;
+    });
+    try {
+      final pdfBytes = Uint8List.fromList(
+        await buildConvocationPdf(
+          widget.session,
+          widget.chrono,
+          allMembers,
+          lodgeVmName: lodgeVmName,
+        ),
+      );
+      final recipientsToSend = [
+        for (final d in targets)
+          (
+            email: d.email,
+            subject: dignitaryInvitationSubject(widget.session, widget.chrono),
+            body: dignitaryInvitationBody(
+              widget.session,
+              ordreDuJour,
+              allMembers,
+              _linkUrl(byRecipient[d.id]!.id),
+              lodgeVmName: lodgeVmName,
+            ),
+          ),
+      ];
+      final result = await _sendBulkGmailDrafts(
+        pdfBytes: pdfBytes,
+        attachmentName: 'Convocation_Tenue_${widget.chrono}.pdf',
+        recipients: recipientsToSend,
+        onProgress: (done, total) {
+          if (mounted) setState(() => _bulkDone = done);
+        },
+      );
+      if (!mounted) return;
+      await openExternalUrl('https://mail.google.com/mail/u/0/#drafts');
+      messenger.showSnackBar(SnackBar(content: Text(result.summary)));
+      setState(() => _selectedIds.clear());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur : $e')));
+    } finally {
+      if (mounted) setState(() => _sendingBulk = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
@@ -610,6 +875,13 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
                 .toList()
               ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
 
+        final selectableIds = recipients
+            .where((d) => byRecipient.containsKey(d.id))
+            .map((d) => d.id)
+            .toSet();
+        final allSelected =
+            selectableIds.isNotEmpty && selectableIds.every(_selectedIds.contains);
+
         Widget row(Dignitary d) => _DelegationLinkRow(
           session: widget.session,
           chrono: widget.chrono,
@@ -621,6 +893,16 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
           linkUrl: byRecipient[d.id] != null
               ? _linkUrl(byRecipient[d.id]!.id)
               : null,
+          selected: _selectedIds.contains(d.id),
+          onSelectedChanged: byRecipient[d.id] == null
+              ? null
+              : (v) => setState(() {
+                    if (v ?? false) {
+                      _selectedIds.add(d.id);
+                    } else {
+                      _selectedIds.remove(d.id);
+                    }
+                  }),
           onCopy: widget.onCopy,
           onOpen: widget.onOpen,
         );
@@ -681,6 +963,52 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
                 ),
                 const SizedBox(height: 10),
               ],
+              if (selectableIds.isNotEmpty) ...[
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: allSelected,
+                  onChanged: (v) => setState(() {
+                    if (v ?? false) {
+                      _selectedIds.addAll(selectableIds);
+                    } else {
+                      _selectedIds.removeAll(selectableIds);
+                    }
+                  }),
+                  title: const Text(
+                    'Envoi groupé (tout sélectionner)',
+                    style: TextStyle(color: BrColors.text, fontSize: 13),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(backgroundColor: BrColors.violet),
+                    icon: _sendingBulk
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.mail_outline, size: 16),
+                    label: Text(
+                      _sendingBulk
+                          ? 'Envoi $_bulkDone/$_bulkTotal…'
+                          : 'Envoyer la sélection (${_selectedIds.length})',
+                    ),
+                    onPressed: _sendingBulk || _selectedIds.isEmpty
+                        ? null
+                        : () => _sendSelected(
+                              recipients,
+                              byRecipient,
+                              ordreDuJour,
+                              state.members,
+                              state.lodgeVmName,
+                            ),
+                  ),
+                ),
+              ],
               ..._delegationList(visible, row),
             ],
           ),
@@ -736,6 +1064,8 @@ class _DelegationLinkRow extends StatelessWidget {
   final Dignitary dignitary;
   final PresenceLink? link;
   final String? linkUrl;
+  final bool selected;
+  final ValueChanged<bool?>? onSelectedChanged;
   final Future<void> Function(String) onCopy;
   final Future<void> Function(String) onOpen;
   const _DelegationLinkRow({
@@ -747,6 +1077,8 @@ class _DelegationLinkRow extends StatelessWidget {
     required this.dignitary,
     required this.link,
     required this.linkUrl,
+    required this.selected,
+    required this.onSelectedChanged,
     required this.onCopy,
     required this.onOpen,
   });
@@ -787,6 +1119,14 @@ class _DelegationLinkRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
+          SizedBox(
+            width: 32,
+            child: Checkbox(
+              value: selected,
+              onChanged: onSelectedChanged,
+              side: const BorderSide(color: BrColors.muted),
+            ),
+          ),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
