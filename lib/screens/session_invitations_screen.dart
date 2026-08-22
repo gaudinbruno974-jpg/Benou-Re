@@ -7,6 +7,8 @@
 // destinataire — voir invitation_service.dart pour la composition des
 // textes. La convocation PDF se joint via le partage système.
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -847,6 +849,17 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
             .where((l) => l.kind == kPresenceLinkKindDelegation)
             .toList();
         final byRecipient = {for (final l in existing) l.recipientId: l};
+        // Réaligne les liens déjà générés si le rang du dignitaire a changé
+        // depuis (recipientAlone est figé à la génération, dénormalisé pour
+        // la page publique — voir syncPresenceLinkRecipientAlone).
+        for (final d in recipients) {
+          final link = byRecipient[d.id];
+          if (link == null) continue;
+          final shouldBeAlone = dignitaryComesAlone(d);
+          if (link.recipientAlone != shouldBeAlone) {
+            unawaited(state.syncPresenceLinkRecipientAlone(link.id, shouldBeAlone));
+          }
+        }
         final missing = recipients
             .where((d) => !byRecipient.containsKey(d.id))
             .length;

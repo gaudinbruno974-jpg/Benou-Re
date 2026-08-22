@@ -333,6 +333,8 @@ class AppState extends ChangeNotifier {
     agapeTotal: agapeTotal,
     recipientAgapePresent: recipientAgapePresent,
   );
+  Future<void> syncPresenceLinkRecipientAlone(String token, bool alone) =>
+      repo.syncPresenceLinkRecipientAlone(token, alone);
 
   // Actions visiteurs
   Future<void> addVisitor(Visitor v) => repo.setVisitor(v);

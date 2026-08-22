@@ -290,6 +290,18 @@ class FirestoreRepository {
     });
   }
 
+  /// Réaligne `recipientAlone` d'un lien déjà généré sur le rang actuel du
+  /// dignitaire (voir dignitaryComesAlone) — écriture ciblée, ne touche à
+  /// rien d'autre : une réponse déjà reçue reste intacte. Nécessaire car ce
+  /// champ est figé à la génération du lien (dénormalisé pour la page
+  /// publique, qui ne peut pas lire `dignitaries`) et ne suit donc pas
+  /// automatiquement un changement de rang ultérieur.
+  Future<void> syncPresenceLinkRecipientAlone(String token, bool alone) {
+    return _db.collection('presenceLinks').doc(token).update({
+      'recipientAlone': alone,
+    });
+  }
+
   /// Jetons déjà émis pour une tenue (évite les doublons en réouvrant l'écran
   /// Invitations) et suivi en temps réel des réponses reçues.
   Stream<List<PresenceLink>> presenceLinksForSessionStream(String sessionId) {
