@@ -138,7 +138,7 @@ void main() {
         url,
         recipient: frere,
       );
-      expect(body, startsWith('Mon Très Cher Frère Jean DUPONT,'));
+      expect(body, startsWith('Mon Très Cher Frère Jean,'));
       expect(body, isNot(contains('Très Chers Frères, Très Chères Sœurs,')));
     });
 
@@ -156,7 +156,7 @@ void main() {
         url,
         recipient: soeur,
       );
-      expect(body, startsWith('Ma Bien Aimée Sœur Jeanne DURAND,'));
+      expect(body, startsWith('Ma Bien Aimée Sœur Jeanne,'));
     });
 
     test('sans civilité renseignée, la formule collective d\'origine est conservée', () {
@@ -190,7 +190,7 @@ void main() {
         url,
         recipient: dignitaire,
       );
-      expect(body, startsWith('Mon Très Cher Frère Paul MOREAU,'));
+      expect(body, startsWith('Mon Très Cher Frère Paul,'));
     });
   });
 }

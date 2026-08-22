@@ -29,13 +29,14 @@ String _dateCourte(Session session) {
 
 String _degreOrdinal(String degre) => Session.degreeOrdinal(degre);
 
-/// « Mon Très Cher Frère DUPONT Jean, » / « Ma Bien Aimée Sœur DUPONT Jeanne, »
-/// quand la civilité et le nom du destinataire sont connus (même convention
-/// que les documents de trésorerie, voir treasury_document_service.dart) ;
+/// « Mon Très Cher Frère Jean, » / « Ma Bien Aimée Sœur Jeanne, » quand la
+/// civilité et le prénom du destinataire sont connus — prénom seul plutôt
+/// que le nom complet (contrairement aux documents de trésorerie, voir
+/// treasury_document_service.dart), pour une formule plus conviviale ici ;
 /// repli sur la formule collective d'origine sinon (diffusion sans
 /// destinataire nommément identifié).
-String _greeting({required String civilite, required String fullName}) {
-  final name = fullName.trim();
+String _greeting({required String civilite, required String firstName}) {
+  final name = firstName.trim();
   if (name.isEmpty) return 'Très Chers Frères, Très Chères Sœurs,';
   if (civilite == kSoeur) return 'Ma Bien Aimée Sœur $name,';
   if (civilite == kFrere) return 'Mon Très Cher Frère $name,';
@@ -209,7 +210,7 @@ String memberConvocationBody(
   final secretary = _findSecretary(members);
   final greeting = _greeting(
     civilite: recipient?.civilite ?? '',
-    fullName: recipient?.fullName ?? '',
+    firstName: recipient?.firstName ?? '',
   );
   final lines = [
     ..._commonLines(
@@ -239,7 +240,7 @@ String dignitaryInvitationBody(
   final secretary = _findSecretary(members);
   final greeting = _greeting(
     civilite: recipient?.civilite ?? '',
-    fullName: recipient?.fullName ?? '',
+    firstName: recipient?.firstName ?? '',
   );
   final lines = [
     ..._commonLines(
