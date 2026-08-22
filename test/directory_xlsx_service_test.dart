@@ -2,6 +2,7 @@ import 'package:benou_re/models/dignitary.dart';
 import 'package:benou_re/models/member.dart';
 import 'package:benou_re/models/visitor.dart';
 import 'package:benou_re/services/directory_xlsx_service.dart';
+import 'package:benou_re/services/xlsx_codec.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -139,6 +140,94 @@ void main() {
       expect(parseVisitorSheet(bytes, const []), isEmpty);
       expect(parseDignitarySheet(bytes, const []), isEmpty);
     });
+  });
+
+  group('cotisation Loge / Ordre (Membres)', () {
+    final year = DateTime.now().year;
+
+    test(
+      'export puis import reprend les montants de cotisation de l\'année en cours',
+      () {
+        final withDues = [
+          members.single.withDuesForYear(
+            year,
+            const DuesYear(lodgeDues: 100, orderDues: 50),
+          ),
+        ];
+        final bytes = buildDirectoryWorkbook(
+          members: withDues,
+          visitors: const [],
+          dignitaries: const [],
+        );
+        final rows = parseMemberSheet(bytes, const []);
+        expect(rows.single.lodgeDues, 100);
+        expect(rows.single.orderDues, 50);
+      },
+    );
+
+    test(
+      "resolve() met à jour les montants dus sans toucher au versement déjà "
+      'enregistré pour cette année',
+      () {
+        final bytes = buildDirectoryWorkbook(
+          members: [
+            members.single.withDuesForYear(
+              year,
+              const DuesYear(lodgeDues: 100, orderDues: 50),
+            ),
+          ],
+          visitors: const [],
+          dignitaries: const [],
+        );
+        final existing = [
+          members.single.withDuesForYear(
+            year,
+            const DuesYear(
+              lodgeDues: 80,
+              lodgeDuesPaid: true,
+              lodgeDuesPaidAmount: 80,
+              lodgeDuesPaidDate: '10/01/2026',
+              orderDues: 50,
+            ),
+          ),
+        ];
+        final rows = parseMemberSheet(bytes, existing);
+        final resolved = rows.single.resolve(() => 'unused')!;
+        final dues = resolved.duesFor(year);
+        expect(dues.lodgeDues, 100); // repris du fichier importé
+        expect(dues.lodgeDuesPaid, isTrue); // non exporté : conservé
+        expect(dues.lodgeDuesPaidAmount, 80); // non exporté : conservé
+        expect(dues.lodgeDuesPaidDate, '10/01/2026'); // non exporté : conservé
+      },
+    );
+
+    test(
+      'colonnes de cotisation vides : la cotisation existante n\'est pas touchée',
+      () {
+        // Fichier partiellement rempli par l'utilisateur (colonnes de
+        // cotisation laissées vides) — contrairement à un export automatique,
+        // qui écrirait "0" plutôt qu'une cellule vide (voir la table ci-dessus,
+        // Member.duesFor() reposant sur un DuesYear() par défaut à zéro).
+        final row = List<String>.filled(kMemberHeaders.length, '');
+        row[1] = members.single.firstName;
+        row[2] = members.single.lastName;
+        final bytes = buildXlsx({
+          kSheetMembers: [kMemberHeaders, row],
+        });
+        final existing = [
+          members.single.withDuesForYear(
+            year,
+            const DuesYear(lodgeDues: 100, orderDues: 50),
+          ),
+        ];
+        final rows = parseMemberSheet(bytes, existing);
+        expect(rows.single.lodgeDues, isNull);
+        expect(rows.single.orderDues, isNull);
+        final resolved = rows.single.resolve(() => 'unused')!;
+        expect(resolved.duesFor(year).lodgeDues, 100);
+        expect(resolved.duesFor(year).orderDues, 50);
+      },
+    );
   });
 
   test('le modèle ne contient que les en-têtes, sur les trois onglets', () {

@@ -29,6 +29,8 @@ const List<String> kMemberHeaders = [
   'Date de naissance',
   "Date d'initiation",
   "Date d'entrée",
+  'Cotisation Loge',
+  'Cotisation Ordre',
 ];
 
 const List<String> kVisitorHeaders = [
@@ -59,6 +61,15 @@ const List<String> kDignitaryHeaders = [
 
 String _cell(List<String> row, int i) => i < row.length ? row[i].trim() : '';
 
+/// Nombre sans « ,0 » superflu pour un montant entier (ex. « 100 » plutôt
+/// que « 100.0 »), tel qu'on l'attend dans une colonne de tableur.
+String _formatNum(num v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : '$v';
+
+num? _tryParseNum(String v) {
+  if (v.trim().isEmpty) return null;
+  return num.tryParse(v.trim().replaceAll(',', '.'));
+}
+
 /// Clé de rapprochement pour la détection de doublon : nom + prénom,
 /// insensible à la casse et aux accents (même convention que la recherche
 /// des répertoires, voir directory_filter.dart).
@@ -87,6 +98,10 @@ List<List<String>> _memberRows(List<Member> members) => [
       m.birthDate,
       m.initiationDate,
       m.entryDate,
+      // Cotisation de l'année en cours (voir Member.duesFor) : mêmes montants
+      // que ceux affichés par défaut sur l'écran Trésorerie.
+      _formatNum(m.duesFor(DateTime.now().year).lodgeDues),
+      _formatNum(m.duesFor(DateTime.now().year).orderDues),
     ],
 ];
 
@@ -167,6 +182,8 @@ class MemberImportRow {
   final String birthDate;
   final String initiationDate;
   final String entryDate;
+  final num? lodgeDues;
+  final num? orderDues;
   final Member? existing;
   ImportAction action;
 
@@ -187,17 +204,27 @@ class MemberImportRow {
     required this.birthDate,
     required this.initiationDate,
     required this.entryDate,
+    required this.lodgeDues,
+    required this.orderDues,
     required this.existing,
     required this.action,
   });
 
   /// Fiche telle qu'elle sera écrite, selon [action] — `null` si `skip`.
+  ///
+  /// Les cotisations (colonnes facultatives) visent l'année en cours,
+  /// comme les montants « à plat » du reste de l'application (voir
+  /// Member.duesFor) — écrites dans `duesByYear`, seul endroit lu par
+  /// l'écran Trésorerie. Colonnes vides : la cotisation n'est pas touchée
+  /// (montants déjà versés, dates de règlement... préservés).
   Member? resolve(String Function() newId) {
+    final year = DateTime.now().year;
+    final hasDues = lodgeDues != null || orderDues != null;
     switch (action) {
       case ImportAction.skip:
         return null;
       case ImportAction.create:
-        return Member(
+        final member = Member(
           id: newId(),
           civilite: civilite,
           firstName: firstName,
@@ -216,10 +243,16 @@ class MemberImportRow {
           initiationDate: initiationDate,
           entryDate: entryDate,
         );
+        return hasDues
+            ? member.withDuesForYear(
+                year,
+                DuesYear(lodgeDues: lodgeDues ?? 0, orderDues: orderDues ?? 0),
+              )
+            : member;
       case ImportAction.update:
         final base = existing;
         if (base == null) return null;
-        return base.copyWith(
+        final updated = base.copyWith(
           civilite: civilite,
           firstName: firstName,
           lastName: lastName,
@@ -237,6 +270,11 @@ class MemberImportRow {
           initiationDate: initiationDate,
           entryDate: entryDate,
         );
+        if (!hasDues) return updated;
+        final dues = updated
+            .duesFor(year)
+            .copyWith(lodgeDues: lodgeDues, orderDues: orderDues);
+        return updated.withDuesForYear(year, dues);
     }
   }
 }
@@ -419,6 +457,8 @@ List<MemberImportRow> parseMemberSheet(
         birthDate: _cell(row, 13),
         initiationDate: _cell(row, 14),
         entryDate: _cell(row, 15),
+        lodgeDues: _tryParseNum(_cell(row, 16)),
+        orderDues: _tryParseNum(_cell(row, 17)),
         existing: existing,
         action: existing == null ? ImportAction.create : ImportAction.update,
       ),
