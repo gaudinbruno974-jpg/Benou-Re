@@ -1,16 +1,19 @@
-// Archivage Google Drive natif (porté depuis src/lib/googleDrive.ts).
+// Session Google partagée (Drive + Gmail), portée depuis
+// src/lib/googleDrive.ts pour Drive puis étendue à la création de brouillons
+// Gmail avec pièce jointe (voir createGmailDraftWithAttachment).
 //
 // Sur le web, l'app utilise signInWithPopup ; en natif (Android) on passe par
-// google_sign_in pour obtenir un jeton d'accès avec la portée Drive, puis on
-// appelle l'API REST Drive v3 (recherche/création de dossier + upload
-// multipart), comme le fait la version web.
+// google_sign_in pour obtenir un jeton d'accès avec les portées Drive/Gmail,
+// puis on appelle les API REST correspondantes (recherche/création de
+// dossier + upload multipart pour Drive ; création de brouillon MIME pour
+// Gmail), comme le fait la version web.
 //
 // Prérequis côté console (voir flutter_app/README.md) :
 //  - fournisseur Google activé dans Firebase Authentication ;
 //  - empreinte SHA-1 de la clé de signature ajoutée à l'app Android Firebase
 //    (cela crée automatiquement le client OAuth Android) ;
-//  - API Google Drive activée dans Google Cloud + votre compte ajouté comme
-//    utilisateur de test sur l'écran de consentement OAuth.
+//  - API Google Drive + Gmail activées dans Google Cloud + votre compte
+//    ajouté comme utilisateur de test sur l'écran de consentement OAuth.
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -37,6 +40,9 @@ class DriveService {
 
   static const List<String> _scopes = [
     'https://www.googleapis.com/auth/drive',
+    // Créer/modifier des brouillons et envoyer des messages — pas d'accès en
+    // lecture à la boîte de réception.
+    'https://www.googleapis.com/auth/gmail.compose',
     'email',
   ];
 
@@ -100,6 +106,7 @@ class DriveService {
     final auth = FirebaseAuth.instanceFor(app: await _driveApp());
     final provider = GoogleAuthProvider()
       ..addScope('https://www.googleapis.com/auth/drive')
+      ..addScope('https://www.googleapis.com/auth/gmail.compose')
       ..setCustomParameters({'prompt': 'select_account'});
     final UserCredential credential;
     try {
@@ -382,5 +389,116 @@ class DriveService {
     final folderId = await _findOrCreateFolder(headers, '$type $year', parentId);
     await _uploadFile(headers, folderId, fileName, bytes);
     return currentEmail ?? 'compte Google';
+  }
+
+  // ─── Gmail : brouillon avec pièce jointe réelle ──────────────────────
+  // Un lien mailto:/Gmail compose ne permet aucune pièce jointe (limite de
+  // ces schémas d'URL, aucun contournement possible) : on passe donc par
+  // l'API Gmail pour créer directement un brouillon contenant le PDF en
+  // pièce jointe. L'utilisateur relit et envoie lui-même depuis Gmail — rien
+  // ne part automatiquement.
+
+  static const int _mimeLineLength = 76;
+
+  /// Découpe une chaîne base64 en lignes de 76 caractères (RFC 2045), comme
+  /// l'exigent les corps encodés en base64 d'un message MIME.
+  static String _wrapBase64(String base64Body) {
+    final buffer = StringBuffer();
+    for (var i = 0; i < base64Body.length; i += _mimeLineLength) {
+      final end = (i + _mimeLineLength < base64Body.length)
+          ? i + _mimeLineLength
+          : base64Body.length;
+      buffer.write(base64Body.substring(i, end));
+      buffer.write('\r\n');
+    }
+    return buffer.toString();
+  }
+
+  /// En-tête *Subject* correctement encodé pour un sujet non-ASCII (RFC 2047).
+  static String _encodedSubject(String subject) =>
+      '=?UTF-8?B?${base64.encode(utf8.encode(subject))}?=';
+
+  String _buildMimeMessage({
+    required String to,
+    required String subject,
+    required String body,
+    required String attachmentName,
+    required Uint8List attachmentBytes,
+  }) {
+    const boundary = 'benoure_gmail_boundary';
+    return 'To: $to\r\n'
+        'Subject: ${_encodedSubject(subject)}\r\n'
+        'MIME-Version: 1.0\r\n'
+        'Content-Type: multipart/mixed; boundary="$boundary"\r\n'
+        '\r\n'
+        '--$boundary\r\n'
+        'Content-Type: text/plain; charset="UTF-8"\r\n'
+        'Content-Transfer-Encoding: base64\r\n'
+        '\r\n'
+        '${_wrapBase64(base64.encode(utf8.encode(body)))}'
+        '--$boundary\r\n'
+        'Content-Type: application/pdf; name="$attachmentName"\r\n'
+        'Content-Disposition: attachment; filename="$attachmentName"\r\n'
+        'Content-Transfer-Encoding: base64\r\n'
+        '\r\n'
+        '${_wrapBase64(base64.encode(attachmentBytes))}'
+        '--$boundary--';
+  }
+
+  /// Crée un brouillon Gmail (destinataire, sujet, corps, PDF en pièce
+  /// jointe) et renvoie l'identifiant du message, pour un lien direct vers
+  /// le brouillon.
+  Future<String> createGmailDraftWithAttachment({
+    required String to,
+    required String subject,
+    required String body,
+    required String attachmentName,
+    required Uint8List attachmentBytes,
+  }) async {
+    try {
+      return await _createGmailDraft(
+        to,
+        subject,
+        body,
+        attachmentName,
+        attachmentBytes,
+      );
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _createGmailDraft(to, subject, body, attachmentName, attachmentBytes);
+    }
+  }
+
+  Future<String> _createGmailDraft(
+    String to,
+    String subject,
+    String body,
+    String attachmentName,
+    Uint8List attachmentBytes,
+  ) async {
+    final headers = await _authHeaders();
+    final raw = base64Url.encode(
+      utf8.encode(
+        _buildMimeMessage(
+          to: to,
+          subject: subject,
+          body: body,
+          attachmentName: attachmentName,
+          attachmentBytes: attachmentBytes,
+        ),
+      ),
+    );
+    final res = await http.post(
+      Uri.parse('https://gmail.googleapis.com/gmail/v1/users/me/drafts'),
+      headers: {...headers, 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'message': {'raw': raw},
+      }),
+    );
+    if (res.statusCode != 200) {
+      throw DriveException('Erreur création du brouillon Gmail : ${res.body}');
+    }
+    return (jsonDecode(res.body)['message']?['id'] as String?) ?? '';
   }
 }

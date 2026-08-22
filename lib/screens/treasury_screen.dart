@@ -1,7 +1,6 @@
 // Trésorerie — parité avec src/components/TreasuryScreen.tsx.
 // Deux onglets : Cotisations (Loge / Ordre / Grades, encaissé vs à percevoir)
 // et Tronc de la Veuve (total récolté + historique des tenues).
-import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -309,15 +308,13 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     }
   }
 
-  /// Génère l'Appel de cotisation ou le Quitus de [m] pour l'année en cours.
-  /// Trois étapes indépendantes (l'échec ou l'annulation de l'une ne bloque
-  /// pas les autres) : archivage Drive, composition du mail (marque l'envoi,
-  /// date incluse), puis aperçu/impression du PDF à joindre manuellement
-  /// (mailto/Gmail ne permet pas de pièce jointe automatique, même limite
-  /// que sur l'écran Invitations). L'aperçu est déclenché en dernier et sans
-  /// l'attendre : sur le web, fermer l'aperçu sans imprimer ne termine
-  /// jamais le Future de `Printing.layoutPdf`, qui bloquerait sinon tout le
-  /// reste indéfiniment.
+  /// Génère l'Appel de cotisation ou le Quitus de [m] pour l'année en cours,
+  /// l'archive sur Drive, puis crée un brouillon Gmail avec le PDF en pièce
+  /// jointe réelle (API Gmail — un simple lien mailto/Gmail-compose ne
+  /// permet aucune pièce jointe). L'utilisateur relit et envoie lui-même
+  /// depuis Gmail. Si la création du brouillon échoue (permission Gmail
+  /// refusée...), on se rabat sur l'ancien lien de composition sans pièce
+  /// jointe plutôt que de bloquer l'envoi.
   Future<void> _sendDocument(Member m, {required bool isQuitus}) async {
     final state = context.read<AppState>();
     final year = _year;
@@ -350,35 +347,52 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     }
 
     if (!mounted) return;
+    final subject = isQuitus ? quitusSubject(year) : capitationCallSubject(year);
+    final body = isQuitus
+        ? quitusBody(m, year, widget.members, lodgeVmName: state.lodgeVmName)
+        : capitationCallBody(m, year, widget.members,
+            lodgeVmName: state.lodgeVmName);
+    final to = m.email.trim();
+    if (to.isEmpty) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Ce membre n\'a pas d\'e-mail renseigné.')),
+      );
+      return;
+    }
+    final attachmentName = isQuitus
+        ? quitusFileName(m, year)
+        : capitationCallFileName(m, year);
+
     try {
-      final subject = isQuitus
-          ? quitusSubject(year)
-          : capitationCallSubject(year);
-      final body = isQuitus
-          ? quitusBody(m, year, widget.members, lodgeVmName: state.lodgeVmName)
-          : capitationCallBody(m, year, widget.members,
-              lodgeVmName: state.lodgeVmName);
-      await openExternalUrl(
-        emailComposeUrl(to: m.email.trim(), subject: subject, body: body),
+      await DriveService.instance.createGmailDraftWithAttachment(
+        to: to,
+        subject: subject,
+        body: body,
+        attachmentName: attachmentName,
+        attachmentBytes: bytes,
       );
       if (!mounted) return;
-      final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
-      final dy = m.duesFor(year);
-      final updated = isQuitus
-          ? dy.copyWith(quitusSent: true, quitusSentDate: today)
-          : dy.copyWith(appelSent: true, appelSentDate: today);
-      await state.updateMember(m.withDuesForYear(year, updated));
+      await openExternalUrl('https://mail.google.com/mail/u/0/#drafts');
+      messenger.showSnackBar(
+        const SnackBar(
+          content: Text('Brouillon créé dans Gmail, avec le PDF en pièce jointe.'),
+        ),
+      );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Erreur d\'envoi : $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Brouillon Gmail impossible ($e) — ouverture sans pièce jointe.')),
+      );
+      if (!mounted) return;
+      await openExternalUrl(emailComposeUrl(to: to, subject: subject, body: body));
     }
 
-    // Aperçu/impression : déclenché sans attendre (voir doc ci-dessus).
-    unawaited(
-      Printing.layoutPdf(
-        onLayout: (_) async => bytes,
-        name: isQuitus ? 'quitus_$year.pdf' : 'appel_cotisation_$year.pdf',
-      ),
-    );
+    if (!mounted) return;
+    final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    final dy = m.duesFor(year);
+    final updated = isQuitus
+        ? dy.copyWith(quitusSent: true, quitusSentDate: today)
+        : dy.copyWith(appelSent: true, appelSentDate: today);
+    await state.updateMember(m.withDuesForYear(year, updated));
   }
 
   static String _trim(num v) =>
