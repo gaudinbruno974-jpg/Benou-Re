@@ -1,6 +1,7 @@
 // Trésorerie — parité avec src/components/TreasuryScreen.tsx.
 // Deux onglets : Cotisations (Loge / Ordre / Grades, encaissé vs à percevoir)
 // et Tronc de la Veuve (total récolté + historique des tenues).
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -310,10 +311,13 @@ class _CotisationsTabState extends State<_CotisationsTab> {
 
   /// Génère l'Appel de cotisation ou le Quitus de [m] pour l'année en cours.
   /// Trois étapes indépendantes (l'échec ou l'annulation de l'une ne bloque
-  /// pas les autres) : archivage Drive, aperçu/impression du PDF (à joindre
-  /// manuellement — mailto/Gmail ne permet pas de pièce jointe automatique,
-  /// même limite que sur l'écran Invitations), puis composition du mail, qui
-  /// marque l'envoi (date incluse) une fois ouverte.
+  /// pas les autres) : archivage Drive, composition du mail (marque l'envoi,
+  /// date incluse), puis aperçu/impression du PDF à joindre manuellement
+  /// (mailto/Gmail ne permet pas de pièce jointe automatique, même limite
+  /// que sur l'écran Invitations). L'aperçu est déclenché en dernier et sans
+  /// l'attendre : sur le web, fermer l'aperçu sans imprimer ne termine
+  /// jamais le Future de `Printing.layoutPdf`, qui bloquerait sinon tout le
+  /// reste indéfiniment.
   Future<void> _sendDocument(Member m, {required bool isQuitus}) async {
     final state = context.read<AppState>();
     final year = _year;
@@ -345,16 +349,6 @@ class _CotisationsTabState extends State<_CotisationsTab> {
       messenger.showSnackBar(SnackBar(content: Text('Archivage Drive : $e')));
     }
 
-    try {
-      await Printing.layoutPdf(
-        onLayout: (_) async => bytes,
-        name: isQuitus ? 'quitus_$year.pdf' : 'appel_cotisation_$year.pdf',
-      );
-    } catch (e) {
-      // Aperçu fermé/annulé sans imprimer : ne doit pas empêcher l'envoi du
-      // mail ci-dessous.
-    }
-
     if (!mounted) return;
     try {
       final subject = isQuitus
@@ -377,6 +371,14 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Erreur d\'envoi : $e')));
     }
+
+    // Aperçu/impression : déclenché sans attendre (voir doc ci-dessus).
+    unawaited(
+      Printing.layoutPdf(
+        onLayout: (_) async => bytes,
+        name: isQuitus ? 'quitus_$year.pdf' : 'appel_cotisation_$year.pdf',
+      ),
+    );
   }
 
   static String _trim(num v) =>
