@@ -8,7 +8,7 @@
 //    lorsqu'il est présent, un menu déroulant « Poste pendant la tenue »
 //    écrit dans session.visitorRoles[visitorId].
 //  - DIGNITAIRES : même mécanisme que les visiteurs (session.dignitaryIds /
-//    session.dignitaryRoles), sans suivi Agapes.
+//    session.dignitaryRoles / session.dignitaryAgapeIds).
 //
 // L'enregistrement persiste ces champs via AppState.updateSession, sans
 // toucher au reste de la tenue.
@@ -60,6 +60,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
   late Map<String, String> _dignitaryRoles;
   late List<String> _agapeIds;
   late List<String> _visitorAgapeIds;
+  late List<String> _dignitaryAgapeIds;
   bool _initialized = false;
   bool _saving = false;
 
@@ -91,6 +92,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     _dignitaryRoles = Map<String, String>.from(session.dignitaryRoles);
     _agapeIds = List<String>.from(session.agapeIds);
     _visitorAgapeIds = List<String>.from(session.visitorAgapeIds);
+    _dignitaryAgapeIds = List<String>.from(session.dignitaryAgapeIds);
     _initialized = true;
   }
 
@@ -165,8 +167,19 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       if (_dignitaryIds.contains(dignitaryId)) {
         _dignitaryIds.remove(dignitaryId);
         _dignitaryRoles.remove(dignitaryId);
+        _dignitaryAgapeIds.remove(dignitaryId);
       } else {
         _dignitaryIds.add(dignitaryId);
+      }
+    });
+  }
+
+  void _toggleDignitaryAgape(String dignitaryId) {
+    setState(() {
+      if (_dignitaryAgapeIds.contains(dignitaryId)) {
+        _dignitaryAgapeIds.remove(dignitaryId);
+      } else {
+        _dignitaryAgapeIds.add(dignitaryId);
       }
     });
   }
@@ -193,6 +206,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     map['dignitaryRoles'] = _dignitaryRoles;
     map['agapeIds'] = _agapeIds;
     map['visitorAgapeIds'] = _visitorAgapeIds;
+    map['dignitaryAgapeIds'] = _dignitaryAgapeIds;
     try {
       await state.updateSession(Session.fromMap(session.id, map));
       if (mounted) {
@@ -433,11 +447,10 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         d.lodge,
       ].where((e) => e.isNotEmpty).join(' — '),
       isPresent: _dignitaryIds.contains(d.id),
-      isAgape: false,
-      showAgape: false,
+      isAgape: _dignitaryAgapeIds.contains(d.id),
       role: _dignitaryRoles[d.id] ?? '',
       onToggle: allowEdit ? () => _toggleDignitary(d.id) : null,
-      onAgape: null,
+      onAgape: allowEdit ? () => _toggleDignitaryAgape(d.id) : null,
       onRoleChanged: allowEdit ? (r) => _updateDignitaryRole(d.id, r) : null,
     );
   }
@@ -555,7 +568,6 @@ class _VisitorTile extends StatelessWidget {
   final String subtitle;
   final bool isPresent;
   final bool isAgape;
-  final bool showAgape;
   final String role;
   final VoidCallback? onToggle;
   final VoidCallback? onAgape;
@@ -565,7 +577,6 @@ class _VisitorTile extends StatelessWidget {
     required this.subtitle,
     required this.isPresent,
     required this.isAgape,
-    this.showAgape = true,
     required this.role,
     required this.onToggle,
     required this.onAgape,
@@ -640,20 +651,18 @@ class _VisitorTile extends StatelessWidget {
                 ],
                 onChanged: onRoleChanged,
               ),
-              if (showAgape) ...[
-                const SizedBox(height: 10),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    _PresenceButton(
-                      label: 'Agapes',
-                      selected: isAgape,
-                      selectedColor: BrColors.teal,
-                      onTap: onAgape,
-                    ),
-                  ],
-                ),
-              ],
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  _PresenceButton(
+                    label: 'Agapes',
+                    selected: isAgape,
+                    selectedColor: BrColors.teal,
+                    onTap: onAgape,
+                  ),
+                ],
+              ),
             ],
           ],
         ),

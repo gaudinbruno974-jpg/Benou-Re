@@ -4,6 +4,7 @@
 // Une Tenue n'est concernée que si le repas est une « Agape avec médaille » :
 // c'est le seul type de repas qui donne lieu à un paiement.
 import '../config/lodge_config.dart';
+import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
@@ -42,11 +43,12 @@ List<Session> agapeMedailleSessions(List<Session> sessions) =>
 num agapeMedailleAmount(Session session) =>
     session.montantMedaille ?? session.agapePrice;
 
-/// Personnes annoncées aux agapes : membres puis invités.
+/// Personnes annoncées aux agapes : membres, puis invités, puis dignitaires.
 List<AgapePayer> agapePayers(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
+  List<Dignitary> dignitaries,
 ) {
   return [
     for (final m in members)
@@ -69,6 +71,15 @@ List<AgapePayer> agapePayers(
           obedience: v.obedience,
           lodge: v.lodge,
         ),
+    for (final d in dignitaries)
+      if (session.dignitaryAgapeIds.contains(d.id))
+        AgapePayer(
+          id: d.id,
+          lastName: d.lastName,
+          firstName: d.firstName,
+          obedience: d.obedience,
+          lodge: d.lodge,
+        ),
   ];
 }
 
@@ -77,9 +88,10 @@ num agapeCollectedTotal(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
+  List<Dignitary> dignitaries,
 ) {
   final signatures = session.agapePaymentSignatures;
-  final signed = agapePayers(session, members, visitors)
+  final signed = agapePayers(session, members, visitors, dignitaries)
       .where((p) => (signatures[p.id] ?? '').isNotEmpty)
       .length;
   return signed * agapeMedailleAmount(session);

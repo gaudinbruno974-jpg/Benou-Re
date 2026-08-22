@@ -1,4 +1,5 @@
 import 'package:benou_re/config/lodge_config.dart';
+import 'package:benou_re/models/dignitary.dart';
 import 'package:benou_re/models/member.dart';
 import 'package:benou_re/models/session.dart';
 import 'package:benou_re/models/visitor.dart';
@@ -24,6 +25,15 @@ void main() {
       lodge: 'Les Trois Palmiers',
     ),
   ];
+  const dignitaries = [
+    Dignitary(
+      id: 'd1',
+      firstName: 'Marie',
+      lastName: 'PAYET',
+      obedience: 'GLNF',
+      lodge: 'La Fraternelle',
+    ),
+  ];
 
   test('seules les Tenues avec médaille sont concernées', () {
     expect(hasAgapeMedaille(_session({'typeRepas': 'Agape avec médaille'})),
@@ -33,20 +43,26 @@ void main() {
         isTrue);
   });
 
-  test('les payeurs reprennent les membres puis les invités cochés', () {
-    final session = _session({
-      'typeRepas': 'Agape avec médaille',
-      'montantMedaille': 25,
-      'agapeIds': ['m1'],
-      'visitorAgapeIds': ['v1'],
-    });
-    final payers = agapePayers(session, members, visitors);
-    expect(payers.map((p) => p.id), ['m1', 'v1']);
-    expect(payers.first.obedience, LodgeConfig.current.obedienceAcronym);
-    expect(payers.first.lodge, LodgeConfig.current.name);
-    expect(payers.last.obedience, 'GLDF');
-    expect(payers.last.lodge, 'Les Trois Palmiers');
-  });
+  test(
+    'les payeurs reprennent les membres puis les invités puis les dignitaires cochés',
+    () {
+      final session = _session({
+        'typeRepas': 'Agape avec médaille',
+        'montantMedaille': 25,
+        'agapeIds': ['m1'],
+        'visitorAgapeIds': ['v1'],
+        'dignitaryAgapeIds': ['d1'],
+      });
+      final payers = agapePayers(session, members, visitors, dignitaries);
+      expect(payers.map((p) => p.id), ['m1', 'v1', 'd1']);
+      expect(payers.first.obedience, LodgeConfig.current.obedienceAcronym);
+      expect(payers.first.lodge, LodgeConfig.current.name);
+      expect(payers[1].obedience, 'GLDF');
+      expect(payers[1].lodge, 'Les Trois Palmiers');
+      expect(payers.last.obedience, 'GLNF');
+      expect(payers.last.lodge, 'La Fraternelle');
+    },
+  );
 
   test('le total ne compte que les signatures enregistrées', () {
     final session = _session({
@@ -54,9 +70,20 @@ void main() {
       'montantMedaille': 25,
       'agapeIds': ['m1', 'm2'],
       'visitorAgapeIds': ['v1'],
+      'dignitaryAgapeIds': ['d1'],
       'agapePaymentSignatures': {'m1': 'data:image/png;base64,AAA'},
     });
     expect(agapeMedailleAmount(session), 25);
-    expect(agapeCollectedTotal(session, members, visitors), 25);
+    expect(agapeCollectedTotal(session, members, visitors, dignitaries), 25);
+  });
+
+  test('un dignitaire signé compte aussi dans le total', () {
+    final session = _session({
+      'typeRepas': 'Agape avec médaille',
+      'montantMedaille': 25,
+      'dignitaryAgapeIds': ['d1'],
+      'agapePaymentSignatures': {'d1': 'data:image/png;base64,AAA'},
+    });
+    expect(agapeCollectedTotal(session, members, visitors, dignitaries), 25);
   });
 }

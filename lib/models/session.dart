@@ -250,6 +250,9 @@ class Session {
   /// Visiteurs annoncés présents aux agapes.
   List<String> get visitorAgapeIds => _stringList(extra['visitorAgapeIds']);
 
+  /// Dignitaires annoncés présents aux agapes.
+  List<String> get dignitaryAgapeIds => _stringList(extra['dignitaryAgapeIds']);
+
   /// Signatures de paiement des agapes (data URL). Clé : id du membre ou du
   /// visiteur qui a payé sa médaille.
   Map<String, String> get agapePaymentSignatures =>

@@ -912,15 +912,16 @@ Future<Uint8List> buildAgapePaymentPdf(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
+  List<Dignitary> dignitaries,
 ) async {
   final fonts = await _loadLodgeFonts();
   final logo = (await _loadLogos())[1]; // logo de la Loge
   final doc = pw.Document();
 
-  final payers = agapePayers(session, members, visitors);
+  final payers = agapePayers(session, members, visitors, dignitaries);
   final signatures = session.agapePaymentSignatures;
   final amount = agapeMedailleAmount(session);
-  final total = agapeCollectedTotal(session, members, visitors);
+  final total = agapeCollectedTotal(session, members, visitors, dignitaries);
   final sessionNumber =
       session.sessionNumber ??
       (session.chrono != null ? '${session.chrono}' : '');

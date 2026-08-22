@@ -31,10 +31,20 @@ class AgapePaymentScreen extends StatelessWidget {
       (s) => s.id == sessionId,
       orElse: () => Session(id: sessionId),
     );
-    final payers = agapePayers(session, state.members, state.visitors);
+    final payers = agapePayers(
+      session,
+      state.members,
+      state.visitors,
+      state.dignitaries,
+    );
     final signatures = session.agapePaymentSignatures;
     final amount = agapeMedailleAmount(session);
-    final total = agapeCollectedTotal(session, state.members, state.visitors);
+    final total = agapeCollectedTotal(
+      session,
+      state.members,
+      state.visitors,
+      state.dignitaries,
+    );
     final date = session.dateTime;
 
     return Scaffold(
@@ -143,7 +153,12 @@ class AgapePaymentScreen extends StatelessWidget {
   }
 
   Future<Uint8List> _buildPdf(AppState state, Session session) async =>
-      buildAgapePaymentPdf(session, state.members, state.visitors);
+      buildAgapePaymentPdf(
+        session,
+        state.members,
+        state.visitors,
+        state.dignitaries,
+      );
 
   Future<void> _openPdf(BuildContext context, Session session) async {
     final state = context.read<AppState>();
