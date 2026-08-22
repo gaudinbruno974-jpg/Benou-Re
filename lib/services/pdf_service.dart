@@ -34,6 +34,8 @@ import '../models/session.dart';
 import '../models/visitor.dart';
 import '../utils/name_mask.dart';
 import 'agape_payment_service.dart';
+import 'treasury_document_service.dart'
+    show capitationCallBody, quitusBody;
 
 // 1 mm en points PDF (le paquet `pdf` travaille en points ; jsPDF en mm).
 const double _mm = PdfPageFormat.mm;
@@ -1767,3 +1769,60 @@ Future<Uint8List> buildTreasuryReportPdf(int year, List<Member> members) async {
 
   return doc.save();
 }
+
+// ══════════════════════════════════════════════════════════════════
+// APPEL DE COTISATION / QUITUS — courrier individuel au membre
+// ══════════════════════════════════════════════════════════════════
+
+/// Lettre simple (en-tête + titre + corps sur des paragraphes) : le texte
+/// vient de treasury_document_service.dart, partagé avec le corps du mail.
+Future<Uint8List> _buildTreasuryLetterPdf(String title, String body) async {
+  final fonts = await _loadLodgeFonts();
+  final logos = await _loadLogos();
+  final doc = pw.Document();
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.all(18 * _mm),
+      build: (context) => [
+        _lodgeHeader(fonts, logos[0], logos[1]),
+        pw.Center(
+          child: pw.Text(
+            title,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: _navy),
+          ),
+        ),
+        pw.SizedBox(height: 8 * _mm),
+        for (final line in body.split('\n'))
+          pw.Padding(
+            padding: pw.EdgeInsets.only(bottom: 2 * _mm),
+            child: pw.Text(
+              line.isEmpty ? ' ' : line,
+              style: pw.TextStyle(font: fonts.base, fontSize: 11),
+            ),
+          ),
+      ],
+    ),
+  );
+  return doc.save();
+}
+
+Future<Uint8List> buildCapitationCallPdf(
+  Member member,
+  int year,
+  List<Member> members, {
+  String lodgeVmName = '',
+}) => _buildTreasuryLetterPdf(
+  'APPEL DE COTISATION $year',
+  capitationCallBody(member, year, members, lodgeVmName: lodgeVmName),
+);
+
+Future<Uint8List> buildQuitusPdf(
+  Member member,
+  int year,
+  List<Member> members, {
+  String lodgeVmName = '',
+}) => _buildTreasuryLetterPdf(
+  'QUITUS DE COTISATION $year',
+  quitusBody(member, year, members, lodgeVmName: lodgeVmName),
+);

@@ -94,6 +94,18 @@ class DuesYear {
   final bool elevationDuesPaid;
   final num elevationDuesPaidAmount;
 
+  /// Date de règlement (jj/mm/aaaa, saisie libre), utilisée sur le Quitus.
+  final String lodgeDuesPaidDate;
+  final String orderDuesPaidDate;
+
+  /// Suivi de l'envoi de l'Appel de cotisation et du Quitus (voir
+  /// treasury_documents.dart) : permet de savoir qui relancer et d'éviter
+  /// les envois en double par mégarde.
+  final bool appelSent;
+  final String appelSentDate;
+  final bool quitusSent;
+  final String quitusSentDate;
+
   const DuesYear({
     this.lodgeDues = 0,
     this.lodgeDuesPaid = false,
@@ -104,6 +116,12 @@ class DuesYear {
     this.elevationDues = 0,
     this.elevationDuesPaid = false,
     this.elevationDuesPaidAmount = 0,
+    this.lodgeDuesPaidDate = '',
+    this.orderDuesPaidDate = '',
+    this.appelSent = false,
+    this.appelSentDate = '',
+    this.quitusSent = false,
+    this.quitusSentDate = '',
   });
 
   factory DuesYear.fromMap(Map<String, dynamic> map) {
@@ -117,6 +135,12 @@ class DuesYear {
       elevationDues: _num(map['elevationDues']),
       elevationDuesPaid: (map['elevationDuesPaid'] ?? false) as bool,
       elevationDuesPaidAmount: _num(map['elevationDuesPaidAmount']),
+      lodgeDuesPaidDate: (map['lodgeDuesPaidDate'] ?? '') as String,
+      orderDuesPaidDate: (map['orderDuesPaidDate'] ?? '') as String,
+      appelSent: (map['appelSent'] ?? false) as bool,
+      appelSentDate: (map['appelSentDate'] ?? '') as String,
+      quitusSent: (map['quitusSent'] ?? false) as bool,
+      quitusSentDate: (map['quitusSentDate'] ?? '') as String,
     );
   }
 
@@ -131,6 +155,12 @@ class DuesYear {
       'elevationDues': elevationDues,
       'elevationDuesPaid': elevationDuesPaid,
       'elevationDuesPaidAmount': elevationDuesPaidAmount,
+      'lodgeDuesPaidDate': lodgeDuesPaidDate,
+      'orderDuesPaidDate': orderDuesPaidDate,
+      'appelSent': appelSent,
+      'appelSentDate': appelSentDate,
+      'quitusSent': quitusSent,
+      'quitusSentDate': quitusSentDate,
     };
   }
 
@@ -144,6 +174,12 @@ class DuesYear {
     num? elevationDues,
     bool? elevationDuesPaid,
     num? elevationDuesPaidAmount,
+    String? lodgeDuesPaidDate,
+    String? orderDuesPaidDate,
+    bool? appelSent,
+    String? appelSentDate,
+    bool? quitusSent,
+    String? quitusSentDate,
   }) {
     return DuesYear(
       lodgeDues: lodgeDues ?? this.lodgeDues,
@@ -156,6 +192,12 @@ class DuesYear {
       elevationDuesPaid: elevationDuesPaid ?? this.elevationDuesPaid,
       elevationDuesPaidAmount:
           elevationDuesPaidAmount ?? this.elevationDuesPaidAmount,
+      lodgeDuesPaidDate: lodgeDuesPaidDate ?? this.lodgeDuesPaidDate,
+      orderDuesPaidDate: orderDuesPaidDate ?? this.orderDuesPaidDate,
+      appelSent: appelSent ?? this.appelSent,
+      appelSentDate: appelSentDate ?? this.appelSentDate,
+      quitusSent: quitusSent ?? this.quitusSent,
+      quitusSentDate: quitusSentDate ?? this.quitusSentDate,
     );
   }
 
@@ -167,7 +209,15 @@ class DuesYear {
         orderDuesPaidAmount: 0,
         elevationDuesPaid: false,
         elevationDuesPaidAmount: 0,
+        lodgeDuesPaidDate: '',
+        orderDuesPaidDate: '',
+        quitusSent: false,
+        quitusSentDate: '',
       );
+
+  /// Vrai une fois les deux lignes (Loge et Ordre) intégralement réglées —
+  /// c'est à ce moment qu'un Quitus (document unique, combiné) peut être émis.
+  bool get fullyPaid => lodgeDuesPaid && orderDuesPaid;
 
   /// Montant réellement encaissé pour une ligne : la totalité si la ligne est
   /// marquée « soldée », sinon le versement partiel (borné au montant dû).

@@ -7,7 +7,6 @@
 // destinataire — voir invitation_service.dart pour la composition des
 // textes. La convocation PDF se joint via le partage système.
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -20,6 +19,7 @@ import '../models/member.dart';
 import '../models/preferred_contact.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
+import '../services/email_link.dart';
 import '../services/invitation_service.dart';
 import '../services/pdf_service.dart';
 import '../services/url_opener.dart';
@@ -27,27 +27,6 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import '../widgets/directory_filter.dart';
-
-/// Lien d'envoi d'un e-mail. `mailto:` ne fonctionne que si le navigateur a
-/// un client mail natif associé (souvent absent chez les utilisateurs
-/// Gmail/webmail sur ordinateur) : sur le web on ouvre donc directement la
-/// fenêtre de composition Gmail, qui n'a pas ce prérequis. Sur mobile,
-/// `mailto:` déclenche normalement le choix de l'app mail installée.
-String _emailUrl({
-  required String to,
-  required String subject,
-  required String body,
-}) {
-  if (kIsWeb) {
-    return 'https://mail.google.com/mail/?view=cm&fs=1'
-        '&to=${Uri.encodeComponent(to)}'
-        '&su=${Uri.encodeComponent(subject)}'
-        '&body=${Uri.encodeComponent(body)}';
-  }
-  return 'mailto:$to'
-      '?subject=${Uri.encodeComponent(subject)}'
-      '&body=${Uri.encodeComponent(body)}';
-}
 
 class SessionInvitationsScreen extends StatefulWidget {
   final String sessionId;
@@ -450,7 +429,7 @@ class _PresenceLinkRow extends StatelessWidget {
                 tooltip: 'Envoyer par e-mail',
                 preferred: member.preferredContact == kContactCourriel,
                 onPressed: () => onOpen(
-                  _emailUrl(
+                  emailComposeUrl(
                     to: member.email.trim(),
                     subject: memberConvocationSubject(session, chrono),
                     body: message,
@@ -848,7 +827,7 @@ class _DelegationLinkRow extends StatelessWidget {
                 tooltip: 'Envoyer par e-mail',
                 preferred: dignitary.preferredContact == kContactCourriel,
                 onPressed: () => onOpen(
-                  _emailUrl(
+                  emailComposeUrl(
                     to: dignitary.email.trim(),
                     subject: dignitaryInvitationSubject(session, chrono),
                     body: message,

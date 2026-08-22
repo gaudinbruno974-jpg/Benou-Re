@@ -172,6 +172,14 @@ class LodgeConfig {
   /// pas l'hébergement web.
   final String webOrigin;
 
+  /// Nom de l'association loi 1901 de la Loge, pour l'en-tête des documents
+  /// de Trésorerie (Appel de cotisation, Quitus).
+  final String treasuryAssociationName;
+
+  /// Coordonnées bancaires de la Loge (RIB/IBAN), affichées sur l'Appel de
+  /// cotisation. Saisie libre multi-lignes (le format d'un RIB varie).
+  final String treasuryRib;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -198,6 +206,8 @@ class LodgeConfig {
     required this.backgroundGradient,
     required this.cardGradient,
     required this.webOrigin,
+    this.treasuryAssociationName = '',
+    this.treasuryRib = '',
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -364,6 +374,11 @@ class LodgeConfig {
       backgroundGradient: backgroundGradient,
       cardGradient: cardGradient,
       webOrigin: webOrigin,
+      treasuryAssociationName: text(
+        'treasuryAssociationName',
+        treasuryAssociationName,
+      ),
+      treasuryRib: text('treasuryRib', treasuryRib),
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),
     );

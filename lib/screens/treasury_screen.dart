@@ -10,7 +10,10 @@ import 'package:provider/provider.dart';
 
 import '../models/member.dart';
 import '../models/session.dart';
+import '../services/email_link.dart';
 import '../services/pdf_service.dart';
+import '../services/treasury_document_service.dart';
+import '../services/url_opener.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -250,23 +253,38 @@ class _CotisationsTabState extends State<_CotisationsTab> {
       _ => dy.copyWith(
           elevationDuesPaidAmount: amount, elevationDuesPaid: false),
     };
-    await state.updateMember(
-        m.withDuesForYear(year, updated.syncPaidFlags()));
+    var synced = updated.syncPaidFlags();
+    // Date de règlement (utilisée sur le Quitus) : fixée à aujourd'hui dès
+    // que la ligne devient soldée, effacée si elle redevient partielle.
+    final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
+    if (label == 'LOGE') {
+      synced = synced.copyWith(
+          lodgeDuesPaidDate: synced.lodgeDuesPaid ? today : '');
+    } else if (label == 'ORDRE') {
+      synced = synced.copyWith(
+          orderDuesPaidDate: synced.orderDuesPaid ? today : '');
+    }
+    await state.updateMember(m.withDuesForYear(year, synced));
   }
 
   /// Bascule « soldé / non soldé » en remettant le versement à zéro ou au dû.
+  /// La date de règlement (utilisée sur le Quitus) est fixée à aujourd'hui à
+  /// ce moment, et effacée si la ligne redevient non soldée.
   DuesYear _toggleLine(DuesYear d, String label) {
+    final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
     switch (label) {
       case 'LOGE':
         final paid = !d.lodgeDuesPaid;
         return d.copyWith(
             lodgeDuesPaid: paid,
-            lodgeDuesPaidAmount: paid ? d.lodgeDues : 0);
+            lodgeDuesPaidAmount: paid ? d.lodgeDues : 0,
+            lodgeDuesPaidDate: paid ? today : '');
       case 'ORDRE':
         final paid = !d.orderDuesPaid;
         return d.copyWith(
             orderDuesPaid: paid,
-            orderDuesPaidAmount: paid ? d.orderDues : 0);
+            orderDuesPaidAmount: paid ? d.orderDues : 0,
+            orderDuesPaidDate: paid ? today : '');
       default:
         final paid = !d.elevationDuesPaid;
         return d.copyWith(
@@ -286,6 +304,46 @@ class _CotisationsTabState extends State<_CotisationsTab> {
       );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Erreur PDF : $e')));
+    }
+  }
+
+  /// Génère l'Appel de cotisation ou le Quitus de [m] pour l'année en cours,
+  /// propose de le partager/imprimer (le PDF ne peut pas être joint
+  /// automatiquement à l'e-mail — même limite que sur l'écran Invitations),
+  /// puis ouvre la composition du mail et marque l'envoi (date incluse).
+  Future<void> _sendDocument(Member m, {required bool isQuitus}) async {
+    final state = context.read<AppState>();
+    final year = _year;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final bytes = isQuitus
+          ? await buildQuitusPdf(m, year, widget.members,
+              lodgeVmName: state.lodgeVmName)
+          : await buildCapitationCallPdf(m, year, widget.members,
+              lodgeVmName: state.lodgeVmName);
+      await Printing.layoutPdf(
+        onLayout: (_) async => Uint8List.fromList(bytes),
+        name: isQuitus ? 'quitus_$year.pdf' : 'appel_cotisation_$year.pdf',
+      );
+      final subject = isQuitus
+          ? quitusSubject(year)
+          : capitationCallSubject(year);
+      final body = isQuitus
+          ? quitusBody(m, year, widget.members, lodgeVmName: state.lodgeVmName)
+          : capitationCallBody(m, year, widget.members,
+              lodgeVmName: state.lodgeVmName);
+      await openExternalUrl(
+        emailComposeUrl(to: m.email.trim(), subject: subject, body: body),
+      );
+      if (!mounted) return;
+      final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
+      final dy = m.duesFor(year);
+      final updated = isQuitus
+          ? dy.copyWith(quitusSent: true, quitusSentDate: today)
+          : dy.copyWith(appelSent: true, appelSentDate: today);
+      await state.updateMember(m.withDuesForYear(year, updated));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur d\'envoi : $e')));
     }
   }
 
@@ -520,6 +578,30 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                                 size: 18, color: BrColors.muted),
                             onPressed: () => _editAmounts(m),
                           ),
+                        if (canEdit && !m.isExemptFromDues)
+                          PopupMenuButton<bool>(
+                            tooltip: 'Envoyer un document',
+                            icon: const Icon(Icons.mail_outline,
+                                size: 18, color: BrColors.muted),
+                            onSelected: (isQuitus) =>
+                                _sendDocument(m, isQuitus: isQuitus),
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: false,
+                                child: Text('Envoyer l\'Appel de cotisation'),
+                              ),
+                              PopupMenuItem(
+                                value: true,
+                                enabled: d.fullyPaid,
+                                child: Text(
+                                  d.fullyPaid
+                                      ? 'Envoyer le Quitus'
+                                      : 'Envoyer le Quitus (Loge et Ordre '
+                                          'pas encore soldés)',
+                                ),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                     const SizedBox(height: 10),
@@ -580,6 +662,28 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                             ),
                         ],
                       ),
+                    if (!m.isExemptFromDues &&
+                        (d.appelSent || d.quitusSent)) ...[
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
+                        children: [
+                          if (d.appelSent)
+                            Text(
+                              'Appel envoyé le ${d.appelSentDate}',
+                              style: const TextStyle(
+                                  color: BrColors.muted, fontSize: 11),
+                            ),
+                          if (d.quitusSent)
+                            Text(
+                              'Quitus envoyé le ${d.quitusSentDate}',
+                              style: const TextStyle(
+                                  color: BrColors.muted, fontSize: 11),
+                            ),
+                        ],
+                      ),
+                    ],
                     if (canEdit && !m.isExemptFromDues) ...[
                       const SizedBox(height: 6),
                       const Text(
