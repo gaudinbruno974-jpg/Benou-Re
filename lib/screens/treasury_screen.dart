@@ -308,40 +308,55 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     }
   }
 
-  /// Génère l'Appel de cotisation ou le Quitus de [m] pour l'année en cours,
-  /// l'archive sur Drive, propose de le partager/imprimer (le PDF ne peut pas
-  /// être joint automatiquement à l'e-mail — même limite que sur l'écran
-  /// Invitations), puis ouvre la composition du mail et marque l'envoi (date
-  /// incluse).
+  /// Génère l'Appel de cotisation ou le Quitus de [m] pour l'année en cours.
+  /// Trois étapes indépendantes (l'échec ou l'annulation de l'une ne bloque
+  /// pas les autres) : archivage Drive, aperçu/impression du PDF (à joindre
+  /// manuellement — mailto/Gmail ne permet pas de pièce jointe automatique,
+  /// même limite que sur l'écran Invitations), puis composition du mail, qui
+  /// marque l'envoi (date incluse) une fois ouverte.
   Future<void> _sendDocument(Member m, {required bool isQuitus}) async {
     final state = context.read<AppState>();
     final year = _year;
     final messenger = ScaffoldMessenger.of(context);
+    final Uint8List bytes;
     try {
-      final bytes = isQuitus
-          ? await buildQuitusPdf(m, year, widget.members,
-              lodgeVmName: state.lodgeVmName)
-          : await buildCapitationCallPdf(m, year, widget.members,
-              lodgeVmName: state.lodgeVmName);
-      try {
-        await DriveService.instance.archiveTreasuryDocument(
-          type: isQuitus ? 'Quitus' : 'Capitations',
-          year: year,
-          fileName: isQuitus
-              ? quitusFileName(m, year)
-              : capitationCallFileName(m, year),
-          bytes: Uint8List.fromList(bytes),
-        );
-      } catch (e) {
-        // Ne bloque pas l'envoi si l'archivage Drive échoue (droits pas
-        // encore accordés, dossier pas configuré...) : juste un signalement
-        // distinct, l'envoi du document continue.
-        messenger.showSnackBar(SnackBar(content: Text('Archivage Drive : $e')));
-      }
+      bytes = Uint8List.fromList(
+        isQuitus
+            ? await buildQuitusPdf(m, year, widget.members,
+                lodgeVmName: state.lodgeVmName)
+            : await buildCapitationCallPdf(m, year, widget.members,
+                lodgeVmName: state.lodgeVmName),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur de génération : $e')));
+      return;
+    }
+
+    try {
+      await DriveService.instance.archiveTreasuryDocument(
+        type: isQuitus ? 'Quitus' : 'Capitations',
+        year: year,
+        fileName: isQuitus
+            ? quitusFileName(m, year)
+            : capitationCallFileName(m, year),
+        bytes: bytes,
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Archivage Drive : $e')));
+    }
+
+    try {
       await Printing.layoutPdf(
-        onLayout: (_) async => Uint8List.fromList(bytes),
+        onLayout: (_) async => bytes,
         name: isQuitus ? 'quitus_$year.pdf' : 'appel_cotisation_$year.pdf',
       );
+    } catch (e) {
+      // Aperçu fermé/annulé sans imprimer : ne doit pas empêcher l'envoi du
+      // mail ci-dessous.
+    }
+
+    if (!mounted) return;
+    try {
       final subject = isQuitus
           ? quitusSubject(year)
           : capitationCallSubject(year);
