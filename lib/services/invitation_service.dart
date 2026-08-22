@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 
 import '../config/lodge_config.dart';
 import '../models/civilite.dart';
+import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../utils/name_mask.dart';
@@ -27,6 +28,19 @@ String _dateCourte(Session session) {
 }
 
 String _degreOrdinal(String degre) => Session.degreeOrdinal(degre);
+
+/// « Mon Très Cher Frère DUPONT Jean, » / « Ma Bien Aimée Sœur DUPONT Jeanne, »
+/// quand la civilité et le nom du destinataire sont connus (même convention
+/// que les documents de trésorerie, voir treasury_document_service.dart) ;
+/// repli sur la formule collective d'origine sinon (diffusion sans
+/// destinataire nommément identifié).
+String _greeting({required String civilite, required String fullName}) {
+  final name = fullName.trim();
+  if (name.isEmpty) return 'Très Chers Frères, Très Chères Sœurs,';
+  if (civilite == kSoeur) return 'Ma Bien Aimée Sœur $name,';
+  if (civilite == kFrere) return 'Mon Très Cher Frère $name,';
+  return 'Très Chers Frères, Très Chères Sœurs,';
+}
 
 /// Libellé dénormalisé d'une tenue (« Tenue X du jj/mm/aaaa »), utilisé pour
 /// l'affichage sur la page publique d'un lien de réponse (PresenceLink).
@@ -88,9 +102,10 @@ List<String> _commonLines(
   Session session,
   List<String> ordreDuJour, {
   required String informerVerbe,
+  required String greeting,
 }) {
   final lines = <String>[
-    'Très Chers Frères, Très Chères Sœurs,',
+    greeting,
     '',
     'La R∴L∴ ${LodgeConfig.current.name} $informerVerbe de sa prochaine '
         '${_tenueLabel(session)} qui se tiendra le ${_dateLongue(session)}.',
@@ -180,17 +195,29 @@ Member? _findSecretary(List<Member> members) =>
     members.where((m) => foldLabel(m.function).contains('secretaire')).firstOrNull;
 
 /// Corps du mail/message envoyé à un membre de la Loge, avec son lien de
-/// réponse personnel inséré.
+/// réponse personnel inséré. Le destinataire est salué nommément dès que sa
+/// civilité est renseignée (voir [_greeting]), sinon la formule collective
+/// d'origine est conservée.
 String memberConvocationBody(
   Session session,
   List<String> ordreDuJour,
   List<Member> members,
   String responseUrl, {
   String lodgeVmName = '',
+  Member? recipient,
 }) {
   final secretary = _findSecretary(members);
+  final greeting = _greeting(
+    civilite: recipient?.civilite ?? '',
+    fullName: recipient?.fullName ?? '',
+  );
   final lines = [
-    ..._commonLines(session, ordreDuJour, informerVerbe: 'vous informe'),
+    ..._commonLines(
+      session,
+      ordreDuJour,
+      informerVerbe: 'vous informe',
+      greeting: greeting,
+    ),
     ..._memberOnlyLines(session, secretary),
     ..._linkLines(responseUrl),
     ..._signOffLines(session, members, secretary, lodgeVmName: lodgeVmName),
@@ -199,20 +226,27 @@ String memberConvocationBody(
 }
 
 /// Corps du mail/message envoyé à un dignitaire ou un Vénérable d'une autre
-/// Loge, avec son lien de réponse personnel inséré.
+/// Loge, avec son lien de réponse personnel inséré. Même principe de
+/// salutation nominative que [memberConvocationBody].
 String dignitaryInvitationBody(
   Session session,
   List<String> ordreDuJour,
   List<Member> members,
   String responseUrl, {
   String lodgeVmName = '',
+  Dignitary? recipient,
 }) {
   final secretary = _findSecretary(members);
+  final greeting = _greeting(
+    civilite: recipient?.civilite ?? '',
+    fullName: recipient?.fullName ?? '',
+  );
   final lines = [
     ..._commonLines(
       session,
       ordreDuJour,
       informerVerbe: "a l'honneur de vous informer",
+      greeting: greeting,
     ),
     ..._linkLines(responseUrl),
     ..._signOffLines(session, members, secretary, lodgeVmName: lodgeVmName),

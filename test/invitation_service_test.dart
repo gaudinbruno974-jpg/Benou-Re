@@ -1,3 +1,4 @@
+import 'package:benou_re/models/dignitary.dart';
 import 'package:benou_re/models/member.dart';
 import 'package:benou_re/models/session.dart';
 import 'package:benou_re/services/invitation_service.dart';
@@ -120,5 +121,76 @@ void main() {
       url,
     );
     expect(body, contains('1. Lecture de la correspondance'));
+  });
+
+  group('salutation personnalisée', () {
+    test('un membre Frère est salué nommément', () {
+      const frere = Member(
+        id: 'f1',
+        firstName: 'Jean',
+        lastName: 'DUPONT',
+        civilite: 'Frère',
+      );
+      final body = memberConvocationBody(
+        session,
+        ordreDuJour,
+        members,
+        url,
+        recipient: frere,
+      );
+      expect(body, startsWith('Mon Très Cher Frère Jean DUPONT,'));
+      expect(body, isNot(contains('Très Chers Frères, Très Chères Sœurs,')));
+    });
+
+    test('une Sœur est saluée au féminin', () {
+      const soeur = Member(
+        id: 's1',
+        firstName: 'Jeanne',
+        lastName: 'DURAND',
+        civilite: 'Sœur',
+      );
+      final body = memberConvocationBody(
+        session,
+        ordreDuJour,
+        members,
+        url,
+        recipient: soeur,
+      );
+      expect(body, startsWith('Ma Bien Aimée Sœur Jeanne DURAND,'));
+    });
+
+    test('sans civilité renseignée, la formule collective d\'origine est conservée', () {
+      const sansCivilite = Member(id: 'n1', firstName: 'Sam', lastName: 'NOEL');
+      final body = memberConvocationBody(
+        session,
+        ordreDuJour,
+        members,
+        url,
+        recipient: sansCivilite,
+      );
+      expect(body, startsWith('Très Chers Frères, Très Chères Sœurs,'));
+    });
+
+    test('sans destinataire précisé, la formule collective d\'origine est conservée', () {
+      final body = memberConvocationBody(session, ordreDuJour, members, url);
+      expect(body, startsWith('Très Chers Frères, Très Chères Sœurs,'));
+    });
+
+    test('un dignitaire Frère est salué nommément', () {
+      const dignitaire = Dignitary(
+        id: 'd1',
+        firstName: 'Paul',
+        lastName: 'MOREAU',
+        civilite: 'Frère',
+      );
+      final body = dignitaryInvitationBody(
+        session,
+        ordreDuJour,
+        members,
+        url,
+        recipient: dignitaire,
+      );
+      expect(body, startsWith('Mon Très Cher Frère Paul MOREAU,'));
+    });
   });
 }

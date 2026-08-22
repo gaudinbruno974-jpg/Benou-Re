@@ -367,6 +367,7 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
               allMembers,
               _linkUrl(byMember[m.id]!.id),
               lodgeVmName: lodgeVmName,
+              recipient: m,
             ),
           ),
       ];
@@ -575,6 +576,7 @@ class _PresenceLinkRow extends StatelessWidget {
             allMembers,
             url,
             lodgeVmName: lodgeVmName,
+            recipient: member,
           );
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
@@ -808,6 +810,7 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
               allMembers,
               _linkUrl(byRecipient[d.id]!.id),
               lodgeVmName: lodgeVmName,
+              recipient: d,
             ),
           ),
       ];
@@ -1142,6 +1145,7 @@ class _DelegationLinkRow extends StatelessWidget {
             allMembers,
             url,
             lodgeVmName: lodgeVmName,
+            recipient: dignitary,
           );
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
