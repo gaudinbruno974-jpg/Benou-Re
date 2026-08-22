@@ -47,7 +47,7 @@ class ParvisScreen extends StatelessWidget {
     final items = <_MenuItem>[
       _MenuItem(
         'Membres',
-        'Tableau des colonnes',
+        '${state.members.length} membre(s)',
         Icons.people_outline,
         BrColors.gold,
         true,
@@ -55,7 +55,7 @@ class ParvisScreen extends StatelessWidget {
       ),
       _MenuItem(
         'Tenues',
-        'Calendrier des travaux',
+        '${state.sessions.length} tenue(s)',
         Icons.calendar_today,
         BrColors.teal,
         true,
@@ -63,7 +63,7 @@ class ParvisScreen extends StatelessWidget {
       ),
       _MenuItem(
         'Visiteurs',
-        'Répertoire des visiteurs',
+        '${state.visitors.length} visiteur(s)',
         Icons.shield_outlined,
         BrColors.menuVisiteurs,
         isVisitors,
