@@ -240,4 +240,38 @@ void main() {
       expect(result, [higherRank, lowerRank]);
     });
   });
+
+  group('dignitaryComesAlone', () {
+    test('vrai pour un rang 1 ou 2 (officier d\'obédience)', () {
+      expect(
+        dignitaryComesAlone(const Dignitary(id: 'd7', protocolRank: 1)),
+        isTrue,
+      );
+      expect(
+        dignitaryComesAlone(const Dignitary(id: 'd8', protocolRank: 2)),
+        isTrue,
+      );
+    });
+
+    test(
+      'faux pour un rang 3 ou supérieur (Vénérable amenant une délégation)',
+      () {
+        expect(
+          dignitaryComesAlone(const Dignitary(id: 'd9', protocolRank: 3)),
+          isFalse,
+        );
+        expect(
+          dignitaryComesAlone(const Dignitary(id: 'd10', protocolRank: 5)),
+          isFalse,
+        );
+      },
+    );
+
+    test('faux par défaut quand le rang n\'est pas renseigné', () {
+      expect(
+        dignitaryComesAlone(const Dignitary(id: 'd11')),
+        isFalse,
+      );
+    });
+  });
 }

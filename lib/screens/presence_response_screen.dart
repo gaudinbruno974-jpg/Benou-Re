@@ -169,9 +169,13 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
           color: BrColors.menuVisiteurs,
         );
       case _LoadState.ready:
-        return _link!.kind == kPresenceLinkKindDelegation
-            ? _buildDelegationForm(_link!)
-            : _buildMemberForm(_link!);
+        final link = _link!;
+        // Un dignitaire venant seul (rang 1/2 — voir recipientAlone) répond
+        // en Présent/Absent/Agapes, comme un membre : pas de délégation à
+        // déclarer.
+        final delegation =
+            link.kind == kPresenceLinkKindDelegation && !link.recipientAlone;
+        return delegation ? _buildDelegationForm(link) : _buildMemberForm(link);
     }
   }
 
@@ -185,7 +189,7 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                link.memberName,
+                link.displayName,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 19,

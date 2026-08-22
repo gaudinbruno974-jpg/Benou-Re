@@ -117,6 +117,15 @@ class Dignitary {
   }
 }
 
+/// Vrai pour un dignitaire venant seul, sans délégation de sa Loge à
+/// déclarer (rang protocolaire 1 ou 2 — officiers d'obédience). Faux pour un
+/// Vénérable d'une autre Loge (rang 3) ou un rang non renseigné : ceux-là
+/// peuvent amener une délégation, décomptée par grade sur leur lien de
+/// réponse (voir presence_link.dart, PresenceLink.recipientAlone, fixé à la
+/// génération du lien).
+bool dignitaryComesAlone(Dignitary d) =>
+    d.protocolRank != null && d.protocolRank! <= 2;
+
 /// Dignitaires à annoncer par le Maître des Cérémonies avant l'entrée en
 /// loge du Vénérable Maître, dans l'ordre d'annonce.
 ///

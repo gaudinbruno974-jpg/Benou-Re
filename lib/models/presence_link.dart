@@ -60,6 +60,16 @@ class PresenceLink {
   /// Loge sans venir en personne.
   final bool? recipientAgapePresent;
 
+  /// Vrai pour un dignitaire qui vient seul (rang protocolaire 1 ou 2 —
+  /// officiers d'obédience), sans délégation à déclarer : sa page de réponse
+  /// devient un simple Présent/Absent/Agapes (mêmes champs que le Flux A —
+  /// [status]/[agapePresent] — plutôt que le décompte par grade). Faux pour
+  /// un Vénérable d'une autre Loge (rang 3 ou non renseigné), qui amène
+  /// potentiellement une délégation. Figé à la génération du lien : lu
+  /// depuis `dignitaries`, inaccessible en public, donc dénormalisé ici
+  /// comme le reste des informations affichées sur la page de réponse.
+  final bool recipientAlone;
+
   final DateTime? respondedAt;
   final DateTime expiresAt;
   final DateTime createdAt;
@@ -89,6 +99,7 @@ class PresenceLink {
     this.maitreCount,
     this.agapeTotal,
     this.recipientAgapePresent,
+    this.recipientAlone = false,
     this.respondedAt,
     required this.expiresAt,
     required this.createdAt,
@@ -97,4 +108,9 @@ class PresenceLink {
 
   bool get isExpired => DateTime.now().isAfter(expiresAt);
   bool get isAnswered => respondedAt != null;
+
+  /// Nom à afficher sur la page de réponse, qu'il s'agisse d'un membre
+  /// (Flux A) ou d'un dignitaire venant seul (Flux B avec [recipientAlone]) :
+  /// les deux partagent alors le même formulaire Présent/Absent/Agapes.
+  String get displayName => memberName.isNotEmpty ? memberName : recipientName;
 }

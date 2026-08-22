@@ -199,6 +199,7 @@ class FirestoreRepository {
       maitreCount: intOrNull(map['maitreCount']),
       agapeTotal: intOrNull(map['agapeTotal']),
       recipientAgapePresent: map['recipientAgapePresent'] as bool?,
+      recipientAlone: (map['recipientAlone'] ?? false) as bool,
       respondedAt: ts(map['respondedAt']),
       expiresAt: ts(map['expiresAt']) ?? DateTime.now(),
       createdAt: ts(map['createdAt']) ?? DateTime.now(),
@@ -227,6 +228,7 @@ class FirestoreRepository {
       if (link.agapeTotal != null) 'agapeTotal': link.agapeTotal,
       if (link.recipientAgapePresent != null)
         'recipientAgapePresent': link.recipientAgapePresent,
+      'recipientAlone': link.recipientAlone,
       if (link.respondedAt != null)
         'respondedAt': Timestamp.fromDate(link.respondedAt!),
       'expiresAt': Timestamp.fromDate(link.expiresAt),

@@ -751,6 +751,11 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
           hasAgape: widget.session.suitAgapes,
           recipientId: d.id,
           recipientName: d.fullName,
+          // Rang 1/2 (officiers d'obédience) : vient seul, page de réponse
+          // simplifiée en Présent/Absent. Rang 3 (Vénérables d'une autre
+          // Loge) ou rang non renseigné : décompte de délégation par grade,
+          // comportement historique.
+          recipientAlone: dignitaryComesAlone(d),
           expiresAt: expiresAt,
           createdAt: DateTime.now(),
         ),
@@ -1087,6 +1092,13 @@ class _DelegationLinkRow extends StatelessWidget {
     final l = link;
     if (l == null) return 'Lien non généré';
     if (!l.isAnswered) return 'En attente';
+    if (l.recipientAlone) {
+      final label = l.status == kPresenceStatusPresent
+          ? 'Présent'
+          : (l.status == kPresenceStatusAbsent ? 'Absent' : 'En attente');
+      final agapeLabel = l.agapePresent == true ? ' + agapes' : '';
+      return '$label$agapeLabel';
+    }
     final self = l.recipientAgapePresent;
     final selfLabel = self == null
         ? ''
@@ -1098,6 +1110,9 @@ class _DelegationLinkRow extends StatelessWidget {
   Color get _statusColor {
     final l = link;
     if (l == null || !l.isAnswered) return BrColors.muted;
+    if (l.recipientAlone && l.status == kPresenceStatusAbsent) {
+      return BrColors.menuTresorerie;
+    }
     return BrColors.menuVisiteurs;
   }
 
