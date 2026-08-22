@@ -15,7 +15,10 @@ import '../services/local_file_saver.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 
-Future<void> _saveLocally(
+/// Enregistre [bytes] localement sous [fileName], avec la confirmation ou le
+/// message d'erreur adapté — partagé par tous les exports de classeur .xlsx
+/// de l'app (répertoires, matériel).
+Future<void> saveFileLocally(
   BuildContext context,
   String fileName,
   List<int> bytes,
@@ -58,12 +61,12 @@ Future<void> exportDirectories(BuildContext context) async {
   final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
   final fileName =
       'Repertoires_${LodgeConfig.current.name.replaceAll(' ', '_')}_$date.xlsx';
-  await _saveLocally(context, fileName, bytes);
+  await saveFileLocally(context, fileName, bytes);
 }
 
 /// Télécharge un classeur modèle (en-têtes seuls, sans donnée), pour servir
 /// de base à l'import d'une autre Loge.
 Future<void> exportDirectoryTemplate(BuildContext context) async {
   final bytes = buildDirectoryTemplate();
-  await _saveLocally(context, 'Modele_Import_Repertoires.xlsx', bytes);
+  await saveFileLocally(context, 'Modele_Import_Repertoires.xlsx', bytes);
 }

@@ -10,7 +10,9 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'inventory_check_screen.dart';
+import 'inventory_export_actions.dart';
 import 'inventory_history_screen.dart';
+import 'inventory_import_screen.dart';
 
 Color _propertyColor(String property) {
   switch (property) {
@@ -43,8 +45,36 @@ class InventoryScreen extends StatelessWidget {
           if (canEdit)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert),
-              onSelected: (_) => _importSeed(context, items),
+              onSelected: (value) {
+                switch (value) {
+                  case 'export':
+                    exportInventory(context);
+                  case 'template':
+                    exportInventoryTemplate(context);
+                  case 'import':
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const InventoryImportScreen(),
+                      ),
+                    );
+                  case 'reimport':
+                    _importSeed(context, items);
+                }
+              },
               itemBuilder: (ctx) => const [
+                PopupMenuItem(
+                  value: 'export',
+                  child: Text('Exporter en .xlsx'),
+                ),
+                PopupMenuItem(
+                  value: 'import',
+                  child: Text('Importer depuis un .xlsx'),
+                ),
+                PopupMenuItem(
+                  value: 'template',
+                  child: Text('Télécharger un modèle vide (.xlsx)'),
+                ),
+                PopupMenuDivider(),
                 PopupMenuItem(
                   value: 'reimport',
                   child: Text(
