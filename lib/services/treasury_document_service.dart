@@ -22,15 +22,20 @@ String _vmName(List<Member> members, String lodgeVmName) {
   return vm != null ? vm.fullName : 'Vénérable Maître';
 }
 
-/// « Mon Bien Aimé Frère DUPONT Jean » / « Ma Bien Aimée Sœur DUPONT Jeanne »
+/// « Mon Très Cher Frère DUPONT Jean » / « Ma Bien Aimée Sœur DUPONT Jeanne »
 /// — le destinataire est nommément désigné : à la différence des convocations
 /// (diffusées largement), ce courrier lui est adressé en personne.
 String _greeting(Member member) {
   final name = member.fullName.isEmpty ? 'Membre' : member.fullName;
   return member.civilite == kSoeur
       ? 'Ma Bien Aimée Sœur $name'
-      : 'Mon Bien Aimé Frère $name';
+      : 'Mon Très Cher Frère $name';
 }
+
+/// « F » / « S », pour le nom des fichiers archivés sur Drive (voir
+/// capitationCallFileName / quitusFileName) — pas d'abréviation maçonnique
+/// (F∴/S∴) dans un nom de fichier.
+String _civiliteLetter(Member member) => member.civilite == kSoeur ? 'S' : 'F';
 
 String _euros(num v) => '${v.toStringAsFixed(2)} €';
 
@@ -82,11 +87,28 @@ String capitationCallBody(
     '',
     'Pour toute information complémentaire, vous pouvez nous contacter.',
     '',
+    'Si, par suite de circonstances particulières, le règlement de cette '
+        'cotisation représente une difficulté, nous vous invitons à vous '
+        'rapprocher en toute confiance du Vénérable Maître ou de notre '
+        'Hospitalier afin qu’une solution fraternelle et discrète puisse '
+        'être trouvée.',
+    '',
     'Recevez, ${_greeting(member)}, nos pensées de lumière.',
     ..._signOffLines(members, lodgeVmName),
   ];
   return lines.join('\n');
 }
+
+/// Nom du fichier archivé sur Drive (voir drive_service.dart) : le
+/// sous-dossier « Capitations {année} » porte déjà l'année et le type, le
+/// nom du fichier reprend quand même le préfixe complet à la demande.
+String capitationCallFileName(Member member, int year) =>
+    'Capitation $year - ${_civiliteLetter(member)} - '
+    '${member.lastName} ${member.firstName}.pdf';
+
+String quitusFileName(Member member, int year) =>
+    'Quitus $year - ${_civiliteLetter(member)} - '
+    '${member.lastName} ${member.firstName}.pdf';
 
 String quitusSubject(int year) => 'Quitus de cotisation $year';
 

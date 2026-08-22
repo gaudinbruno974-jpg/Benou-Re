@@ -49,10 +49,21 @@ void main() {
   group('capitationCallBody', () {
     test('salue le membre par son genre et cite les deux montants', () {
       final body = capitationCallBody(member, 2026, members);
-      expect(body, contains('Mon Bien Aimé Frère Jean DUPONT'));
+      expect(body, contains('Mon Très Cher Frère Jean DUPONT'));
       expect(body, contains('100.00 € pour la Loge'));
       expect(body, contains('50.00 € pour l’Ordre (GLDB)'));
       expect(body, contains('150.00 €'));
+    });
+
+    test('propose une solution fraternelle en cas de difficulté de paiement', () {
+      final body = capitationCallBody(member, 2026, members);
+      expect(
+        body,
+        contains(
+          'nous vous invitons à vous rapprocher en toute confiance du '
+          'Vénérable Maître ou de notre Hospitalier',
+        ),
+      );
     });
 
     test('reprend le RIB et le nom de l\'association configurés pour la Loge', () {
@@ -81,6 +92,25 @@ void main() {
       );
       final body = capitationCallBody(soeur, 2026, members);
       expect(body, contains('Ma Bien Aimée Sœur Marie MARTIN'));
+    });
+  });
+
+  group('noms de fichiers Drive', () {
+    test('reprennent le type, l\'année, la civilité (F/S) et le nom', () {
+      expect(
+        capitationCallFileName(member, 2026),
+        'Capitation 2026 - F - DUPONT Jean.pdf',
+      );
+      const soeur = Member(
+        id: 'm5',
+        firstName: 'Marie',
+        lastName: 'MARTIN',
+        civilite: 'Sœur',
+      );
+      expect(
+        quitusFileName(soeur, 2026),
+        'Quitus 2026 - S - MARTIN Marie.pdf',
+      );
     });
   });
 

@@ -345,4 +345,42 @@ class DriveService {
       email: currentEmail ?? 'compte Google',
     );
   }
+
+  /// Archive l'Appel de cotisation ou le Quitus d'un membre : dossier
+  /// « {type} {année} » (ex. « Capitations 2026 »), créé au besoin sous
+  /// [LodgeConfig.treasuryDriveFolderId], propre à chaque Loge.
+  Future<String> archiveTreasuryDocument({
+    required String type,
+    required int year,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final parentId = LodgeConfig.current.treasuryDriveFolderId.trim();
+    if (parentId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive de Trésorerie configuré pour cette Loge '
+        '(treasuryDriveFolderId).',
+      );
+    }
+    try {
+      return await _archiveTreasuryDocument(parentId, type, year, fileName, bytes);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archiveTreasuryDocument(parentId, type, year, fileName, bytes);
+    }
+  }
+
+  Future<String> _archiveTreasuryDocument(
+    String parentId,
+    String type,
+    int year,
+    String fileName,
+    Uint8List bytes,
+  ) async {
+    final headers = await _authHeaders();
+    final folderId = await _findOrCreateFolder(headers, '$type $year', parentId);
+    await _uploadFile(headers, folderId, fileName, bytes);
+    return currentEmail ?? 'compte Google';
+  }
 }

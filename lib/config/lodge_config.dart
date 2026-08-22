@@ -180,6 +180,10 @@ class LodgeConfig {
   /// cotisation. Saisie libre multi-lignes (le format d'un RIB varie).
   final String treasuryRib;
 
+  /// Dossier Drive parent sous lequel sont créés les sous-dossiers annuels
+  /// « Capitations {année} » / « Quitus {année} » (voir drive_service.dart).
+  final String treasuryDriveFolderId;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -208,6 +212,7 @@ class LodgeConfig {
     required this.webOrigin,
     this.treasuryAssociationName = '',
     this.treasuryRib = '',
+    this.treasuryDriveFolderId = '',
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -379,6 +384,10 @@ class LodgeConfig {
         treasuryAssociationName,
       ),
       treasuryRib: text('treasuryRib', treasuryRib),
+      treasuryDriveFolderId: text(
+        'treasuryDriveFolderId',
+        treasuryDriveFolderId,
+      ),
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),
     );

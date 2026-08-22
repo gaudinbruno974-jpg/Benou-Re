@@ -1785,7 +1785,11 @@ Future<Uint8List> _buildTreasuryLetterPdf(String title, String body) async {
       pageFormat: PdfPageFormat.a4,
       margin: pw.EdgeInsets.all(18 * _mm),
       build: (context) => [
-        _lodgeHeader(fonts, logos[0], logos[1]),
+        // Document de Trésorerie (monde profane, association loi 1901) :
+        // pas de logo d'obédience — seul celui de la Loge est affiché, à la
+        // place laissée par le logo GLDB (voir _lodgeHeader : premier
+        // argument = position gauche).
+        _lodgeHeader(fonts, logos[1], null),
         pw.Center(
           child: pw.Text(
             title,

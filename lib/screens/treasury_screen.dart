@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../models/member.dart';
 import '../models/session.dart';
+import '../services/drive_service.dart';
 import '../services/email_link.dart';
 import '../services/pdf_service.dart';
 import '../services/treasury_document_service.dart';
@@ -308,9 +309,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
   }
 
   /// Génère l'Appel de cotisation ou le Quitus de [m] pour l'année en cours,
-  /// propose de le partager/imprimer (le PDF ne peut pas être joint
-  /// automatiquement à l'e-mail — même limite que sur l'écran Invitations),
-  /// puis ouvre la composition du mail et marque l'envoi (date incluse).
+  /// l'archive sur Drive, propose de le partager/imprimer (le PDF ne peut pas
+  /// être joint automatiquement à l'e-mail — même limite que sur l'écran
+  /// Invitations), puis ouvre la composition du mail et marque l'envoi (date
+  /// incluse).
   Future<void> _sendDocument(Member m, {required bool isQuitus}) async {
     final state = context.read<AppState>();
     final year = _year;
@@ -321,6 +323,21 @@ class _CotisationsTabState extends State<_CotisationsTab> {
               lodgeVmName: state.lodgeVmName)
           : await buildCapitationCallPdf(m, year, widget.members,
               lodgeVmName: state.lodgeVmName);
+      try {
+        await DriveService.instance.archiveTreasuryDocument(
+          type: isQuitus ? 'Quitus' : 'Capitations',
+          year: year,
+          fileName: isQuitus
+              ? quitusFileName(m, year)
+              : capitationCallFileName(m, year),
+          bytes: Uint8List.fromList(bytes),
+        );
+      } catch (e) {
+        // Ne bloque pas l'envoi si l'archivage Drive échoue (droits pas
+        // encore accordés, dossier pas configuré...) : juste un signalement
+        // distinct, l'envoi du document continue.
+        messenger.showSnackBar(SnackBar(content: Text('Archivage Drive : $e')));
+      }
       await Printing.layoutPdf(
         onLayout: (_) async => Uint8List.fromList(bytes),
         name: isQuitus ? 'quitus_$year.pdf' : 'appel_cotisation_$year.pdf',
