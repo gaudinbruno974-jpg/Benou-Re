@@ -227,12 +227,14 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Répercute chaque réponse reçue dans `session.presentIds` / `excusedIds`
-  /// / `agapeIds` — l'équivalent de ce que fait aujourd'hui le Secrétaire à
-  /// la main dans « Présents en tenue » — puis marque le jeton `applied`.
-  /// Relit la tenue juste avant chaque écriture (plutôt que de partir de
-  /// [sessions], potentiellement périmé) pour rester correct si plusieurs
-  /// réponses arrivent pour la même tenue dans un seul lot.
+  /// Répercute chaque réponse reçue — Flux A (membre) dans
+  /// `session.presentIds` / `excusedIds` / `agapeIds`, Flux B d'un
+  /// dignitaire venant seul (rang 1/2) dans `session.dignitaryIds` /
+  /// `dignitaryAgapeIds` — l'équivalent de ce que fait aujourd'hui le
+  /// Secrétaire à la main dans « Présents en tenue » — puis marque le jeton
+  /// `applied`. Relit la tenue juste avant chaque écriture (plutôt que de
+  /// partir de [sessions], potentiellement périmé) pour rester correct si
+  /// plusieurs réponses arrivent pour la même tenue dans un seul lot.
   Future<void> _applyPresenceLinks(List<PresenceLink> links) async {
     for (final link in links) {
       try {
@@ -241,22 +243,39 @@ class AppState extends ChangeNotifier {
           await repo.markPresenceLinkApplied(link.id);
           continue;
         }
-        final present = List<String>.from(session.presentIds)
-          ..remove(link.memberId);
-        final excused = List<String>.from(session.excusedIds)
-          ..remove(link.memberId);
-        final agape = List<String>.from(session.agapeIds)
-          ..remove(link.memberId);
-        if (link.status == kPresenceStatusPresent) {
-          present.add(link.memberId);
-          if (link.agapePresent == true) agape.add(link.memberId);
-        } else if (link.status == kPresenceStatusAbsent) {
-          excused.add(link.memberId);
-        }
         final map = Map<String, dynamic>.from(session.toMap());
-        map['presentIds'] = present;
-        map['excusedIds'] = excused;
-        map['agapeIds'] = agape;
+        if (link.kind == kPresenceLinkKindMember) {
+          final present = List<String>.from(session.presentIds)
+            ..remove(link.memberId);
+          final excused = List<String>.from(session.excusedIds)
+            ..remove(link.memberId);
+          final agape = List<String>.from(session.agapeIds)
+            ..remove(link.memberId);
+          if (link.status == kPresenceStatusPresent) {
+            present.add(link.memberId);
+            if (link.agapePresent == true) agape.add(link.memberId);
+          } else if (link.status == kPresenceStatusAbsent) {
+            excused.add(link.memberId);
+          }
+          map['presentIds'] = present;
+          map['excusedIds'] = excused;
+          map['agapeIds'] = agape;
+        } else {
+          // Dignitaire venant seul (rang 1/2, link.recipientAlone) :
+          // réponse nominative comme un membre, mais sans liste « excusé »
+          // dédiée — absent revient simplement à ne pas figurer dans
+          // dignitaryIds.
+          final present = List<String>.from(session.dignitaryIds)
+            ..remove(link.recipientId);
+          final agape = List<String>.from(session.dignitaryAgapeIds)
+            ..remove(link.recipientId);
+          if (link.status == kPresenceStatusPresent) {
+            present.add(link.recipientId);
+            if (link.agapePresent == true) agape.add(link.recipientId);
+          }
+          map['dignitaryIds'] = present;
+          map['dignitaryAgapeIds'] = agape;
+        }
         await repo.setSession(Session.fromMap(session.id, map));
         await repo.markPresenceLinkApplied(link.id);
       } catch (_) {

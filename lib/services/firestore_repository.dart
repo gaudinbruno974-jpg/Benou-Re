@@ -317,11 +317,13 @@ class FirestoreRepository {
         );
   }
 
-  /// Réponses de membres (Flux A) reçues par lien, pas encore répercutées
-  /// dans la tenue concernée (voir AppState, qui applique puis marque
-  /// `applied`). Le Flux B (délégation) n'alimente aucune fiche nommée et
-  /// reste donc hors de ce flux — lu en direct par l'écran Invitations via
-  /// [presenceLinksForSessionStream].
+  /// Réponses reçues par lien, pas encore répercutées dans la tenue
+  /// concernée (voir AppState, qui applique puis marque `applied`) :
+  /// Flux A (membre) et Flux B d'un dignitaire venant seul (rang 1/2 —
+  /// [PresenceLink.recipientAlone]), tous deux des réponses nominatives.
+  /// Une délégation agrégée (rang 3+/non renseigné) n'alimente en revanche
+  /// aucune fiche nommée et reste hors de ce flux — lue en direct par
+  /// l'écran Invitations via [presenceLinksForSessionStream].
   Stream<List<PresenceLink>> unappliedPresenceLinksStream() {
     return _db
         .collection('presenceLinks')
@@ -330,7 +332,11 @@ class FirestoreRepository {
         .map(
           (snap) => snap.docs
               .map((d) => _presenceLinkFromDoc(d.id, d.data()))
-              .where((l) => l.isAnswered && l.kind == kPresenceLinkKindMember)
+              .where(
+                (l) =>
+                    l.isAnswered &&
+                    (l.kind == kPresenceLinkKindMember || l.recipientAlone),
+              )
               .toList(),
         );
   }
