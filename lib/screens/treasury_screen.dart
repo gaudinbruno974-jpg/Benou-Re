@@ -309,10 +309,9 @@ class _CotisationsTabState extends State<_CotisationsTab> {
   }
 
   /// Génère l'Appel de cotisation ou le Quitus de [m] pour l'année en cours,
-  /// l'archive sur Drive, puis crée un brouillon Gmail avec le PDF en pièce
-  /// jointe réelle (API Gmail — un simple lien mailto/Gmail-compose ne
-  /// permet aucune pièce jointe). L'utilisateur relit et envoie lui-même
-  /// depuis Gmail. Si la création du brouillon échoue (permission Gmail
+  /// l'archive sur Drive, puis envoie directement l'e-mail avec le PDF en
+  /// pièce jointe réelle (API Gmail — un simple lien mailto/Gmail-compose ne
+  /// permet aucune pièce jointe). Si l'envoi échoue (permission Gmail
   /// refusée...), on se rabat sur l'ancien lien de composition sans pièce
   /// jointe plutôt que de bloquer l'envoi.
   Future<void> _sendDocument(Member m, {required bool isQuitus}) async {
@@ -364,7 +363,7 @@ class _CotisationsTabState extends State<_CotisationsTab> {
         : capitationCallFileName(m, year);
 
     try {
-      await DriveService.instance.createGmailDraftWithAttachment(
+      await DriveService.instance.sendGmailWithAttachment(
         to: to,
         subject: subject,
         body: body,
@@ -372,15 +371,12 @@ class _CotisationsTabState extends State<_CotisationsTab> {
         attachmentBytes: bytes,
       );
       if (!mounted) return;
-      await openExternalUrl('https://mail.google.com/mail/u/0/#drafts');
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Brouillon créé dans Gmail, avec le PDF en pièce jointe.'),
-        ),
+        const SnackBar(content: Text('E-mail envoyé, avec le PDF en pièce jointe.')),
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Brouillon Gmail impossible ($e) — ouverture sans pièce jointe.')),
+        SnackBar(content: Text('Envoi Gmail impossible ($e) — ouverture sans pièce jointe.')),
       );
       if (!mounted) return;
       await openExternalUrl(emailComposeUrl(to: to, subject: subject, body: body));

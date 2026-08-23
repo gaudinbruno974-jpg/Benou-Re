@@ -425,12 +425,20 @@ class DriveService {
     return currentEmail ?? 'compte Google';
   }
 
-  // ─── Gmail : brouillon avec pièce jointe réelle ──────────────────────
+  // ─── Gmail : envoi ou brouillon, avec pièce jointe réelle ────────────
   // Un lien mailto:/Gmail compose ne permet aucune pièce jointe (limite de
   // ces schémas d'URL, aucun contournement possible) : on passe donc par
-  // l'API Gmail pour créer directement un brouillon contenant le PDF en
-  // pièce jointe. L'utilisateur relit et envoie lui-même depuis Gmail — rien
-  // ne part automatiquement.
+  // l'API Gmail. Le scope gmail.compose déjà accordé couvre aussi bien la
+  // création de brouillons que l'envoi direct (users.messages.send) — pas
+  // de nouvelle autorisation à redemander.
+  //
+  // L'envoi direct (sendGmailWithAttachment) est utilisé pour les envois où
+  // le contenu est entièrement généré (convocations/invitations, documents
+  // de Trésorerie) : avec dix destinataires, créer dix brouillons imposait
+  // de rouvrir et cliquer « Envoyer » dix fois dans Gmail après coup, ce qui
+  // annulait le bénéfice de l'envoi groupé. createGmailDraftWithAttachment
+  // reste disponible si un point d'appel a besoin d'une relecture manuelle
+  // avant envoi.
 
   static const int _mimeLineLength = 76;
 
@@ -534,5 +542,53 @@ class DriveService {
       throw DriveException('Erreur création du brouillon Gmail : ${res.body}');
     }
     return (jsonDecode(res.body)['message']?['id'] as String?) ?? '';
+  }
+
+  /// Envoie directement un e-mail (destinataire, sujet, corps, PDF en pièce
+  /// jointe) — l'utilisateur n'a plus rien à faire dans Gmail ensuite.
+  Future<String> sendGmailWithAttachment({
+    required String to,
+    required String subject,
+    required String body,
+    required String attachmentName,
+    required Uint8List attachmentBytes,
+  }) async {
+    try {
+      return await _sendGmail(to, subject, body, attachmentName, attachmentBytes);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _sendGmail(to, subject, body, attachmentName, attachmentBytes);
+    }
+  }
+
+  Future<String> _sendGmail(
+    String to,
+    String subject,
+    String body,
+    String attachmentName,
+    Uint8List attachmentBytes,
+  ) async {
+    final headers = await _authHeaders();
+    final raw = base64Url.encode(
+      utf8.encode(
+        _buildMimeMessage(
+          to: to,
+          subject: subject,
+          body: body,
+          attachmentName: attachmentName,
+          attachmentBytes: attachmentBytes,
+        ),
+      ),
+    );
+    final res = await http.post(
+      Uri.parse('https://gmail.googleapis.com/gmail/v1/users/me/messages/send'),
+      headers: {...headers, 'Content-Type': 'application/json'},
+      body: jsonEncode({'raw': raw}),
+    );
+    if (res.statusCode != 200) {
+      throw DriveException('Erreur d\'envoi Gmail : ${res.body}');
+    }
+    return (jsonDecode(res.body)['id'] as String?) ?? '';
   }
 }
