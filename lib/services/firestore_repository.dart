@@ -255,8 +255,12 @@ class FirestoreRepository {
   }
 
   /// Écriture publique de la réponse : les règles Firestore limitent cette
-  /// mise à jour aux seuls champs `status` / `agapePresent` / `respondedAt`,
-  /// et uniquement avant expiration du jeton.
+  /// mise à jour aux seuls champs `status` / `agapePresent` / `respondedAt` /
+  /// `applied`, et uniquement avant expiration du jeton. `applied` est
+  /// systématiquement remis à `false` : une réponse modifiée après la
+  /// première (ex. Présent → Absent) doit être reprise par le flux
+  /// d'application automatique (voir AppState._applyPresenceLinks), qui ne
+  /// retraite sinon jamais un jeton déjà marqué appliqué.
   Future<void> submitPresenceResponse(
     String token, {
     required String status,
@@ -265,15 +269,22 @@ class FirestoreRepository {
     final data = <String, dynamic>{
       'status': status,
       'respondedAt': Timestamp.fromDate(DateTime.now()),
+      'applied': false,
     };
     if (agapePresent != null) data['agapePresent'] = agapePresent;
     return _db.collection('presenceLinks').doc(token).update(data);
   }
 
-  /// Écriture publique du décompte de délégation (Flux B) : même portée de
-  /// champs modifiables que [submitPresenceResponse], voir firestore.rules.
+  /// Écriture publique de la réponse d'un dignitaire venant avec une
+  /// délégation (Flux B, rang 3+) : sa propre présence — `status` /
+  /// `recipientAgapePresent`, appliquée automatiquement comme pour un
+  /// dignitaire venant seul — et le décompte de sa délégation, qui reste
+  /// purement informatif (aucune fiche nommée à cocher automatiquement).
+  /// Même portée de champs modifiables que [submitPresenceResponse], voir
+  /// firestore.rules ; `applied` est de même remis à `false` à chaque envoi.
   Future<void> submitDelegationResponse(
     String token, {
+    required String status,
     required int apprentiCount,
     required int compagnonCount,
     required int maitreCount,
@@ -281,6 +292,7 @@ class FirestoreRepository {
     bool? recipientAgapePresent,
   }) {
     return _db.collection('presenceLinks').doc(token).update({
+      'status': status,
       'apprentiCount': apprentiCount,
       'compagnonCount': compagnonCount,
       'maitreCount': maitreCount,
@@ -288,6 +300,7 @@ class FirestoreRepository {
       if (recipientAgapePresent != null)
         'recipientAgapePresent': recipientAgapePresent,
       'respondedAt': Timestamp.fromDate(DateTime.now()),
+      'applied': false,
     });
   }
 
@@ -318,12 +331,16 @@ class FirestoreRepository {
   }
 
   /// Réponses reçues par lien, pas encore répercutées dans la tenue
-  /// concernée (voir AppState, qui applique puis marque `applied`) :
-  /// Flux A (membre) et Flux B d'un dignitaire venant seul (rang 1/2 —
-  /// [PresenceLink.recipientAlone]), tous deux des réponses nominatives.
-  /// Une délégation agrégée (rang 3+/non renseigné) n'alimente en revanche
-  /// aucune fiche nommée et reste hors de ce flux — lue en direct par
-  /// l'écran Invitations via [presenceLinksForSessionStream].
+  /// concernée (voir AppState, qui applique puis marque `applied`) : Flux A
+  /// (membre) et Flux B (dignitaire), qu'il vienne seul (rang 1/2) ou avec
+  /// une délégation (rang 3+) — dans les deux cas sa propre présence
+  /// (`status` / agapes) est une réponse nominative. Seul le décompte de
+  /// délégation d'un dignitaire du rang 3+ n'alimente aucune fiche nommée et
+  /// reste hors de ce flux — lu en direct par l'écran Invitations via
+  /// [presenceLinksForSessionStream]. `applied` est remis à `false` à
+  /// chaque nouvelle soumission (voir submitPresenceResponse /
+  /// submitDelegationResponse), donc une réponse modifiée est reprise ici
+  /// comme la première.
   Stream<List<PresenceLink>> unappliedPresenceLinksStream() {
     return _db
         .collection('presenceLinks')
@@ -332,11 +349,7 @@ class FirestoreRepository {
         .map(
           (snap) => snap.docs
               .map((d) => _presenceLinkFromDoc(d.id, d.data()))
-              .where(
-                (l) =>
-                    l.isAnswered &&
-                    (l.kind == kPresenceLinkKindMember || l.recipientAlone),
-              )
+              .where((l) => l.isAnswered)
               .toList(),
         );
   }

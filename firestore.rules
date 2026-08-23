@@ -112,7 +112,7 @@ service cloud.firestore {
           resource.data.expiresAt > request.time
           && request.resource.data.diff(resource.data).affectedKeys()
                .hasOnly([
-                 'status', 'agapePresent', 'respondedAt',
+                 'status', 'agapePresent', 'respondedAt', 'applied',
                  'apprentiCount', 'compagnonCount', 'maitreCount',
                  'agapeTotal', 'recipientAgapePresent',
                ])

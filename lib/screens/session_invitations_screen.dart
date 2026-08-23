@@ -1116,20 +1116,21 @@ class _DelegationLinkRow extends StatelessWidget {
       final agapeLabel = l.agapePresent == true ? ' + agapes' : '';
       return '$label$agapeLabel';
     }
-    final self = l.recipientAgapePresent;
-    final selfLabel = self == null
-        ? ''
-        : (self ? ' · lui-même : agapes' : ' · lui-même : sans agapes');
-    return '${l.apprentiCount ?? 0}A · ${l.compagnonCount ?? 0}C · '
-        '${l.maitreCount ?? 0}M · ${l.agapeTotal ?? 0} agapes$selfLabel';
+    // Rang 3+ : sa propre présence (pavé 1 de la page de réponse), puis le
+    // décompte de sa délégation (pavé 2) — deux réponses distinctes.
+    final ownLabel = l.status == kPresenceStatusPresent
+        ? 'Présent'
+        : (l.status == kPresenceStatusAbsent ? 'Absent' : 'En attente');
+    final ownAgapeLabel = l.recipientAgapePresent == true ? ' + agapes' : '';
+    return '$ownLabel$ownAgapeLabel · délégation : '
+        '${l.apprentiCount ?? 0}A · ${l.compagnonCount ?? 0}C · '
+        '${l.maitreCount ?? 0}M · ${l.agapeTotal ?? 0} agapes';
   }
 
   Color get _statusColor {
     final l = link;
     if (l == null || !l.isAnswered) return BrColors.muted;
-    if (l.recipientAlone && l.status == kPresenceStatusAbsent) {
-      return BrColors.menuTresorerie;
-    }
+    if (l.status == kPresenceStatusAbsent) return BrColors.menuTresorerie;
     return BrColors.menuVisiteurs;
   }
 

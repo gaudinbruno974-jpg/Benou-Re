@@ -97,11 +97,14 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
   }
 
   Future<void> _submitDelegation() async {
+    final status = _pendingStatus;
+    if (status == null) return;
     setState(() => _submitting = true);
     try {
       final appState = context.read<AppState>();
       await appState.submitDelegationResponse(
         widget.token,
+        status: status,
         apprentiCount: _apprenti,
         compagnonCount: _compagnon,
         maitreCount: _maitre,
@@ -117,6 +120,16 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
         SnackBar(content: Text('Erreur d\'envoi : $e')),
       );
     }
+  }
+
+  bool _canSubmitDelegation() {
+    if (_pendingStatus == null) return false;
+    if (_pendingStatus == kPresenceStatusPresent &&
+        (_link?.hasAgape ?? false) &&
+        _pendingRecipientAgape == null) {
+      return false;
+    }
+    return true;
   }
 
   @override
@@ -312,9 +325,17 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
     return true;
   }
 
+  /// Deux pavés bien distincts pour un dignitaire venant avec une
+  /// délégation (rang 3+) : sa propre présence (pavé 1, mêmes
+  /// fonctionnalités que pour un membre ou un dignitaire venant seul — voir
+  /// [_buildMemberForm]), puis le décompte de sa délégation (pavé 2,
+  /// inchangé). Les deux sont envoyés ensemble par un seul bouton, dans la
+  /// même écriture Firestore.
   Widget _buildDelegationForm(PresenceLink link) {
+    final showOwnAgape = link.hasAgape && _pendingStatus == kPresenceStatusPresent;
     return Column(
       children: [
+        // Pavé 1 — sa propre présence.
         BrCard(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -339,12 +360,6 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
                 'degré, le ${link.sessionDateLabel}',
                 style: const TextStyle(color: BrColors.muted, fontSize: 13),
               ),
-              const SizedBox(height: 10),
-              const Text(
-                'Merci d\'indiquer le nombre de personnes de votre '
-                'délégation présentes à cette tenue, par grade.',
-                style: TextStyle(color: BrColors.muted, fontSize: 12.5),
-              ),
               if (link.isAnswered) ...[
                 const SizedBox(height: 12),
                 Text(
@@ -359,10 +374,39 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
             ],
           ),
         ),
-        if (link.hasAgape) ...[
+        const SizedBox(height: 18),
+        Row(
+          children: [
+            Expanded(
+              child: _ChoiceButton(
+                label: 'Présent',
+                icon: Icons.check_circle_outline,
+                color: BrColors.menuVisiteurs,
+                selected: _pendingStatus == kPresenceStatusPresent,
+                onTap: () => setState(() {
+                  _pendingStatus = kPresenceStatusPresent;
+                }),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ChoiceButton(
+                label: 'Absent',
+                icon: Icons.cancel_outlined,
+                color: BrColors.menuTresorerie,
+                selected: _pendingStatus == kPresenceStatusAbsent,
+                onTap: () => setState(() {
+                  _pendingStatus = kPresenceStatusAbsent;
+                  _pendingRecipientAgape = null;
+                }),
+              ),
+            ),
+          ],
+        ),
+        if (showOwnAgape) ...[
           const SizedBox(height: 18),
           const Text(
-            'Serez-vous vous-même présent(e) aux agapes ?',
+            'Présent aux agapes ?',
             style: TextStyle(color: BrColors.text, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
@@ -390,6 +434,33 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
             ],
           ),
         ],
+        const SizedBox(height: 24),
+
+        // Pavé 2 — sa délégation, distincte de sa présence personnelle
+        // ci-dessus : il peut déléguer des FF∴/SS∴ de sa Loge sans venir en
+        // personne, ou l'inverse.
+        BrCard(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              Text(
+                'Votre délégation',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Merci d\'indiquer le nombre de personnes de votre '
+                'délégation présentes à cette tenue, par grade.',
+                style: TextStyle(color: BrColors.muted, fontSize: 12.5),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 18),
         _CounterField(
           label: 'Apprentis présents en tenue',
@@ -425,8 +496,10 @@ class _PresenceResponseScreenState extends State<PresenceResponseScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.send_outlined),
-            label: const Text('Envoyer le décompte'),
-            onPressed: _submitting ? null : _submitDelegation,
+            label: const Text('Envoyer ma réponse'),
+            onPressed: _canSubmitDelegation() && !_submitting
+                ? _submitDelegation
+                : null,
           ),
         ),
       ],

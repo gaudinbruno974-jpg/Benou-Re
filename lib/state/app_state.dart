@@ -228,8 +228,8 @@ class AppState extends ChangeNotifier {
   }
 
   /// Répercute chaque réponse reçue — Flux A (membre) dans
-  /// `session.presentIds` / `excusedIds` / `agapeIds`, Flux B d'un
-  /// dignitaire venant seul (rang 1/2) dans `session.dignitaryIds` /
+  /// `session.presentIds` / `excusedIds` / `agapeIds`, Flux B (dignitaire,
+  /// qu'il vienne seul ou avec une délégation) dans `session.dignitaryIds` /
   /// `dignitaryAgapeIds` — l'équivalent de ce que fait aujourd'hui le
   /// Secrétaire à la main dans « Présents en tenue » — puis marque le jeton
   /// `applied`. Relit la tenue juste avant chaque écriture (plutôt que de
@@ -261,9 +261,13 @@ class AppState extends ChangeNotifier {
           map['excusedIds'] = excused;
           map['agapeIds'] = agape;
         } else {
-          // Dignitaire venant seul (rang 1/2, link.recipientAlone) :
-          // réponse nominative comme un membre, mais sans liste « excusé »
-          // dédiée — absent revient simplement à ne pas figurer dans
+          // Dignitaire (Flux B) : sa propre présence est toujours une
+          // réponse nominative, qu'il vienne seul (rang 1/2 — agape dans
+          // link.agapePresent, même champ qu'un membre) ou avec une
+          // délégation (rang 3+ — agape dans link.recipientAgapePresent,
+          // distincte du total agrégé de la délégation, jamais appliqué
+          // automatiquement faute de fiches nommées). Sans liste « excusé »
+          // dédiée : absent revient simplement à ne pas figurer dans
           // dignitaryIds.
           final present = List<String>.from(session.dignitaryIds)
             ..remove(link.recipientId);
@@ -271,7 +275,9 @@ class AppState extends ChangeNotifier {
             ..remove(link.recipientId);
           if (link.status == kPresenceStatusPresent) {
             present.add(link.recipientId);
-            if (link.agapePresent == true) agape.add(link.recipientId);
+            final ownAgape =
+                link.recipientAlone ? link.agapePresent : link.recipientAgapePresent;
+            if (ownAgape == true) agape.add(link.recipientId);
           }
           map['dignitaryIds'] = present;
           map['dignitaryAgapeIds'] = agape;
@@ -340,6 +346,7 @@ class AppState extends ChangeNotifier {
   );
   Future<void> submitDelegationResponse(
     String token, {
+    required String status,
     required int apprentiCount,
     required int compagnonCount,
     required int maitreCount,
@@ -347,6 +354,7 @@ class AppState extends ChangeNotifier {
     bool? recipientAgapePresent,
   }) => repo.submitDelegationResponse(
     token,
+    status: status,
     apprentiCount: apprentiCount,
     compagnonCount: compagnonCount,
     maitreCount: maitreCount,
