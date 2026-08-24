@@ -46,6 +46,7 @@ class ParvisScreen extends StatelessWidget {
     final lodge = LodgeConfig.current;
     final isTreasury = canEditTreasury(user) || canEditSessions(user);
     final isVisitors = canEditSessions(user);
+    final isVM = isVenerableMaitre(user);
 
     final items = <_MenuItem>[
       _MenuItem(
@@ -141,7 +142,7 @@ class ParvisScreen extends StatelessWidget {
         'Assiduité & fréquentation',
         Icons.query_stats_outlined,
         BrColors.violet,
-        isVisitors,
+        isVM,
         () => const StatisticsScreen(),
       ),
       _MenuItem(
@@ -149,7 +150,7 @@ class ParvisScreen extends StatelessWidget {
         'Rapport d\'activité PDF',
         Icons.summarize_outlined,
         BrColors.menuArchitecture,
-        isVisitors,
+        isVM,
         () => const ActivityReportScreen(),
       ),
     ];

@@ -82,4 +82,27 @@ void main() {
       expect(canViewDignitaryAnnounce(null), isFalse);
     },
   );
+
+  test(
+    'isVenerableMaitre est plus restrictif que canEditSessions : exclut le Secrétaire',
+    () {
+      expect(
+        isVenerableMaitre(const Member(id: '1', function: 'Vénérable Maître')),
+        isTrue,
+      );
+      expect(
+        isVenerableMaitre(const Member(id: '2', function: 'venerable maitre')),
+        isTrue,
+      );
+      expect(
+        isVenerableMaitre(const Member(id: '3', function: 'Aucun', isAdmin: true)),
+        isTrue,
+      );
+      expect(
+        isVenerableMaitre(const Member(id: '4', function: 'Secrétaire')),
+        isFalse,
+      );
+      expect(isVenerableMaitre(null), isFalse);
+    },
+  );
 }

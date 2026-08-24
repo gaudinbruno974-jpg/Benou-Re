@@ -55,6 +55,15 @@ bool canEditSessions(Member? user) {
   return fn.contains('venerable') || fn.contains('secretaire');
 }
 
+/// V∴M∴ seul (ou administrateur) — plus restrictif que [canEditSessions] :
+/// réservé aux écrans Statistiques, Rapport pour la Grande Loge, et au
+/// déverrouillage ponctuel d'une tenue suspendue.
+bool isVenerableMaitre(Member? user) {
+  if (user == null) return false;
+  if (user.isAdmin) return true;
+  return foldLabel(user.function).contains('venerable');
+}
+
 /// Droit d'édition de la Trésorerie : Trésorier, V∴M∴ ou administrateur.
 bool canEditTreasury(Member? user) {
   if (user == null) return false;

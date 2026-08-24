@@ -475,6 +475,42 @@ class SessionDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 10),
             ],
+            if (isSuspended && isVenerableMaitre(state.currentUser)) ...[
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BrColors.gold,
+                  side: const BorderSide(color: BrColors.gold),
+                ),
+                icon: const Icon(Icons.lock_open_outlined, size: 18),
+                label: const Text('Modifier (déverrouillé)'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SessionEditScreen(
+                      session: session,
+                      forceUnlock: true,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BrColors.gold,
+                  side: const BorderSide(color: BrColors.gold),
+                ),
+                icon: const Icon(Icons.lock_open_outlined, size: 18),
+                label: const Text('Présents en tenue (déverrouillé)'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => SessionPresenceScreen(
+                      sessionId: session.id,
+                      forceUnlock: true,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
                 foregroundColor: BrColors.goldBright,

@@ -45,7 +45,16 @@ const _officeRoleOptions = [
 
 class SessionPresenceScreen extends StatefulWidget {
   final String sessionId;
-  const SessionPresenceScreen({super.key, required this.sessionId});
+
+  /// Déverrouillage ponctuel (V∴M∴) d'une tenue suspendue — voir
+  /// SessionDetailScreen et SessionEditScreen.forceUnlock.
+  final bool forceUnlock;
+
+  const SessionPresenceScreen({
+    super.key,
+    required this.sessionId,
+    this.forceUnlock = false,
+  });
 
   @override
   State<SessionPresenceScreen> createState() => _SessionPresenceScreenState();
@@ -238,7 +247,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     if (!_initialized) _initFrom(session);
     final canEdit = canEditSessions(state.currentUser);
     final isSuspended = session.isSuspended;
-    final allowEdit = canEdit && !isSuspended;
+    final allowEdit = canEdit && (!isSuspended || widget.forceUnlock);
 
     // Un membre ne peut assister qu'aux travaux de son grade ou en dessous.
     // Les membres déjà pointés restent affichés pour ne rien masquer.
@@ -282,7 +291,16 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                 style: TextStyle(color: BrColors.muted, fontSize: 12),
               ),
             ),
-          if (isSuspended)
+          if (isSuspended && widget.forceUnlock)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: Text(
+                'Tenue déverrouillée par le V∴M∴ : modification temporaire, '
+                'le verrou se réactivera à la prochaine ouverture normale.',
+                style: TextStyle(color: BrColors.gold, fontSize: 12),
+              ),
+            ),
+          if (isSuspended && !widget.forceUnlock)
             const Padding(
               padding: EdgeInsets.only(bottom: 8),
               child: Text(

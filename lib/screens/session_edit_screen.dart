@@ -82,7 +82,18 @@ String _ligneCloture(String degre, int ordresCount, String vmName) {
 
 class SessionEditScreen extends StatefulWidget {
   final Session? session;
-  const SessionEditScreen({super.key, this.session});
+
+  /// Déverrouillage ponctuel (V∴M∴) d'une tenue suspendue — voir
+  /// SessionDetailScreen. N'est jamais persisté : si on rouvre cette même
+  /// tenue plus tard sans repasser par le bouton de déverrouillage, elle
+  /// redevient strictement en lecture seule.
+  final bool forceUnlock;
+
+  const SessionEditScreen({
+    super.key,
+    this.session,
+    this.forceUnlock = false,
+  });
 
   @override
   State<SessionEditScreen> createState() => _SessionEditScreenState();
@@ -476,7 +487,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     }
 
     try {
-      int? chrono = existing?.chrono?.toInt() ?? _autoChronoValue;
+      int? chrono = widget.forceUnlock
+          ? (int.tryParse(_chronoController.text.trim()) ??
+                existing?.chrono?.toInt())
+          : (existing?.chrono?.toInt() ?? _autoChronoValue);
       if (existing == null && chrono == null) {
         chrono = await state.allocateSessionChrono();
       }
@@ -554,8 +568,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     }
 
     // Tenue suspendue (classée dans l'onglet « Travaux Suspendus ») :
-    // les travaux ne sont plus modifiables.
-    final readOnly = widget.session?.isSuspended == true;
+    // les travaux ne sont plus modifiables — sauf déverrouillage ponctuel
+    // par le V∴M∴ (forceUnlock, voir SessionDetailScreen).
+    final readOnly = widget.session?.isSuspended == true && !widget.forceUnlock;
 
     return Scaffold(
       appBar: AppBar(
@@ -584,7 +599,12 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               labelBuilder: (d) => '$d (${Session.degreeOrdinal(d)} Degré)',
               enabled: !readOnly,
             ),
-            _field(_chronoController, 'Chrono réservé', enabled: false),
+            _field(
+              _chronoController,
+              widget.forceUnlock ? 'Chrono (déverrouillé)' : 'Chrono réservé',
+              enabled: widget.forceUnlock,
+              keyboard: TextInputType.number,
+            ),
             Row(
               children: [
                 Expanded(child: _dateField()),
