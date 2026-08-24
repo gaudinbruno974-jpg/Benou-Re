@@ -59,6 +59,15 @@ service cloud.firestore {
       allow create, delete: if canEditSessions();
     }
 
+    // Historique d'un membre (élévations de grade, changements de statut) :
+    // mêmes droits que la fiche membre elle-même — le Bureau peut corriger
+    // une erreur de saisie, contrairement à inventoryChecks qui est un
+    // journal jamais modifiable après coup.
+    match /memberEvents/{eventId} {
+      allow read: if signedIn();
+      allow write: if canEditSessions();
+    }
+
     // Tenues : lisibles par tous les membres connectés, modifiables par le
     // bureau (présences, signatures, planche tracée incluses).
     match /sessions/{sessionId} {
@@ -76,6 +85,14 @@ service cloud.firestore {
     // application (voir canViewDignitaryAnnounce), déjà couvert par
     // `signedIn()` — pas de règle Firestore distincte à ajouter pour ça.
     match /dignitaries/{dignitaryId} {
+      allow read: if signedIn();
+      allow write: if canEditSessions();
+    }
+
+    // Registre des Tenues extérieures reçues (Bureau) : mêmes droits que les
+    // tenues de la Loge. La diffusion aux membres passe par presenceLinks
+    // (kind == 'external'), déjà couvert par sa propre règle ci-dessous.
+    match /externalSessions/{externalSessionId} {
       allow read: if signedIn();
       allow write: if canEditSessions();
     }

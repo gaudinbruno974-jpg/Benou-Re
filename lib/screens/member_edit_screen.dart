@@ -15,6 +15,7 @@ import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'member_history_section.dart';
 
 class MemberEditScreen extends StatefulWidget {
   final Member? member;
@@ -422,6 +423,16 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                 ],
               ),
             ),
+            if (!isNew && canGeneratePassportPdf) ...[
+              const SizedBox(height: 24),
+              const BrSectionTitle('HISTORIQUE', icon: Icons.history),
+              const SizedBox(height: 14),
+              MemberHistorySection(
+                member: widget.member!,
+                grades: _grades,
+                statuses: _statuses,
+              ),
+            ],
             const SizedBox(height: 24),
             const BrSectionTitle('COTISATIONS',
                 icon: Icons.account_balance_wallet_outlined),

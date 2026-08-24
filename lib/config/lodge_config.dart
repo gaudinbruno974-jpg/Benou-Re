@@ -188,6 +188,10 @@ class LodgeConfig {
   /// (un fichier par membre, voir drive_service.dart).
   final String passportDriveFolderId;
 
+  /// Dossier Drive dans lequel sont archivés les cartons d'invitation des
+  /// Tenues extérieures reçues (voir drive_service.dart).
+  final String tenuesExterieuresDriveFolderId;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -218,6 +222,7 @@ class LodgeConfig {
     this.treasuryRib = '',
     this.treasuryDriveFolderId = '',
     this.passportDriveFolderId = '',
+    this.tenuesExterieuresDriveFolderId = '',
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -396,6 +401,10 @@ class LodgeConfig {
       passportDriveFolderId: text(
         'passportDriveFolderId',
         passportDriveFolderId,
+      ),
+      tenuesExterieuresDriveFolderId: text(
+        'tenuesExterieuresDriveFolderId',
+        tenuesExterieuresDriveFolderId,
       ),
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),

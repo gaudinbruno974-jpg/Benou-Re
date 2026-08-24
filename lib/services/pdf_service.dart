@@ -29,10 +29,13 @@ import 'package:printing/printing.dart';
 import '../config/lodge_config.dart';
 import '../models/civilite.dart';
 import '../models/dignitary.dart';
+import '../models/external_session.dart';
 import '../models/member.dart';
+import '../models/member_event.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
 import '../utils/name_mask.dart';
+import 'activity_report_service.dart';
 import 'agape_payment_service.dart';
 import 'treasury_document_service.dart'
     show capitationCallBody, quitusBody;
@@ -1950,3 +1953,257 @@ Future<Uint8List> buildPassportPdf(
   );
   return doc.save();
 }
+
+// ══════════════════════════════════════════════════════════════════
+// RAPPORT D'ACTIVITÉ POUR LA GRANDE LOGE
+// ══════════════════════════════════════════════════════════════════
+
+String _fmtDdMmYyyy(DateTime? d) => d == null
+    ? '?'
+    : '${d.day.toString().padLeft(2, '0')}/'
+        '${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+/// Document en lecture seule : n'agrège que ce qui est déjà enregistré
+/// ailleurs (voir activity_report_service.dart), aucune écriture.
+Future<Uint8List> buildActivityReportPdf({
+  required DateTime start,
+  required DateTime end,
+  required List<Member> members,
+  required List<Session> sessions,
+  required List<ExternalSession> externalSessions,
+  required List<Visitor> visitors,
+  required List<Dignitary> dignitaries,
+  required List<MemberEvent> memberEvents,
+}) async {
+  final fonts = await _loadLodgeFonts();
+  final logos = await _loadLogos();
+  final lodge = LodgeConfig.current;
+  final doc = pw.Document();
+
+  final effectifs = computeEffectifsSection(
+    members,
+    memberEvents,
+    start: start,
+    end: end,
+  );
+  final activity = computeActivitySection(
+    members,
+    sessions,
+    externalSessions,
+    visitors,
+    dignitaries,
+    start: start,
+    end: end,
+  );
+  final treasury = computeTreasurySection(members, sessions, start: start, end: end);
+  final planches = computePlancheEntries(sessions, members, start: start, end: end);
+  final planchesByAuthor = planchesCountByAuthor(planches);
+
+  pw.Widget sectionTitle(String text) => pw.Padding(
+    padding: pw.EdgeInsets.only(top: 8 * _mm, bottom: 4 * _mm),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: _navy),
+    ),
+  );
+
+  pw.Widget emptyNote(String text) => pw.Padding(
+    padding: pw.EdgeInsets.only(bottom: 2 * _mm),
+    child: pw.Text(
+      text,
+      style: pw.TextStyle(font: fonts.base, fontSize: 10, color: PdfColors.grey700),
+    ),
+  );
+
+  pw.Widget kvRow(String label, String value) => pw.Padding(
+    padding: pw.EdgeInsets.only(bottom: 1.5 * _mm),
+    child: pw.Row(
+      children: [
+        pw.SizedBox(
+          width: 70 * _mm,
+          child: pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+        ),
+        pw.Expanded(
+          child: pw.Text(value, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+        ),
+      ],
+    ),
+  );
+
+  pw.Widget countTable(Map<String, int> counts) {
+    final entries = counts.entries.toList();
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+      columnWidths: const {0: pw.FlexColumnWidth(60), 1: pw.FlexColumnWidth(20)},
+      children: [
+        for (final e in entries)
+          pw.TableRow(
+            children: [
+              pw.Padding(
+                padding: pw.EdgeInsets.all(2 * _mm),
+                child: pw.Text(e.key, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+              ),
+              pw.Padding(
+                padding: pw.EdgeInsets.all(2 * _mm),
+                child: pw.Text(
+                  '${e.value}',
+                  style: pw.TextStyle(font: fonts.base, fontSize: 10),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.fromLTRB(18 * _mm, 14 * _mm, 18 * _mm, 18 * _mm),
+      theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+      build: (context) => [
+        _lodgeHeader(fonts, logos[0], logos[1]),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Center(
+          child: pw.Text(
+            'RAPPORT D\'ACTIVITÉ — R∴L∴ ${lodge.name}',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
+          ),
+        ),
+        pw.SizedBox(height: 2 * _mm),
+        pw.Center(
+          child: pw.Text(
+            'Période du ${_fmtDdMmYyyy(start)} au ${_fmtDdMmYyyy(end)} '
+            '— édité le ${_fmtDdMmYyyy(DateTime.now())}',
+            style: pw.TextStyle(font: fonts.base, fontSize: 10, color: PdfColors.grey700),
+          ),
+        ),
+
+        // ─── 1. Effectifs ───────────────────────────────────────
+        sectionTitle('1. Effectifs de la Loge'),
+        pw.Text(
+          'Répartition actuelle par grade',
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+        ),
+        pw.SizedBox(height: 2 * _mm),
+        countTable(effectifs.byGrade),
+        pw.SizedBox(height: 4 * _mm),
+        pw.Text(
+          'Répartition actuelle par statut',
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+        ),
+        pw.SizedBox(height: 2 * _mm),
+        countTable(effectifs.byStatus),
+        pw.SizedBox(height: 4 * _mm),
+        kvRow('Nouveaux membres entrés', '${effectifs.newMembers.length}'),
+        for (final m in effectifs.newMembers)
+          pw.Padding(
+            padding: pw.EdgeInsets.only(left: 4 * _mm, bottom: 1 * _mm),
+            child: pw.Text(
+              '• ${m.fullName} — entré le ${m.entryDate}',
+              style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
+            ),
+          ),
+        kvRow('Élévations de grade', '${effectifs.elevations.length}'),
+        for (final e in effectifs.elevations)
+          pw.Padding(
+            padding: pw.EdgeInsets.only(left: 4 * _mm, bottom: 1 * _mm),
+            child: pw.Text(
+              '• ${e.fromValue} → ${e.toValue} (${e.date})',
+              style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
+            ),
+          ),
+        kvRow('Changements de statut', '${effectifs.statusChanges.length}'),
+        for (final e in effectifs.statusChanges)
+          pw.Padding(
+            padding: pw.EdgeInsets.only(left: 4 * _mm, bottom: 1 * _mm),
+            child: pw.Text(
+              '• ${e.fromValue} → ${e.toValue} (${e.date})',
+              style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
+            ),
+          ),
+        if (effectifs.newMembers.isEmpty &&
+            effectifs.elevations.isEmpty &&
+            effectifs.statusChanges.isEmpty)
+          emptyNote('Aucun mouvement (entrée, élévation, changement de statut) enregistré sur la période.'),
+
+        // ─── 2. Activité et assiduité ───────────────────────────
+        sectionTitle('2. Activité et assiduité'),
+        if (activity.sessionsByDegree.isEmpty)
+          emptyNote('Aucune tenue tenue sur la période.')
+        else ...[
+          pw.Text(
+            'Tenues tenues sur la période, par degré',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+          ),
+          pw.SizedBox(height: 2 * _mm),
+          countTable(activity.sessionsByDegree),
+          pw.SizedBox(height: 4 * _mm),
+          kvRow(
+            'Taux de présence moyen',
+            '${(activity.averagePresenceRate * 100).toStringAsFixed(1)} %',
+          ),
+        ],
+        pw.SizedBox(height: 2 * _mm),
+        pw.Text('Rayonnement extérieur', style: pw.TextStyle(font: fonts.bold, fontSize: 10.5)),
+        pw.SizedBox(height: 2 * _mm),
+        kvRow('Visites de membres dans d\'autres Loges', '${activity.externalVisitCount}'),
+        kvRow('Visiteurs distincts reçus', '${activity.distinctVisitorCount}'),
+        kvRow('Dignitaires distincts reçus', '${activity.distinctDignitaryCount}'),
+        if (activity.externalVisitCount == 0 &&
+            activity.distinctVisitorCount == 0 &&
+            activity.distinctDignitaryCount == 0)
+          emptyNote('Aucune tenue extérieure, aucun Visiteur ni Dignitaire enregistré sur la période.')
+        else if (activity.hasMultipleObediences) ...[
+          pw.SizedBox(height: 2 * _mm),
+          pw.Text(
+            'Détail par obédience (Visiteurs + Dignitaires)',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+          ),
+          pw.SizedBox(height: 2 * _mm),
+          countTable(activity.byObedience),
+        ],
+
+        // ─── 3. Trésorerie ───────────────────────────────────────
+        sectionTitle('3. Trésorerie'),
+        kvRow('Cotisation Loge due', _euroLabel(treasury.lodgeDuesTotal)),
+        kvRow('Cotisation Loge versée', _euroLabel(treasury.lodgeDuesPaidTotal)),
+        kvRow('Cotisation Ordre due', _euroLabel(treasury.orderDuesTotal)),
+        kvRow('Cotisation Ordre versée', _euroLabel(treasury.orderDuesPaidTotal)),
+        kvRow('Tronc de la Veuve récolté', _euroLabel(treasury.troncTotal)),
+
+        // ─── 4. Planches tracées étudiées ───────────────────────
+        sectionTitle('4. Planches tracées étudiées'),
+        if (planches.isEmpty)
+          emptyNote('Aucune planche identifiée sur la période.')
+        else ...[
+          kvRow('Total de planches présentées', '${planches.length}'),
+          pw.SizedBox(height: 2 * _mm),
+          for (final p in planches)
+            pw.Padding(
+              padding: pw.EdgeInsets.only(bottom: 2 * _mm),
+              child: pw.Text(
+                '${p.sessionLabel} — '
+                '${p.title.isEmpty ? '(sans titre)' : '« ${p.title} »'} — '
+                '${p.authorName.isEmpty ? 'auteur non retrouvé' : p.authorName}',
+                style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
+              ),
+            ),
+          if (planchesByAuthor.length > 1) ...[
+            pw.SizedBox(height: 2 * _mm),
+            pw.Text(
+              'Sous-total par auteur',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+            ),
+            pw.SizedBox(height: 2 * _mm),
+            countTable(planchesByAuthor),
+          ],
+        ],
+      ],
+    ),
+  );
+  return doc.save();
+}
+
+String _euroLabel(num v) => '${v.toStringAsFixed(2)} €';

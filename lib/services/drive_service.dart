@@ -250,7 +250,8 @@ class DriveService {
     }
   }
 
-  Future<void> _uploadFile(
+  /// Renvoie l'identifiant du fichier Drive créé (ou mis à jour).
+  Future<String> _uploadFile(
     Map<String, String> headers,
     String folderId,
     String fileName,
@@ -269,7 +270,7 @@ class DriveService {
       if (res.statusCode != 200) {
         throw DriveException('Erreur mise à jour « $fileName » : ${res.body}');
       }
-      return;
+      return existingId;
     }
 
     const boundary = 'benoure_drive_boundary';
@@ -302,6 +303,7 @@ class DriveService {
     if (res.statusCode != 200) {
       throw DriveException('Erreur upload « $fileName » : ${res.body}');
     }
+    return (jsonDecode(res.body)['id'] as String?) ?? '';
   }
 
   /// Archive une liste de PDF dans le dossier de la tenue.
@@ -425,6 +427,84 @@ class DriveService {
     return currentEmail ?? 'compte Google';
   }
 
+  /// Archive le carton d'une Tenue extérieure reçue (Registre des Tenues
+  /// extérieures), un fichier par invitation, directement dans le dossier
+  /// configuré — voir [LodgeConfig.tenuesExterieuresDriveFolderId]. Renvoie
+  /// l'identifiant du fichier (pour le rejoindre plus tard au mail de
+  /// diffusion, voir [downloadFile]) et le lien Drive direct pour l'ouvrir
+  /// depuis le détail de l'invitation.
+  Future<({String fileId, String url})> archiveExternalSessionAttachment({
+    required String fileName,
+    required Uint8List bytes,
+    String contentType = 'application/pdf',
+  }) async {
+    final folderId = LodgeConfig.current.tenuesExterieuresDriveFolderId.trim();
+    if (folderId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive de Tenues extérieures configuré pour cette '
+        'Loge (tenuesExterieuresDriveFolderId).',
+      );
+    }
+    try {
+      return await _archiveExternalSessionAttachment(
+        folderId,
+        fileName,
+        bytes,
+        contentType,
+      );
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archiveExternalSessionAttachment(
+        folderId,
+        fileName,
+        bytes,
+        contentType,
+      );
+    }
+  }
+
+  Future<({String fileId, String url})> _archiveExternalSessionAttachment(
+    String folderId,
+    String fileName,
+    Uint8List bytes,
+    String contentType,
+  ) async {
+    final headers = await _authHeaders();
+    final fileId = await _uploadFile(
+      headers,
+      folderId,
+      fileName,
+      bytes,
+      contentType: contentType,
+    );
+    return (fileId: fileId, url: 'https://drive.google.com/file/d/$fileId/view');
+  }
+
+  /// Retélécharge le contenu d'un fichier Drive (le carton d'une Tenue
+  /// extérieure, pour le rejoindre au mail de diffusion aux membres).
+  Future<Uint8List> downloadFile(String fileId) async {
+    try {
+      return await _downloadFile(fileId);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _downloadFile(fileId);
+    }
+  }
+
+  Future<Uint8List> _downloadFile(String fileId) async {
+    final headers = await _authHeaders();
+    final res = await http.get(
+      Uri.parse('https://www.googleapis.com/drive/v3/files/$fileId?alt=media'),
+      headers: headers,
+    );
+    if (res.statusCode != 200) {
+      throw DriveException('Erreur téléchargement Drive : ${res.body}');
+    }
+    return res.bodyBytes;
+  }
+
   // ─── Gmail : envoi ou brouillon, avec pièce jointe réelle ────────────
   // Un lien mailto:/Gmail compose ne permet aucune pièce jointe (limite de
   // ces schémas d'URL, aucun contournement possible) : on passe donc par
@@ -460,14 +540,21 @@ class DriveService {
   static String _encodedSubject(String subject) =>
       '=?UTF-8?B?${base64.encode(utf8.encode(subject))}?=';
 
+  /// [attachmentName]/[attachmentBytes] facultatifs : certains envois (une
+  /// Tenue extérieure enregistrée sans carton scanné) n'ont simplement rien
+  /// à joindre — le message reste alors un simple texte, sans partie
+  /// attachment.
   String _buildMimeMessage({
     required String to,
     required String subject,
     required String body,
-    required String attachmentName,
-    required Uint8List attachmentBytes,
+    String? attachmentName,
+    Uint8List? attachmentBytes,
+    String attachmentContentType = 'application/pdf',
   }) {
     const boundary = 'benoure_gmail_boundary';
+    final hasAttachment =
+        attachmentName != null && attachmentBytes != null && attachmentBytes.isNotEmpty;
     return 'To: $to\r\n'
         'Subject: ${_encodedSubject(subject)}\r\n'
         'MIME-Version: 1.0\r\n'
@@ -478,12 +565,12 @@ class DriveService {
         'Content-Transfer-Encoding: base64\r\n'
         '\r\n'
         '${_wrapBase64(base64.encode(utf8.encode(body)))}'
-        '--$boundary\r\n'
-        'Content-Type: application/pdf; name="$attachmentName"\r\n'
-        'Content-Disposition: attachment; filename="$attachmentName"\r\n'
-        'Content-Transfer-Encoding: base64\r\n'
-        '\r\n'
-        '${_wrapBase64(base64.encode(attachmentBytes))}'
+        '${!hasAttachment ? '' : '--$boundary\r\n'
+            'Content-Type: $attachmentContentType; name="$attachmentName"\r\n'
+            'Content-Disposition: attachment; filename="$attachmentName"\r\n'
+            'Content-Transfer-Encoding: base64\r\n'
+            '\r\n'
+            '${_wrapBase64(base64.encode(attachmentBytes))}'}'
         '--$boundary--';
   }
 
@@ -544,21 +631,38 @@ class DriveService {
     return (jsonDecode(res.body)['message']?['id'] as String?) ?? '';
   }
 
-  /// Envoie directement un e-mail (destinataire, sujet, corps, PDF en pièce
-  /// jointe) — l'utilisateur n'a plus rien à faire dans Gmail ensuite.
+  /// Envoie directement un e-mail (destinataire, sujet, corps, pièce jointe
+  /// facultative — PDF par défaut, ou une photo pour le carton d'une Tenue
+  /// extérieure ; `null` pour un simple texte sans pièce jointe) —
+  /// l'utilisateur n'a plus rien à faire dans Gmail ensuite.
   Future<String> sendGmailWithAttachment({
     required String to,
     required String subject,
     required String body,
-    required String attachmentName,
-    required Uint8List attachmentBytes,
+    String? attachmentName,
+    Uint8List? attachmentBytes,
+    String attachmentContentType = 'application/pdf',
   }) async {
     try {
-      return await _sendGmail(to, subject, body, attachmentName, attachmentBytes);
+      return await _sendGmail(
+        to,
+        subject,
+        body,
+        attachmentName,
+        attachmentBytes,
+        attachmentContentType,
+      );
     } on DriveException catch (e) {
       if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
       _webToken = null;
-      return _sendGmail(to, subject, body, attachmentName, attachmentBytes);
+      return _sendGmail(
+        to,
+        subject,
+        body,
+        attachmentName,
+        attachmentBytes,
+        attachmentContentType,
+      );
     }
   }
 
@@ -566,8 +670,9 @@ class DriveService {
     String to,
     String subject,
     String body,
-    String attachmentName,
-    Uint8List attachmentBytes,
+    String? attachmentName,
+    Uint8List? attachmentBytes,
+    String attachmentContentType,
   ) async {
     final headers = await _authHeaders();
     final raw = base64Url.encode(
@@ -576,6 +681,7 @@ class DriveService {
           to: to,
           subject: subject,
           body: body,
+          attachmentContentType: attachmentContentType,
           attachmentName: attachmentName,
           attachmentBytes: attachmentBytes,
         ),

@@ -165,10 +165,12 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
     final lodgeSuggestions = distinctSuggestions([
       for (final v in state.visitors) v.lodge,
       for (final d in state.dignitaries) d.lodge,
+      for (final e in state.externalSessions) e.organizingLodge,
     ]);
     final obedienceSuggestions = distinctSuggestions([
       for (final v in state.visitors) v.obedience,
       for (final d in state.dignitaries) d.obedience,
+      for (final e in state.externalSessions) e.obedience,
     ]);
 
     final first = TextEditingController(text: visitor?.firstName ?? '');

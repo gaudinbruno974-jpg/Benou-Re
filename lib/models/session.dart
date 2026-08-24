@@ -1,4 +1,5 @@
 // Modèle d'une tenue / session (porté depuis src/types.ts -> Session).
+import 'agenda_item.dart';
 import 'member.dart';
 
 List<String> _stringList(dynamic v) {
@@ -242,6 +243,22 @@ class Session {
   String? get plancheSecretarySignature => _s('plancheSecretarySignature');
 
   List<String> get ordresJour => _stringList(extra['ordresJour']);
+
+  /// Version typée de [ordresJour] (point simple / planche avec auteur) —
+  /// lit `extra['agendaItems']` si présent (tenues créées avec ce typage),
+  /// sinon se rabat sur [ordresJour] en enveloppant chaque ligne en point
+  /// simple sans auteur : une tenue déjà enregistrée avant ce typage compte
+  /// donc simplement 0 planche identifiée, sans erreur ni migration.
+  List<AgendaItem> get agendaItems {
+    final raw = extra['agendaItems'];
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((m) => AgendaItem.fromMap(Map<String, dynamic>.from(m)))
+          .toList();
+    }
+    return ordresJour.map((t) => AgendaItem(text: t)).toList();
+  }
   List<String> get plancheTravauxNotes => _stringList(extra['plancheTravauxNotes']);
 
   /// Membres annoncés présents aux agapes (réponses au sondage WhatsApp).

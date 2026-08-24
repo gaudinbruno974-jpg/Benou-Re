@@ -8,9 +8,12 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'dignitaries_screen.dart';
+import 'activity_report_screen.dart';
+import 'external_sessions_screen.dart';
 import 'inventory_screen.dart';
 import 'members_screen.dart';
 import 'sessions_screen.dart';
+import 'statistics_screen.dart';
 import 'visitors_screen.dart';
 import 'treasury_screen.dart';
 import 'library_screen.dart';
@@ -60,6 +63,14 @@ class ParvisScreen extends StatelessWidget {
         BrColors.teal,
         true,
         () => const SessionsScreen(),
+      ),
+      _MenuItem(
+        'Tenues extérieures',
+        '${state.externalSessions.where((s) => !s.isPast).length} à venir',
+        Icons.outbound_outlined,
+        BrColors.gold,
+        isVisitors,
+        () => const ExternalSessionsScreen(),
       ),
       _MenuItem(
         'Visiteurs',
@@ -124,6 +135,22 @@ class ParvisScreen extends StatelessWidget {
         BrColors.menuTresorerie,
         isTreasury,
         () => const AgapePaymentSessionsScreen(),
+      ),
+      _MenuItem(
+        'Statistiques',
+        'Assiduité & fréquentation',
+        Icons.query_stats_outlined,
+        BrColors.violet,
+        isVisitors,
+        () => const StatisticsScreen(),
+      ),
+      _MenuItem(
+        'Rapport pour la Grande Loge',
+        'Rapport d\'activité PDF',
+        Icons.summarize_outlined,
+        BrColors.menuArchitecture,
+        isVisitors,
+        () => const ActivityReportScreen(),
       ),
     ];
     final visibleItems = items.where((i) => i.visible).toList();

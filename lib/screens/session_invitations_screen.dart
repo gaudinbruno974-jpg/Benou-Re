@@ -21,7 +21,7 @@ import '../models/member.dart';
 import '../models/preferred_contact.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
-import '../services/drive_service.dart';
+import '../services/bulk_email_service.dart';
 import '../services/email_link.dart';
 import '../services/invitation_service.dart';
 import '../services/pdf_service.dart';
@@ -30,65 +30,6 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import '../widgets/directory_filter.dart';
-
-/// Résultat d'un envoi groupé (voir _sendBulkGmails) : un e-mail séparé et
-/// personnalisé par destinataire, jamais un CCI unique — le lien de réponse
-/// (et le montant, pour la Trésorerie) est propre à chacun.
-class _BulkSendResult {
-  final int sent;
-  final int skippedNoEmail;
-  final int failed;
-  const _BulkSendResult({
-    required this.sent,
-    required this.skippedNoEmail,
-    required this.failed,
-  });
-
-  String get summary {
-    final parts = <String>['$sent e-mail(s) envoyé(s)'];
-    if (skippedNoEmail > 0) {
-      parts.add('$skippedNoEmail ignoré(s) (pas d\'e-mail)');
-    }
-    if (failed > 0) parts.add('$failed échec(s)');
-    return '${parts.join(', ')}.';
-  }
-}
-
-/// Envoie directement un e-mail par destinataire (même PDF joint à chacun,
-/// texte et lien de réponse propres à chacun) — voir treasury_screen.dart
-/// pour le même principe côté Trésorerie. Envoi réel, pas un brouillon : le
-/// contenu est entièrement généré, une relecture individuelle dans Gmail
-/// n'apporterait rien et obligerait à cliquer « Envoyer » une fois par
-/// destinataire après coup.
-Future<_BulkSendResult> _sendBulkGmails({
-  required Uint8List pdfBytes,
-  required String attachmentName,
-  required List<({String email, String subject, String body})> recipients,
-  required void Function(int done, int total) onProgress,
-}) async {
-  var sent = 0, skipped = 0, failed = 0, done = 0;
-  for (final r in recipients) {
-    done++;
-    onProgress(done, recipients.length);
-    if (r.email.trim().isEmpty) {
-      skipped++;
-      continue;
-    }
-    try {
-      await DriveService.instance.sendGmailWithAttachment(
-        to: r.email.trim(),
-        subject: r.subject,
-        body: r.body,
-        attachmentName: attachmentName,
-        attachmentBytes: pdfBytes,
-      );
-      sent++;
-    } catch (_) {
-      failed++;
-    }
-  }
-  return _BulkSendResult(sent: sent, skippedNoEmail: skipped, failed: failed);
-}
 
 class SessionInvitationsScreen extends StatefulWidget {
   final String sessionId;
@@ -374,7 +315,7 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
             ),
           ),
       ];
-      final result = await _sendBulkGmails(
+      final result = await sendBulkGmails(
         pdfBytes: pdfBytes,
         attachmentName: 'Convocation_Tenue_${widget.chrono}.pdf',
         recipients: recipients,
@@ -816,7 +757,7 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
             ),
           ),
       ];
-      final result = await _sendBulkGmails(
+      final result = await sendBulkGmails(
         pdfBytes: pdfBytes,
         attachmentName: 'Convocation_Tenue_${widget.chrono}.pdf',
         recipients: recipientsToSend,

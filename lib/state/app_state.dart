@@ -6,9 +6,11 @@ import 'package:flutter/foundation.dart';
 
 import '../config/lodge_config.dart';
 import '../models/dignitary.dart';
+import '../models/external_session.dart';
 import '../models/inventory_check.dart';
 import '../models/inventory_item.dart';
 import '../models/member.dart';
+import '../models/member_event.dart';
 import '../models/passport_token.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
@@ -33,6 +35,8 @@ class AppState extends ChangeNotifier {
   List<Dignitary> dignitaries = [];
   List<InventoryItem> inventoryItems = [];
   List<InventoryCheck> inventoryChecks = [];
+  List<ExternalSession> externalSessions = [];
+  List<MemberEvent> memberEvents = [];
   Member? currentUser;
 
   /// Nom du V∴M∴ en charge, lu dans `config/settings`.
@@ -52,6 +56,8 @@ class AppState extends ChangeNotifier {
   StreamSubscription? _dignitariesSub;
   StreamSubscription? _inventoryItemsSub;
   StreamSubscription? _inventoryChecksSub;
+  StreamSubscription? _externalSessionsSub;
+  StreamSubscription? _memberEventsSub;
   StreamSubscription? _vmNameSub;
   StreamSubscription? _lodgeConfigSub;
   StreamSubscription? _presenceLinksSub;
@@ -120,6 +126,20 @@ class AppState extends ChangeNotifier {
       },
       onError: _onStreamError,
     );
+    _externalSessionsSub = repo.externalSessionsStream().listen(
+      (data) {
+        externalSessions = data;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
+    _memberEventsSub = repo.memberEventsStream().listen(
+      (data) {
+        memberEvents = data;
+        notifyListeners();
+      },
+      onError: _onStreamError,
+    );
     _vmNameSub = repo.lodgeVmNameStream().listen(
       (name) {
         lodgeVmName = name;
@@ -146,6 +166,8 @@ class AppState extends ChangeNotifier {
     _dignitariesSub?.cancel();
     _inventoryItemsSub?.cancel();
     _inventoryChecksSub?.cancel();
+    _externalSessionsSub?.cancel();
+    _memberEventsSub?.cancel();
     _vmNameSub?.cancel();
     _lodgeConfigSub?.cancel();
     _presenceLinksSub?.cancel();
@@ -155,6 +177,8 @@ class AppState extends ChangeNotifier {
     _dignitariesSub = null;
     _inventoryItemsSub = null;
     _inventoryChecksSub = null;
+    _externalSessionsSub = null;
+    _memberEventsSub = null;
     _vmNameSub = null;
     _lodgeConfigSub = null;
     _presenceLinksSub = null;
@@ -164,6 +188,8 @@ class AppState extends ChangeNotifier {
     dignitaries = [];
     inventoryItems = [];
     inventoryChecks = [];
+    externalSessions = [];
+    memberEvents = [];
     lodgeVmName = '';
     // Retour au repli du flavor : l'écran de connexion doit afficher l'identité
     // de la Loge sans dépendre d'une session ouverte.
@@ -230,14 +256,27 @@ class AppState extends ChangeNotifier {
   /// Répercute chaque réponse reçue — Flux A (membre) dans
   /// `session.presentIds` / `excusedIds` / `agapeIds`, Flux B (dignitaire,
   /// qu'il vienne seul ou avec une délégation) dans `session.dignitaryIds` /
-  /// `dignitaryAgapeIds` — l'équivalent de ce que fait aujourd'hui le
-  /// Secrétaire à la main dans « Présents en tenue » — puis marque le jeton
-  /// `applied`. Relit la tenue juste avant chaque écriture (plutôt que de
-  /// partir de [sessions], potentiellement périmé) pour rester correct si
-  /// plusieurs réponses arrivent pour la même tenue dans un seul lot.
+  /// `dignitaryAgapeIds`, Flux C (membre invité à une Tenue extérieure —
+  /// voir external_session.dart) dans `externalSession.attendingMemberIds`
+  /// — l'équivalent de ce que fait aujourd'hui le Secrétaire à la main dans
+  /// « Présents en tenue » — puis marque le jeton `applied`. Relit la
+  /// tenue/l'invitation juste avant chaque écriture (plutôt que de partir de
+  /// [sessions]/[externalSessions], potentiellement périmés) pour rester
+  /// correct si plusieurs réponses arrivent pour la même tenue dans un seul
+  /// lot.
   Future<void> _applyPresenceLinks(List<PresenceLink> links) async {
     for (final link in links) {
       try {
+        if (link.kind == kPresenceLinkKindExternal) {
+          final external = await repo.getExternalSession(link.sessionId);
+          if (external == null) {
+            await repo.markPresenceLinkApplied(link.id);
+            continue;
+          }
+          await repo.setExternalSession(applyExternalResponse(external, link));
+          await repo.markPresenceLinkApplied(link.id);
+          continue;
+        }
         final session = await repo.getSession(link.sessionId);
         if (session == null) {
           await repo.markPresenceLinkApplied(link.id);
@@ -379,6 +418,28 @@ class AppState extends ChangeNotifier {
   Future<void> addDignitary(Dignitary d) => repo.setDignitary(d);
   Future<void> updateDignitary(Dignitary d) => repo.setDignitary(d);
   Future<void> deleteDignitary(String id) => repo.deleteDignitary(id);
+
+  // Registre des Tenues extérieures
+  Future<void> addExternalSession(ExternalSession s) =>
+      repo.setExternalSession(s);
+  Future<void> updateExternalSession(ExternalSession s) =>
+      repo.setExternalSession(s);
+  Future<void> deleteExternalSession(String id) =>
+      repo.deleteExternalSession(id);
+
+  /// Enregistre un événement d'historique (élévation de grade ou changement
+  /// de statut) et met à jour le grade/statut courant du membre dans la
+  /// même action — une seule saisie, jamais désynchronisée entre la fiche
+  /// et l'historique.
+  Future<void> logMemberEvent(Member member, MemberEvent event) async {
+    await repo.setMemberEvent(event);
+    final updated = event.type == kMemberEventElevation
+        ? member.copyWith(grade: event.toValue)
+        : member.copyWith(status: event.toValue);
+    await repo.setMember(updated);
+  }
+
+  Future<void> deleteMemberEvent(String id) => repo.deleteMemberEvent(id);
 
   @override
   void dispose() {

@@ -4,9 +4,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../config/lodge_config.dart';
 import '../models/dignitary.dart';
+import '../models/external_session.dart';
 import '../models/inventory_check.dart';
 import '../models/inventory_item.dart';
 import '../models/member.dart';
+import '../models/member_event.dart';
 import '../models/passport_token.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
@@ -46,6 +48,23 @@ class FirestoreRepository {
     return Member.fromMap(d.id, d.data());
   }
 
+  // ─── Historique des membres (élévations, changements de statut) ─
+  Stream<List<MemberEvent>> memberEventsStream() {
+    return _db.collection('memberEvents').snapshots().map(
+          (snap) => snap.docs
+              .map((d) => MemberEvent.fromMap(d.id, d.data()))
+              .toList(),
+        );
+  }
+
+  Future<void> setMemberEvent(MemberEvent event) {
+    return _db.collection('memberEvents').doc(event.id).set(event.toMap());
+  }
+
+  Future<void> deleteMemberEvent(String id) {
+    return _db.collection('memberEvents').doc(id).delete();
+  }
+
   // ─── Sessions ─────────────────────────────────────────────────
   Stream<List<Session>> sessionsStream() {
     return _db.collection('sessions').snapshots().map((snap) {
@@ -75,6 +94,41 @@ class FirestoreRepository {
     final doc = await _db.collection('sessions').doc(id).get();
     if (!doc.exists) return null;
     return Session.fromMap(doc.id, doc.data()!);
+  }
+
+  // ─── Registre des Tenues extérieures ────────────────────────────
+  Stream<List<ExternalSession>> externalSessionsStream() {
+    return _db.collection('externalSessions').snapshots().map((snap) {
+      final items = snap.docs
+          .map((d) => ExternalSession.fromMap(d.id, d.data()))
+          .toList();
+      items.sort((a, b) {
+        final ta = a.dateTime?.millisecondsSinceEpoch ?? 0;
+        final tb = b.dateTime?.millisecondsSinceEpoch ?? 0;
+        return ta.compareTo(tb); // plus proche en premier
+      });
+      return items;
+    });
+  }
+
+  Future<void> setExternalSession(ExternalSession session) {
+    return _db
+        .collection('externalSessions')
+        .doc(session.id)
+        .set(session.toMap());
+  }
+
+  Future<void> deleteExternalSession(String id) {
+    return _db.collection('externalSessions').doc(id).delete();
+  }
+
+  /// Lecture ponctuelle (hors flux temps réel), utilisée par la
+  /// synchronisation des réponses reçues par lien (voir AppState) pour
+  /// repartir d'un état à jour avant chaque écriture.
+  Future<ExternalSession?> getExternalSession(String id) async {
+    final doc = await _db.collection('externalSessions').doc(id).get();
+    if (!doc.exists) return null;
+    return ExternalSession.fromMap(doc.id, doc.data()!);
   }
 
   // ─── Visitors ─────────────────────────────────────────────────

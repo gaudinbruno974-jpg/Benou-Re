@@ -35,7 +35,7 @@ String _degreOrdinal(String degre) => Session.degreeOrdinal(degre);
 /// treasury_document_service.dart), pour une formule plus conviviale ici ;
 /// repli sur la formule collective d'origine sinon (diffusion sans
 /// destinataire nommément identifié).
-String _greeting({required String civilite, required String firstName}) {
+String presenceGreeting({required String civilite, required String firstName}) {
   final name = firstName.trim();
   if (name.isEmpty) return 'Très Chers Frères, Très Chères Sœurs,';
   if (civilite == kSoeur) return 'Ma Bien Aimée Sœur $name,';
@@ -197,7 +197,7 @@ Member? _findSecretary(List<Member> members) =>
 
 /// Corps du mail/message envoyé à un membre de la Loge, avec son lien de
 /// réponse personnel inséré. Le destinataire est salué nommément dès que sa
-/// civilité est renseignée (voir [_greeting]), sinon la formule collective
+/// civilité est renseignée (voir [presenceGreeting]), sinon la formule collective
 /// d'origine est conservée.
 String memberConvocationBody(
   Session session,
@@ -208,7 +208,7 @@ String memberConvocationBody(
   Member? recipient,
 }) {
   final secretary = _findSecretary(members);
-  final greeting = _greeting(
+  final greeting = presenceGreeting(
     civilite: recipient?.civilite ?? '',
     firstName: recipient?.firstName ?? '',
   );
@@ -238,7 +238,7 @@ String dignitaryInvitationBody(
   Dignitary? recipient,
 }) {
   final secretary = _findSecretary(members);
-  final greeting = _greeting(
+  final greeting = presenceGreeting(
     civilite: recipient?.civilite ?? '',
     firstName: recipient?.firstName ?? '',
   );

@@ -14,6 +14,14 @@ import 'dart:math';
 const String kPresenceLinkKindMember = 'member';
 const String kPresenceLinkKindDelegation = 'delegation';
 
+/// Flux C : un membre de la Loge courante, invité à une Tenue extérieure
+/// enregistrée dans le Registre des Tenues extérieures (voir
+/// external_session.dart) — réponse nominative Présent/Absent comme le
+/// Flux A, mais sans volet Agapes (`hasAgape` toujours faux) puisque ce
+/// n'est pas une tenue organisée par la Loge courante. `sessionId` porte
+/// alors l'identifiant du document `externalSessions`, pas d'une `Session`.
+const String kPresenceLinkKindExternal = 'external';
+
 const String kPresenceStatusPending = 'en_attente';
 const String kPresenceStatusPresent = 'present';
 const String kPresenceStatusAbsent = 'absent';

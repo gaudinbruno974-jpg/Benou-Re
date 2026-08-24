@@ -17,6 +17,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
+import '../models/agenda_item.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../state/app_state.dart';
@@ -34,6 +35,24 @@ const _sessionTypes = [
 ];
 const _degrees = kGrades;
 const _repasTypes = ['Agape avec médaille', 'Agape partage', 'Agape offerte'];
+
+/// Un point d'ordre du jour complémentaire en cours d'édition : le
+/// contrôleur porte la ligne affichée/imprimée (déjà composée et tronquée
+/// pour une planche, voir agendaPlancheLine), type/authorId/title ne
+/// servent qu'à ré-ouvrir la boîte de configuration et à retrouver l'auteur
+/// réel côté Statistiques/Rapport (agendaItems, voir session.dart).
+class _OrdreRow {
+  final TextEditingController controller;
+  String type;
+  String authorId;
+  String title;
+  _OrdreRow({
+    required this.controller,
+    this.type = kAgendaItemSimple,
+    this.authorId = '',
+    this.title = '',
+  });
+}
 
 // ─── Générateurs de textes (portés de SessionsList.tsx) ──────────────────
 // Le V∴M∴ mentionné est celui qui préside réellement les travaux : résolu
@@ -80,7 +99,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   late final TextEditingController _t4;
   late final TextEditingController _cloture;
   late final TextEditingController _medaille;
-  late final List<TextEditingController> _ordres;
+  late final List<_OrdreRow> _ordres;
 
   late String _type;
   late String _degree;
@@ -123,12 +142,18 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       text: (s?.montantMedaille ?? 0) > 0 ? '${s!.montantMedaille}' : '',
     );
 
-    final ordres = (s?.ordresJour ?? const <String>[])
-        .where((o) => o.trim().isNotEmpty)
+    final items = (s?.agendaItems ?? const <AgendaItem>[])
+        .where((i) => i.text.trim().isNotEmpty)
         .toList();
     _ordres = [
-      for (final o in ordres) TextEditingController(text: o),
-      if (ordres.isEmpty) TextEditingController(),
+      for (final i in items)
+        _OrdreRow(
+          controller: TextEditingController(text: i.text),
+          type: i.type,
+          authorId: i.authorId,
+          title: i.title,
+        ),
+      if (items.isEmpty) _OrdreRow(controller: TextEditingController()),
     ];
 
     _type = _ensure(s?.typeTenue ?? s?.type, 'Ordinaire');
@@ -188,9 +213,11 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       _t4,
       _cloture,
       _medaille,
-      ..._ordres,
     ]) {
       c.dispose();
+    }
+    for (final r in _ordres) {
+      r.controller.dispose();
     }
     super.dispose();
   }
@@ -198,7 +225,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   /// Une Tenue existante garde sa date : le dossier Drive porte cette date.
   bool get _dateLocked => widget.session != null;
 
-  int get _ordresCount => _ordres.where((c) => c.text.trim().isNotEmpty).length;
+  int get _ordresCount =>
+      _ordres.where((r) => r.controller.text.trim().isNotEmpty).length;
 
   /// Nom du V∴M∴ actuellement en charge, résolu comme pour la planche
   /// tracée (config/settings, sinon la fiche membre portant l'office), et
@@ -226,6 +254,114 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
 
   void _regenerateCloture() {
     _cloture.text = _ligneCloture(_degree, _ordresCount, _currentVmName);
+  }
+
+  /// Boîte de configuration d'un point d'ordre du jour complémentaire :
+  /// bascule Point simple / Planche, et pour une planche, choix de l'auteur
+  /// (un membre de la Loge, jamais un Visiteur ni un Dignitaire) et titre
+  /// facultatif. La ligne affichée est recomposée à l'enregistrement — la
+  /// saisie libre n'est proposée que pour un point simple.
+  Future<void> _configureRow(int index) async {
+    final row = _ordres[index];
+    final members = List<Member>.from(context.read<AppState>().members)
+      ..sort((a, b) => a.fullName.compareTo(b.fullName));
+    String type = row.type;
+    String authorId = row.authorId;
+    final titleController = TextEditingController(text: row.title);
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: BrColors.surface,
+              title: const Text('Configurer ce point'),
+              content: SizedBox(
+                width: 420,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(
+                          value: kAgendaItemSimple,
+                          label: Text('Point simple'),
+                          icon: Icon(Icons.short_text, size: 16),
+                        ),
+                        ButtonSegment(
+                          value: kAgendaItemPlanche,
+                          label: Text('Planche'),
+                          icon: Icon(Icons.menu_book_outlined, size: 16),
+                        ),
+                      ],
+                      selected: {type},
+                      onSelectionChanged: (s) =>
+                          setDialogState(() => type = s.first),
+                    ),
+                    if (type == kAgendaItemPlanche) ...[
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<String>(
+                        initialValue: authorId.isEmpty ? null : authorId,
+                        dropdownColor: BrColors.surface,
+                        decoration: const InputDecoration(labelText: 'Auteur'),
+                        items: [
+                          for (final m in members)
+                            DropdownMenuItem(value: m.id, child: Text(m.fullName)),
+                        ],
+                        onChanged: (v) =>
+                            setDialogState(() => authorId = v ?? ''),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: titleController,
+                        style: const TextStyle(color: BrColors.text),
+                        decoration: const InputDecoration(
+                          labelText: 'Titre (facultatif)',
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Annuler'),
+                ),
+                FilledButton(
+                  onPressed: (type == kAgendaItemPlanche && authorId.isEmpty)
+                      ? null
+                      : () => Navigator.pop(dialogContext, true),
+                  child: const Text('Enregistrer'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (result == true) {
+      setState(() {
+        row.type = type;
+        if (type == kAgendaItemPlanche) {
+          row.authorId = authorId;
+          row.title = titleController.text.trim();
+          final author = members.firstWhere((m) => m.id == authorId);
+          row.controller.text = agendaPlancheLine(
+            authorDisplayName: maskPersonName(author.fullName),
+            title: row.title,
+          );
+        } else {
+          row.authorId = '';
+          row.title = '';
+        }
+        _regenerateCloture();
+      });
+    }
+    titleController.dispose();
   }
 
   // ─── ARCHIVAGE DRIVE À LA CRÉATION (best effort) ──────────────────
@@ -279,10 +415,17 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
         ? '${dateOnly}T${_heureReprise!.hour.toString().padLeft(2, '0')}:${_heureReprise!.minute.toString().padLeft(2, '0')}'
         : dateOnly;
     final closing = _heureSuspension != null ? _fmtTime(_heureSuspension!) : '';
-    final ordres = _ordres
-        .map((c) => c.text.trim())
-        .where((o) => o.isNotEmpty)
-        .toList();
+    final validRows = _ordres.where((r) => r.controller.text.trim().isNotEmpty);
+    final ordres = [for (final r in validRows) r.controller.text.trim()];
+    final agendaItems = [
+      for (final r in validRows)
+        AgendaItem(
+          text: r.controller.text.trim(),
+          type: r.type,
+          authorId: r.authorId,
+          title: r.title,
+        ).toMap(),
+    ];
 
     final map = <String, dynamic>{
       if (existing != null) ...existing.toMap(),
@@ -303,6 +446,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       'travail3': _t3.text.trim(),
       'travail4': _t4.text.trim(),
       'ordresJour': ordres,
+      'agendaItems': agendaItems,
       'ligneCloture': _cloture.text.trim(),
       'hasAgape': _hasAgape,
       'suitAgapes': _hasAgape,
@@ -498,7 +642,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                   onPressed: readOnly
                       ? null
                       : () => setState(
-                          () => _ordres.add(TextEditingController()),
+                          () => _ordres.add(
+                            _OrdreRow(controller: TextEditingController()),
+                          ),
                         ),
                   icon: const Icon(Icons.add, size: 16, color: BrColors.teal),
                   label: const Text(
@@ -524,13 +670,35 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                         ),
                       ),
                     ),
+                    IconButton(
+                      tooltip: _ordres[i].type == kAgendaItemPlanche
+                          ? 'Planche — modifier'
+                          : 'Point simple — passer en Planche',
+                      icon: Icon(
+                        _ordres[i].type == kAgendaItemPlanche
+                            ? Icons.menu_book_outlined
+                            : Icons.short_text,
+                        size: 18,
+                        color: _ordres[i].type == kAgendaItemPlanche
+                            ? BrColors.gold
+                            : BrColors.muted,
+                      ),
+                      onPressed: readOnly ? null : () => _configureRow(i),
+                    ),
                     Expanded(
                       child: TextField(
-                        controller: _ordres[i],
+                        controller: _ordres[i].controller,
+                        readOnly: _ordres[i].type == kAgendaItemPlanche,
                         style: const TextStyle(color: BrColors.text),
-                        decoration: const InputDecoration(
-                          hintText: 'ex : Lecture de planche...',
+                        decoration: InputDecoration(
+                          hintText: 'ex : Lecture de la correspondance...',
+                          suffixIcon: _ordres[i].type == kAgendaItemPlanche
+                              ? const Icon(Icons.lock_outline, size: 16)
+                              : null,
                         ),
+                        onTap: (readOnly || _ordres[i].type != kAgendaItemPlanche)
+                            ? null
+                            : () => _configureRow(i),
                         onChanged: readOnly
                             ? null
                             : (_) => setState(_regenerateCloture),
@@ -547,7 +715,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                         onPressed: readOnly
                             ? null
                             : () => setState(() {
-                                _ordres.removeAt(i).dispose();
+                                _ordres.removeAt(i).controller.dispose();
                                 _regenerateCloture();
                               }),
                       ),
