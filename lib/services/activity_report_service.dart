@@ -99,6 +99,15 @@ class ActivitySection {
   /// [hasMultipleObediences]).
   final Map<String, int> byObedience;
 
+  /// Journal chronologique : une entrée par Tenue extérieure de la période
+  /// où au moins un de nos membres était présent (voir
+  /// [externalVisitCount] pour le seul total).
+  final List<ExternalVisitEntry> externalVisitEntries;
+
+  /// Journal chronologique : une entrée par tenue de la Loge de la période
+  /// ayant reçu au moins un Visiteur ou un Dignitaire.
+  final List<ReceivedGuestsEntry> receivedGuestsEntries;
+
   const ActivitySection({
     required this.sessionsByDegree,
     required this.averagePresenceRate,
@@ -106,9 +115,35 @@ class ActivitySection {
     required this.distinctVisitorCount,
     required this.distinctDignitaryCount,
     required this.byObedience,
+    required this.externalVisitEntries,
+    required this.receivedGuestsEntries,
   });
 
   bool get hasMultipleObediences => byObedience.length > 1;
+}
+
+class ExternalVisitEntry {
+  final DateTime? date;
+  final String organizingLodge;
+  final List<String> memberNames;
+  const ExternalVisitEntry({
+    required this.date,
+    required this.organizingLodge,
+    required this.memberNames,
+  });
+}
+
+class ReceivedGuestsEntry {
+  final DateTime? date;
+  final String sessionLabel;
+  final List<String> visitorNames;
+  final List<String> dignitaryNames;
+  const ReceivedGuestsEntry({
+    required this.date,
+    required this.sessionLabel,
+    required this.visitorNames,
+    required this.dignitaryNames,
+  });
 }
 
 ActivitySection computeActivitySection(
@@ -143,6 +178,40 @@ ActivitySection computeActivitySection(
   final externalVisitCount =
       pastExternal.fold<int>(0, (sum, s) => sum + s.attendingMemberIds.length);
 
+  final membersById = {for (final m in members) m.id: m};
+  final externalVisitEntries = pastExternal
+      .where((s) => s.attendingMemberIds.isNotEmpty)
+      .map(
+        (s) => ExternalVisitEntry(
+          date: s.dateTime,
+          organizingLodge: s.organizingLodge,
+          memberNames: [
+            for (final id in s.attendingMemberIds) membersById[id]?.fullName,
+          ].whereType<String>().toList(),
+        ),
+      )
+      .toList()
+    ..sort((a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
+
+  final visitorsById = {for (final v in visitors) v.id: v};
+  final dignitariesById = {for (final d in dignitaries) d.id: d};
+  final receivedGuestsEntries = pastSessions
+      .where((s) => s.visitorIds.isNotEmpty || s.dignitaryIds.isNotEmpty)
+      .map(
+        (s) => ReceivedGuestsEntry(
+          date: s.dateTime,
+          sessionLabel: _sessionLabel(s),
+          visitorNames: [
+            for (final id in s.visitorIds) visitorsById[id]?.fullName,
+          ].whereType<String>().toList(),
+          dignitaryNames: [
+            for (final id in s.dignitaryIds) dignitariesById[id]?.fullName,
+          ].whereType<String>().toList(),
+        ),
+      )
+      .toList()
+    ..sort((a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
+
   final visitorStats =
       computeVisitorFrequentation(visitors, sessions, start: start, end: end);
   final dignitaryStats = computeDignitaryFrequentation(
@@ -172,6 +241,8 @@ ActivitySection computeActivitySection(
     distinctVisitorCount: visitorStats.length,
     distinctDignitaryCount: dignitaryStats.length,
     byObedience: byObedience,
+    externalVisitEntries: externalVisitEntries,
+    receivedGuestsEntries: receivedGuestsEntries,
   );
 }
 

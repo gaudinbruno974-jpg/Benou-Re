@@ -36,6 +36,7 @@ import '../models/session.dart';
 import '../models/visitor.dart';
 import '../utils/name_mask.dart';
 import 'activity_report_service.dart';
+import 'attendance_stats_service.dart';
 import 'agape_payment_service.dart';
 import 'treasury_document_service.dart'
     show capitationCallBody, quitusBody;
@@ -1996,6 +1997,13 @@ Future<Uint8List> buildActivityReportPdf({
     end: end,
   );
   final treasury = computeTreasurySection(members, sessions, start: start, end: end);
+  final memberStats = computeMemberAttendance(
+    members,
+    sessions,
+    externalSessions,
+    start: start,
+    end: end,
+  ); // déjà triée par taux de présence décroissant
   final planches = computePlancheEntries(sessions, members, start: start, end: end);
   final planchesByAuthor = planchesCountByAuthor(planches);
 
@@ -2164,17 +2172,120 @@ Future<Uint8List> buildActivityReportPdf({
           pw.SizedBox(height: 2 * _mm),
           countTable(activity.byObedience),
         ],
+        if (activity.externalVisitEntries.isNotEmpty) ...[
+          pw.SizedBox(height: 4 * _mm),
+          pw.Text(
+            'Visites faites par nos membres ailleurs',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+          ),
+          pw.SizedBox(height: 2 * _mm),
+          for (final e in activity.externalVisitEntries)
+            pw.Padding(
+              padding: pw.EdgeInsets.only(bottom: 1.5 * _mm),
+              child: pw.Text(
+                '${_fmtDdMmYyyy(e.date)} — ${e.organizingLodge.isEmpty ? 'Loge non renseignée' : e.organizingLodge} — '
+                '${e.memberNames.isEmpty ? 'aucun membre retrouvé' : e.memberNames.join(', ')}',
+                style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
+              ),
+            ),
+        ],
+        if (activity.receivedGuestsEntries.isNotEmpty) ...[
+          pw.SizedBox(height: 4 * _mm),
+          pw.Text(
+            'Visiteurs et Dignitaires reçus',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+          ),
+          pw.SizedBox(height: 2 * _mm),
+          for (final e in activity.receivedGuestsEntries)
+            pw.Padding(
+              padding: pw.EdgeInsets.only(bottom: 1.5 * _mm),
+              child: pw.Text(
+                '${_fmtDdMmYyyy(e.date)} — '
+                'Visiteurs : ${e.visitorNames.isEmpty ? 'aucun' : e.visitorNames.join(', ')} — '
+                'Dignitaires : ${e.dignitaryNames.isEmpty ? 'aucun' : e.dignitaryNames.join(', ')}',
+                style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
+              ),
+            ),
+        ],
 
-        // ─── 3. Trésorerie ───────────────────────────────────────
-        sectionTitle('3. Trésorerie'),
+        // ─── 3. Statistiques des membres ─────────────────────────
+        sectionTitle('3. Statistiques des membres'),
+        if (memberStats.isEmpty)
+          emptyNote('Aucun membre enregistré.')
+        else
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(28),
+              1: pw.FlexColumnWidth(16),
+              2: pw.FlexColumnWidth(11),
+              3: pw.FlexColumnWidth(11),
+              4: pw.FlexColumnWidth(11),
+              5: pw.FlexColumnWidth(11),
+              6: pw.FlexColumnWidth(11),
+              7: pw.FlexColumnWidth(11),
+              8: pw.FlexColumnWidth(9),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: _grey),
+                children: [
+                  for (final h in const [
+                    'Membre',
+                    'Grade',
+                    'Élig.',
+                    'Présent',
+                    'Excusé',
+                    'Absence',
+                    'Taux',
+                    'Tenues ext.',
+                    'Planches',
+                  ])
+                    pw.Padding(
+                      padding: pw.EdgeInsets.all(1.5 * _mm),
+                      child: pw.Text(
+                        h,
+                        style: pw.TextStyle(font: fonts.bold, fontSize: 8.5),
+                      ),
+                    ),
+                ],
+              ),
+              for (final s in memberStats)
+                pw.TableRow(
+                  children: [
+                    for (final v in [
+                      s.fullName,
+                      s.grade,
+                      '${s.eligibleCount}',
+                      '${s.presentCount}',
+                      '${s.excusedCount}',
+                      '${s.unexcusedAbsences}',
+                      '${(s.attendanceRate * 100).toStringAsFixed(0)} %',
+                      '${s.externalVisits}',
+                      '${s.planchesCount}',
+                    ])
+                      pw.Padding(
+                        padding: pw.EdgeInsets.all(1.5 * _mm),
+                        child: pw.Text(
+                          v,
+                          style: pw.TextStyle(font: fonts.base, fontSize: 8.5),
+                        ),
+                      ),
+                  ],
+                ),
+            ],
+          ),
+
+        // ─── 4. Trésorerie ───────────────────────────────────────
+        sectionTitle('4. Trésorerie'),
         kvRow('Cotisation Loge due', _euroLabel(treasury.lodgeDuesTotal)),
         kvRow('Cotisation Loge versée', _euroLabel(treasury.lodgeDuesPaidTotal)),
         kvRow('Cotisation Ordre due', _euroLabel(treasury.orderDuesTotal)),
         kvRow('Cotisation Ordre versée', _euroLabel(treasury.orderDuesPaidTotal)),
         kvRow('Tronc de la Veuve récolté', _euroLabel(treasury.troncTotal)),
 
-        // ─── 4. Planches tracées étudiées ───────────────────────
-        sectionTitle('4. Planches tracées étudiées'),
+        // ─── 5. Planches tracées étudiées ───────────────────────
+        sectionTitle('5. Planches tracées étudiées'),
         if (planches.isEmpty)
           emptyNote('Aucune planche identifiée sur la période.')
         else ...[

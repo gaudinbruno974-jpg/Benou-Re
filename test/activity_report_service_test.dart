@@ -124,6 +124,62 @@ void main() {
       expect(section.externalVisitCount, 1);
     });
 
+    test(
+      'externalVisitEntries : une entrée par Tenue extérieure, avec nos membres présents, triée par date',
+      () {
+        const m1 = Member(id: 'm1', firstName: 'Jean', lastName: 'DUPONT');
+        const m2 = Member(id: 'm2', firstName: 'Marie', lastName: 'MARTIN');
+        final external = [
+          ExternalSession(
+            id: 'e1',
+            date: '2026-03-01T00:00:00',
+            organizingLodge: 'Les Cœurs Réunis',
+            attendingMemberIds: const ['m1', 'm2'],
+          ),
+          ExternalSession(
+            id: 'e2',
+            date: '2026-01-01T00:00:00',
+            organizingLodge: 'La Fraternité',
+            attendingMemberIds: const ['m1'],
+          ),
+          ExternalSession(id: 'e3', date: '2026-02-01T00:00:00'), // personne
+        ];
+        final section = computeActivitySection([m1, m2], const [], external, const [], const []);
+        expect(section.externalVisitEntries.length, 2); // e3 exclue (aucun membre)
+        expect(section.externalVisitEntries.first.organizingLodge, 'La Fraternité'); // triée
+        expect(section.externalVisitEntries.first.memberNames, ['Jean DUPONT']);
+        expect(section.externalVisitEntries.last.memberNames, ['Jean DUPONT', 'Marie MARTIN']);
+      },
+    );
+
+    test(
+      'receivedGuestsEntries : une entrée par tenue de la Loge ayant reçu Visiteur ou Dignitaire',
+      () {
+        final sessions = [
+          Session(
+            id: 's1',
+            date: '2026-01-10',
+            dateReprise: '2026-01-10',
+            degree: kApprenti,
+            visitorIds: const ['v1'],
+          ),
+          Session(
+            id: 's2',
+            date: '2026-02-10',
+            dateReprise: '2026-02-10',
+            degree: kApprenti,
+            dignitaryIds: const ['d1'],
+          ),
+          Session(id: 's3', date: '2026-03-10', dateReprise: '2026-03-10', degree: kApprenti),
+        ];
+        final section = computeActivitySection(const [], sessions, const [], [v1], [d1]);
+        expect(section.receivedGuestsEntries.length, 2); // s3 exclue (aucun invité)
+        expect(section.receivedGuestsEntries.first.visitorNames, [v1.fullName]);
+        expect(section.receivedGuestsEntries.first.dignitaryNames, isEmpty);
+        expect(section.receivedGuestsEntries.last.dignitaryNames, [d1.fullName]);
+      },
+    );
+
     test('byObedience agrège Visiteurs et Dignitaires, hasMultipleObediences reflète le nombre de clés', () {
       final sessions = [
         Session(
