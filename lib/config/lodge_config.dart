@@ -92,6 +92,27 @@ const LinearGradient kTempleHorusCardGradient = LinearGradient(
   colors: [Color(0xFF454A52), Color(0xFF31353B)],
 );
 
+// Identité ivoire et or : même structure que les trois précédentes, teinte
+// bronze/kaki chaude (plus claire que les trois autres fonds, à la demande
+// de la Loge) avec un primaire doré et un accent ivoire.
+const Color kAlKhemiaPrimary = Color(0xFFC9A227);
+const Color kAlKhemiaAccent = Color(0xFFEFE6CF);
+const Color kAlKhemiaAccentBright = Color(0xFFFAF4E3);
+const Color kAlKhemiaBackground = Color(0xFF5C4A28);
+const Color kAlKhemiaBackgroundDark = Color(0xFF3D3119);
+const Color kAlKhemiaSurface = Color(0xFF6E5934);
+const LinearGradient kAlKhemiaBackgroundGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF6B5730), Color(0xFF54441F), Color(0xFF3A2F16)],
+  stops: [0.0, 0.55, 1.0],
+);
+const LinearGradient kAlKhemiaCardGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF7C6640), Color(0xFF5F4C2A)],
+);
+
 /// Rend une chaîne sans signes diacritiques (« Bénou Ré » → « Benou Re »).
 ///
 /// Les documents officiels écrivent le nom de la Loge en capitales non
@@ -346,10 +367,40 @@ class LodgeConfig {
     libraryFolders: {},
   );
 
+  /// Valeurs de repli, propres au flavor AL-KHEMIA.
+  ///
+  /// Dossiers Drive encore à compléter (voir suivi du déploiement) :
+  /// [driveParentFolderId] et [libraryFolders] restent vides tant qu'aucun
+  /// dossier Drive n'a été créé pour cette loge. [webOrigin] suppose l'id de
+  /// projet Firebase `al-khemia-loge` — à corriger si l'id réel diffère.
+  static const LodgeConfig alKhemia = LodgeConfig(
+    name: 'AL-KHEMIA',
+    number: '1',
+    orient: 'Saint-Pierre',
+    orientLong: 'Saint Pierre – Île de la Réunion',
+    obedienceAcronym: 'GLDB',
+    defaultMeetingPlace: 'Temple Thérèse Eliseman à Saint-Pierre',
+    obedienceLogoAsset: 'assets/GLDB.png',
+    lodgeLogoAsset: 'assets/Al-Khemia.png',
+    pdfHeaderStacked: true,
+    primaryColor: kAlKhemiaPrimary,
+    accentColor: kAlKhemiaAccent,
+    accentBrightColor: kAlKhemiaAccentBright,
+    backgroundColor: kAlKhemiaBackground,
+    backgroundDarkColor: kAlKhemiaBackgroundDark,
+    surfaceColor: kAlKhemiaSurface,
+    backgroundGradient: kAlKhemiaBackgroundGradient,
+    cardGradient: kAlKhemiaCardGradient,
+    webOrigin: 'https://al-khemia-loge.web.app',
+    driveParentFolderId: '',
+    libraryFolders: {},
+  );
+
   /// Repli propre au flavor actif (voir `lib/config/flavor.dart`).
   static LodgeConfig get forCurrentFlavor {
     if (currentFlavor == 'petitprince') return petitPrince;
     if (currentFlavor == 'templehorus') return templeHorus;
+    if (currentFlavor == 'alkhemia') return alKhemia;
     return benouRe;
   }
 

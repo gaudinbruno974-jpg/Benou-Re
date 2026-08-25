@@ -1,0 +1,37 @@
+{
+    "name": "AL-KHEMIA",
+    "short_name": "Al-Khemia",
+    "lang": "fr",
+    "start_url": "./?source=pwa",
+    "scope": ".",
+    "display": "standalone",
+    "background_color": "#5C4A28",
+    "theme_color": "#5C4A28",
+    "description": "R∴L∴ AL-KHEMIA — gestion de la loge",
+    "orientation": "portrait-primary",
+    "prefer_related_applications": false,
+    "icons": [
+        {
+            "src": "icons/Icon-192.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-512.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "icons/Icon-maskable-192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "maskable"
+        },
+        {
+            "src": "icons/Icon-maskable-512.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
