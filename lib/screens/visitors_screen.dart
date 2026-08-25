@@ -181,6 +181,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
     final email = TextEditingController(text: visitor?.email ?? '');
     final phone = TextEditingController(text: visitor?.phone ?? '');
     var civilite = visitor?.civilite ?? '';
+    var grade = visitor?.grade ?? '';
 
     final saved = await showDialog<bool>(
       context: context,
@@ -212,6 +213,10 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                   civilite,
                   (v) => setDialogState(() => civilite = v),
                 ),
+                _gradeDropdown(
+                  grade,
+                  (v) => setDialogState(() => grade = v),
+                ),
               ],
             ),
           ),
@@ -240,6 +245,7 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
         phone: phone.text.trim(),
         function: visitor?.function ?? '',
         civilite: civilite,
+        grade: grade,
       );
       if (visitor == null) {
         await state.addVisitor(v);
@@ -276,6 +282,31 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                 DropdownMenuItem(
                   value: c,
                   child: Text(c.isEmpty ? 'Non renseignée' : c),
+                ),
+            ],
+            onChanged: (v) => onChanged(v ?? value),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _gradeDropdown(String value, ValueChanged<String> onChanged) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InputDecorator(
+        decoration: const InputDecoration(labelText: 'Grade'),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: value,
+            isExpanded: true,
+            dropdownColor: BrColors.surface,
+            style: const TextStyle(color: BrColors.text),
+            items: [
+              for (final g in const ['', ...kGrades])
+                DropdownMenuItem(
+                  value: g,
+                  child: Text(g.isEmpty ? 'Non renseigné' : g),
                 ),
             ],
             onChanged: (v) => onChanged(v ?? value),

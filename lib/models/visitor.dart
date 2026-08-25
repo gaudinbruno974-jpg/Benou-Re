@@ -14,6 +14,11 @@ class Visitor {
   /// « Frère » / « Sœur », vide si non renseignée (voir civilite.dart).
   final String civilite;
 
+  /// Grade maçonnique (Apprenti/Compagnon/Maître, voir kGrades dans
+  /// member.dart) — libre comme Member.grade, non forcé à ces trois valeurs
+  /// au niveau du modèle.
+  final String grade;
+
   const Visitor({
     required this.id,
     this.firstName = '',
@@ -25,6 +30,7 @@ class Visitor {
     this.phone = '',
     this.function = '',
     this.civilite = '',
+    this.grade = '',
   });
 
   factory Visitor.fromMap(String id, Map<String, dynamic> map) {
@@ -39,6 +45,7 @@ class Visitor {
       phone: (map['phone'] ?? '') as String,
       function: (map['function'] ?? '') as String,
       civilite: (map['civilite'] ?? '') as String,
+      grade: (map['grade'] ?? '') as String,
     );
   }
 
@@ -54,6 +61,7 @@ class Visitor {
       'phone': phone,
       'function': function,
       'civilite': civilite,
+      'grade': grade,
     };
   }
 
@@ -69,6 +77,7 @@ class Visitor {
     String? phone,
     String? function,
     String? civilite,
+    String? grade,
   }) {
     return Visitor(
       id: id,
@@ -81,6 +90,7 @@ class Visitor {
       phone: phone ?? this.phone,
       function: function ?? this.function,
       civilite: civilite ?? this.civilite,
+      grade: grade ?? this.grade,
     );
   }
 }

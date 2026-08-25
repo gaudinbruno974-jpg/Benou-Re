@@ -2184,7 +2184,7 @@ Future<Uint8List> buildActivityReportPdf({
             pw.Padding(
               padding: pw.EdgeInsets.only(bottom: 2 * _mm),
               child: pw.Text(
-                '${p.sessionLabel} — '
+                '${p.sessionLabel} (${p.degree}) — '
                 '${p.title.isEmpty ? '(sans titre)' : '« ${p.title} »'} — '
                 '${p.authorName.isEmpty ? 'auteur non retrouvé' : p.authorName}',
                 style: pw.TextStyle(font: fonts.base, fontSize: 9.5),

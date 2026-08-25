@@ -271,11 +271,17 @@ class PlancheEntry {
   final DateTime? date;
   final String authorName;
   final String title;
+
+  /// Degré de la tenue où la planche a été présentée (Apprenti/Compagnon/
+  /// Maître, voir Session.degree) — pas forcément le grade de l'auteur.
+  final String degree;
+
   const PlancheEntry({
     required this.sessionLabel,
     required this.date,
     required this.authorName,
     required this.title,
+    required this.degree,
   });
 }
 
@@ -323,6 +329,7 @@ List<PlancheEntry> computePlancheEntries(
           date: s.dateTime,
           authorName: membersById[item.authorId]?.fullName ?? '',
           title: item.title,
+          degree: s.degree,
         ),
       );
     }

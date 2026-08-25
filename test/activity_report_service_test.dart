@@ -310,10 +310,10 @@ void main() {
   group('planchesCountByAuthor', () {
     test('additionne par auteur et ignore les entrées sans auteur retrouvé', () {
       const entries = [
-        PlancheEntry(sessionLabel: 's1', date: null, authorName: 'Jean DUPONT', title: 'A'),
-        PlancheEntry(sessionLabel: 's2', date: null, authorName: 'Jean DUPONT', title: 'B'),
-        PlancheEntry(sessionLabel: 's3', date: null, authorName: 'Marie MARTIN', title: 'C'),
-        PlancheEntry(sessionLabel: 's4', date: null, authorName: '', title: 'D'),
+        PlancheEntry(sessionLabel: 's1', date: null, authorName: 'Jean DUPONT', title: 'A', degree: kApprenti),
+        PlancheEntry(sessionLabel: 's2', date: null, authorName: 'Jean DUPONT', title: 'B', degree: kApprenti),
+        PlancheEntry(sessionLabel: 's3', date: null, authorName: 'Marie MARTIN', title: 'C', degree: kApprenti),
+        PlancheEntry(sessionLabel: 's4', date: null, authorName: '', title: 'D', degree: kApprenti),
       ];
       final counts = planchesCountByAuthor(entries);
       expect(counts, {'Jean DUPONT': 2, 'Marie MARTIN': 1});

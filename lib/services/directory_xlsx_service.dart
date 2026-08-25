@@ -37,6 +37,7 @@ const List<String> kVisitorHeaders = [
   'Civilité',
   'Prénom',
   'Nom',
+  'Grade',
   'Fonction',
   "Loge d'origine",
   'Orient',
@@ -112,6 +113,7 @@ List<List<String>> _visitorRows(List<Visitor> visitors) => [
       v.civilite,
       v.firstName,
       v.lastName,
+      v.grade,
       v.function,
       v.lodge,
       v.orient,
@@ -283,6 +285,7 @@ class VisitorImportRow {
   final String civilite;
   final String firstName;
   final String lastName;
+  final String grade;
   final String function;
   final String lodge;
   final String orient;
@@ -296,6 +299,7 @@ class VisitorImportRow {
     required this.civilite,
     required this.firstName,
     required this.lastName,
+    required this.grade,
     required this.function,
     required this.lodge,
     required this.orient,
@@ -316,6 +320,7 @@ class VisitorImportRow {
           civilite: civilite,
           firstName: firstName,
           lastName: lastName,
+          grade: grade,
           function: function,
           lodge: lodge,
           orient: orient,
@@ -330,6 +335,7 @@ class VisitorImportRow {
           civilite: civilite,
           firstName: firstName,
           lastName: lastName,
+          grade: grade,
           function: function,
           lodge: lodge,
           orient: orient,
@@ -488,12 +494,13 @@ List<VisitorImportRow> parseVisitorSheet(
         civilite: _cell(row, 0),
         firstName: firstName,
         lastName: lastName,
-        function: _cell(row, 3),
-        lodge: _cell(row, 4),
-        orient: _cell(row, 5),
-        obedience: _cell(row, 6),
-        email: _cell(row, 7),
-        phone: _cell(row, 8),
+        grade: _cell(row, 3),
+        function: _cell(row, 4),
+        lodge: _cell(row, 5),
+        orient: _cell(row, 6),
+        obedience: _cell(row, 7),
+        email: _cell(row, 8),
+        phone: _cell(row, 9),
         existing: existing,
         action: existing == null ? ImportAction.create : ImportAction.update,
       ),
