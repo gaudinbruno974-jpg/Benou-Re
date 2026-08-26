@@ -119,9 +119,45 @@ _testAccountsTempleHorus = [
   ),
 ];
 
+const String _testPasswordAlKhemia = '000007';
+const List<({String label, String email, String password})>
+_testAccountsAlKhemia = [
+  (
+    label: 'Apprenti',
+    email: 'apprentis@loge.com',
+    password: _testPasswordAlKhemia,
+  ),
+  (
+    label: 'Compagnon',
+    email: 'compagnons@loge.com',
+    password: _testPasswordAlKhemia,
+  ),
+  (
+    label: 'Maître',
+    email: 'maitres@loge.com',
+    password: _testPasswordAlKhemia,
+  ),
+  (
+    label: 'Secrétaire',
+    email: 'secretaire@loge.com',
+    password: _testPasswordAlKhemia,
+  ),
+  (
+    label: 'Trésorier',
+    email: 'tresorier@loge.com',
+    password: _testPasswordAlKhemia,
+  ),
+  (
+    label: 'Vénérable Maître',
+    email: 'vm@loge.com',
+    password: _testPasswordAlKhemia,
+  ),
+];
+
 List<({String label, String email, String password})> get _testAccounts {
   if (currentFlavor == 'petitprince') return _testAccountsPetitprince;
   if (currentFlavor == 'templehorus') return _testAccountsTempleHorus;
+  if (currentFlavor == 'alkhemia') return _testAccountsAlKhemia;
   return _testAccountsBenoure;
 }
 
