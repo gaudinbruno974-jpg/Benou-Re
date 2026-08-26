@@ -6,10 +6,11 @@
 # Usage : .\deployment\build_web.ps1 -Flavor benoure
 #         .\deployment\build_web.ps1 -Flavor petitprince
 #         .\deployment\build_web.ps1 -Flavor templehorus
+#         .\deployment\build_web.ps1 -Flavor alkhemia
 
 param(
     [Parameter(Mandatory = $true)]
-    [ValidateSet("benoure", "petitprince", "templehorus")]
+    [ValidateSet("benoure", "petitprince", "templehorus", "alkhemia")]
     [string]$Flavor
 )
 
