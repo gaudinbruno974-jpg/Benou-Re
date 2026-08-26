@@ -92,25 +92,28 @@ const LinearGradient kTempleHorusCardGradient = LinearGradient(
   colors: [Color(0xFF454A52), Color(0xFF31353B)],
 );
 
-// Identité ivoire et or : même structure que les trois précédentes, teinte
-// bronze/kaki chaude (plus claire que les trois autres fonds, à la demande
-// de la Loge) avec un primaire doré et un accent ivoire.
-const Color kAlKhemiaPrimary = Color(0xFFC9A227);
-const Color kAlKhemiaAccent = Color(0xFFEFE6CF);
-const Color kAlKhemiaAccentBright = Color(0xFFFAF4E3);
-const Color kAlKhemiaBackground = Color(0xFF5C4A28);
-const Color kAlKhemiaBackgroundDark = Color(0xFF3D3119);
-const Color kAlKhemiaSurface = Color(0xFF6E5934);
+// Identité royale ivoire et or : première Loge de l'obédience, palette plus
+// prestigieuse qu'un simple bronze — pourpre nuit profond (repris du dégradé
+// violet/bleu déjà présent derrière l'étoile du sceau, voir
+// assets/Al-Khemia.png) avec un or vif en primaire et un ivoire net en
+// accent, pour un contraste marqué (le bronze/kaki initial manquait de
+// contraste entre fond et cartes).
+const Color kAlKhemiaPrimary = Color(0xFFD9A916);
+const Color kAlKhemiaAccent = Color(0xFFF2E6C4);
+const Color kAlKhemiaAccentBright = Color(0xFFF8F1DC);
+const Color kAlKhemiaBackground = Color(0xFF1E1224);
+const Color kAlKhemiaBackgroundDark = Color(0xFF130B17);
+const Color kAlKhemiaSurface = Color(0xFF3A2842);
 const LinearGradient kAlKhemiaBackgroundGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF6B5730), Color(0xFF54441F), Color(0xFF3A2F16)],
+  colors: [Color(0xFF2A1B32), Color(0xFF1E1224), Color(0xFF120A16)],
   stops: [0.0, 0.55, 1.0],
 );
 const LinearGradient kAlKhemiaCardGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF7C6640), Color(0xFF5F4C2A)],
+  colors: [Color(0xFF4A3350), Color(0xFF2E1F36)],
 );
 
 /// Rend une chaîne sans signes diacritiques (« Bénou Ré » → « Benou Re »).
