@@ -460,7 +460,7 @@ List<pw.Widget> _convocationContent({
     ),
     pw.SizedBox(height: 9 * _mm * scale),
     pw.Text(
-      'La R∴L∴ ${LodgeConfig.current.name} a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu le :',
+      'La R∴L∴ ${LodgeConfig.current.name} a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu :',
       textAlign: pw.TextAlign.center,
       style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale, color: _violet),
     ),
@@ -507,13 +507,15 @@ List<pw.Widget> _convocationContent({
     pw.Text(
       "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide$agapeDetails.$medaille",
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+      maxLines: 1,
+      style: pw.TextStyle(font: fonts.base, fontSize: 9 * scale, color: _navy),
     ),
     pw.SizedBox(height: 3 * _mm * scale),
     pw.Text(
-      "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux les Agapes.$telSuffix",
+      "Merci aux SS∴ et FF∴ De s'annoncer afin d'ajuster au mieux les Agapes.$telSuffix",
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+      maxLines: 1,
+      style: pw.TextStyle(font: fonts.base, fontSize: 8.5 * scale, color: _navy),
     ),
     pw.SizedBox(height: 8 * _mm * scale),
     pw.Text(
@@ -591,7 +593,15 @@ Future<Uint8List> buildConvocationPdf(
       : 'Secrétaire';
   final secretaryCivilite = civiliteAbbrev(secretary?.civilite ?? '');
   final secretaryPhone = secretary?.phone.trim() ?? '';
-  final telSuffix = secretaryPhone.isEmpty ? '' : ' Tél : $secretaryPhone';
+  final vmMember = members
+      .where((m) => foldLabel(m.function).contains('venerable'))
+      .firstOrNull;
+  final vmPhone = vmMember?.phone.trim() ?? '';
+  final telParts = [
+    if (vmPhone.isNotEmpty) 'V∴M∴ : $vmPhone',
+    if (secretaryPhone.isNotEmpty) 'Secrétaire : $secretaryPhone',
+  ];
+  final telSuffix = telParts.isEmpty ? '' : ' Tél ${telParts.join(' — ')}';
 
   // Contrainte "une seule page, toujours" : on tente à pleine échelle, puis on
   // réduit progressivement police/interlignage/marges/logos jusqu'à ce que le
