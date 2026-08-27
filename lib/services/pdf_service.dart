@@ -514,7 +514,6 @@ List<pw.Widget> _convocationContent({
     pw.Text(
       "Merci aux SS∴ et FF∴ De s'annoncer afin d'ajuster au mieux les Agapes.$telSuffix",
       textAlign: pw.TextAlign.center,
-      maxLines: 1,
       style: pw.TextStyle(font: fonts.base, fontSize: 8.5 * scale, color: _navy),
     ),
     pw.SizedBox(height: 8 * _mm * scale),
@@ -546,6 +545,15 @@ String _heureMoinsUne(String dateSource) {
 /// exposée pour le texte de convocation par lien (invitation_service.dart).
 String accueilApprentisHeure(Session session) =>
     _heureMoinsUne(session.dateReprise ?? session.date);
+
+/// Numéro local sans indicatif ni espaces (ex. « +262 6 93 47 07 00 » ->
+/// « 0693470700 ») — plus court à l'affichage qu'un numéro international
+/// complet, sur une ligne de convocation déjà chargée.
+String _localPhone(String raw) {
+  var s = raw.replaceAll(' ', '');
+  if (s.startsWith('+262')) s = '0${s.substring(4)}';
+  return s;
+}
 
 Future<Uint8List> buildConvocationPdf(
   Session session,
@@ -597,9 +605,14 @@ Future<Uint8List> buildConvocationPdf(
       .where((m) => foldLabel(m.function).contains('venerable'))
       .firstOrNull;
   final vmPhone = vmMember?.phone.trim() ?? '';
+  final secretaryTitle = civiliteArticleAbbrev(
+    secretary?.civilite ?? '',
+    capitalize: true,
+  );
   final telParts = [
-    if (vmPhone.isNotEmpty) 'V∴M∴ : $vmPhone',
-    if (secretaryPhone.isNotEmpty) 'Secrétaire : $secretaryPhone',
+    if (vmPhone.isNotEmpty) 'V∴M∴ : ${_localPhone(vmPhone)}',
+    if (secretaryPhone.isNotEmpty)
+      '$secretaryTitle Sec∴ : ${_localPhone(secretaryPhone)}',
   ];
   final telSuffix = telParts.isEmpty ? '' : ' Tél ${telParts.join(' — ')}';
 
