@@ -2,8 +2,10 @@
 // que la Loge courante reçoit d'autres Loges ou obédiences pour une tenue
 // qui se déroule ailleurs, et relaie ça aux membres avec un lien de réponse
 // personnel — même mécanisme que les Convocations internes (voir
-// presence_link.dart, kind == kPresenceLinkKindExternal), mais sans volet
-// Agapes puisque ce n'est pas une tenue organisée par la Loge courante.
+// presence_link.dart, kind == kPresenceLinkKindExternal). Le volet Agapes y
+// est purement informatif (pas de tarif/médaille, la Loge courante ne
+// facture ni n'organise rien) : il sert juste à donner un chiffre au Bureau
+// pour prévenir la Loge qui invite du nombre de FF∴/SS∴ restant au repas.
 import 'member.dart' show Member, kApprenti, kCompagnon, kMaitre;
 import 'presence_link.dart';
 import 'session.dart' show Session;
@@ -75,6 +77,10 @@ class ExternalSession {
   /// ensuite à la main par le Bureau.
   final List<String> attendingMemberIds;
 
+  /// Parmi les membres présents, ceux restant aux Agapes — même principe
+  /// (auto-alimentée par les réponses, modifiable ensuite à la main).
+  final List<String> agapeIds;
+
   const ExternalSession({
     required this.id,
     this.organizingLodge = '',
@@ -91,6 +97,7 @@ class ExternalSession {
     this.attachmentFileId = '',
     this.attachmentContentType = '',
     this.attendingMemberIds = const [],
+    this.agapeIds = const [],
   });
 
   DateTime? get dateTime => DateTime.tryParse(date);
@@ -130,6 +137,8 @@ class ExternalSession {
               ?.map((e) => e.toString())
               .toList() ??
           const [],
+      agapeIds: (map['agapeIds'] as List?)?.map((e) => e.toString()).toList() ??
+          const [],
     );
   }
 
@@ -148,6 +157,7 @@ class ExternalSession {
     'attachmentFileId': attachmentFileId,
     'attachmentContentType': attachmentContentType,
     'attendingMemberIds': attendingMemberIds,
+    'agapeIds': agapeIds,
   };
 
   ExternalSession copyWith({
@@ -165,6 +175,7 @@ class ExternalSession {
     String? attachmentFileId,
     String? attachmentContentType,
     List<String>? attendingMemberIds,
+    List<String>? agapeIds,
   }) => ExternalSession(
     id: id,
     organizingLodge: organizingLodge ?? this.organizingLodge,
@@ -181,6 +192,7 @@ class ExternalSession {
     attachmentFileId: attachmentFileId ?? this.attachmentFileId,
     attachmentContentType: attachmentContentType ?? this.attachmentContentType,
     attendingMemberIds: attendingMemberIds ?? this.attendingMemberIds,
+    agapeIds: agapeIds ?? this.agapeIds,
   );
 }
 
@@ -195,19 +207,23 @@ List<Member> eligibleExternalRecipients(String degree, List<Member> members) {
 }
 
 /// Répercute une réponse reçue par lien (kind == kPresenceLinkKindExternal)
-/// dans `attendingMemberIds` — fonction pure, testable sans Firestore, même
-/// principe que dignitariesToAnnounce/dignitaryComesAlone dans
-/// dignitary.dart. Présent ajoute le membre, tout le reste (Absent, en
+/// dans `attendingMemberIds` et `agapeIds` — fonction pure, testable sans
+/// Firestore, même principe que dignitariesToAnnounce/dignitaryComesAlone
+/// dans dignitary.dart. Présent ajoute le membre, tout le reste (Absent, en
 /// attente) l'enlève : pas de liste « excusé » dédiée pour une tenue
-/// extérieure.
+/// extérieure. Un membre absent ne peut pas rester aux Agapes : `agapeIds`
+/// est nettoyé dans ce cas même si `agapePresent` était resté coché avant un
+/// changement de réponse.
 ExternalSession applyExternalResponse(
   ExternalSession session,
   PresenceLink link,
 ) {
   final attending = List<String>.from(session.attendingMemberIds)
     ..remove(link.memberId);
+  final agapes = List<String>.from(session.agapeIds)..remove(link.memberId);
   if (link.status == kPresenceStatusPresent) {
     attending.add(link.memberId);
+    if (link.agapePresent == true) agapes.add(link.memberId);
   }
-  return session.copyWith(attendingMemberIds: attending);
+  return session.copyWith(attendingMemberIds: attending, agapeIds: agapes);
 }

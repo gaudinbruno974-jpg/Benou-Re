@@ -75,7 +75,7 @@ class _ExternalSessionDetailScreenState
           sessionDegreeLabel: session.degree == kExternalDegreeAll
               ? 'Tous'
               : Session.degreeOrdinal(session.degree),
-          hasAgape: false,
+          hasAgape: true,
           expiresAt: expiresAt,
           createdAt: DateTime.now(),
         ),
@@ -163,6 +163,17 @@ class _ExternalSessionDetailScreenState
     await state.updateExternalSession(
       session.copyWith(attendingMemberIds: attending),
     );
+  }
+
+  Future<void> _toggleAgape(ExternalSession session, String memberId) async {
+    final state = context.read<AppState>();
+    final agapes = List<String>.from(session.agapeIds);
+    if (agapes.contains(memberId)) {
+      agapes.remove(memberId);
+    } else {
+      agapes.add(memberId);
+    }
+    await state.updateExternalSession(session.copyWith(agapeIds: agapes));
   }
 
   Future<void> _confirmDelete(ExternalSession session) async {
@@ -253,6 +264,14 @@ class _ExternalSessionDetailScreenState
                     BrBadge(label: session.degree, color: BrColors.teal),
                     if (session.isPast)
                       const BrBadge(label: 'Passée', color: BrColors.muted),
+                    BrBadge(
+                      label: '${session.attendingMemberIds.length} présent(s)',
+                      color: BrColors.menuVisiteurs,
+                    ),
+                    BrBadge(
+                      label: '${session.agapeIds.length} aux Agapes',
+                      color: BrColors.violet,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -389,6 +408,7 @@ class _ExternalSessionDetailScreenState
                 member: m,
                 link: byMember[m.id],
                 attending: session.attendingMemberIds.contains(m.id),
+                agape: session.agapeIds.contains(m.id),
                 selected: _selectedIds.contains(m.id),
                 onSelectedChanged: byMember[m.id] == null
                     ? null
@@ -400,6 +420,7 @@ class _ExternalSessionDetailScreenState
                           }
                         }),
                 onToggleAttending: () => _toggleAttending(session, m.id),
+                onToggleAgape: () => _toggleAgape(session, m.id),
               ),
           ],
         );
@@ -412,22 +433,29 @@ class _MemberRow extends StatelessWidget {
   final Member member;
   final PresenceLink? link;
   final bool attending;
+  final bool agape;
   final bool selected;
   final ValueChanged<bool?>? onSelectedChanged;
   final VoidCallback onToggleAttending;
+  final VoidCallback onToggleAgape;
   const _MemberRow({
     required this.member,
     required this.link,
     required this.attending,
+    required this.agape,
     required this.selected,
     required this.onSelectedChanged,
     required this.onToggleAttending,
+    required this.onToggleAgape,
   });
 
   String get _statusLabel {
     if (link == null) return 'Lien non généré';
     if (!link!.isAnswered) return 'En attente de réponse';
-    return link!.status == kPresenceStatusPresent ? 'A répondu Présent' : 'A répondu Absent';
+    if (link!.status != kPresenceStatusPresent) return 'A répondu Absent';
+    return link!.agapePresent == true
+        ? 'A répondu Présent (+ Agapes)'
+        : 'A répondu Présent';
   }
 
   @override
@@ -467,7 +495,17 @@ class _MemberRow extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
               ),
               onPressed: onToggleAttending,
-              child: Text(attending ? 'Présent' : 'Marquer présent'),
+              child: Text(attending ? 'Présent Tenue' : 'Marquer présent'),
+            ),
+            const SizedBox(width: 6),
+            OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: agape ? BrColors.violet : BrColors.muted,
+                side: BorderSide(color: agape ? BrColors.violet : BrColors.muted),
+                visualDensity: VisualDensity.compact,
+              ),
+              onPressed: onToggleAgape,
+              child: Text(agape ? 'Présent Agapes' : 'Marquer agapes'),
             ),
           ],
         ),

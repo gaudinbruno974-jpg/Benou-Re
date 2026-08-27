@@ -58,21 +58,23 @@ void main() {
   });
 
   group('applyExternalResponse', () {
-    PresenceLink linkFor(String memberId, String status) => PresenceLink(
-      id: 't1',
-      kind: kPresenceLinkKindExternal,
-      sessionId: 'e1',
-      sessionLabel: 'Tenue de la R∴L∴ Test',
-      sessionDateLabel: 'lundi 1 janvier 2026',
-      sessionType: 'Tenue ordinaire',
-      sessionDegreeLabel: 'Tous',
-      hasAgape: false,
-      memberId: memberId,
-      memberName: 'Jean DUPONT',
-      status: status,
-      expiresAt: DateTime.now().add(const Duration(days: 1)),
-      createdAt: DateTime.now(),
-    );
+    PresenceLink linkFor(String memberId, String status, {bool? agapePresent}) =>
+        PresenceLink(
+          id: 't1',
+          kind: kPresenceLinkKindExternal,
+          sessionId: 'e1',
+          sessionLabel: 'Tenue de la R∴L∴ Test',
+          sessionDateLabel: 'lundi 1 janvier 2026',
+          sessionType: 'Tenue ordinaire',
+          sessionDegreeLabel: 'Tous',
+          hasAgape: true,
+          memberId: memberId,
+          memberName: 'Jean DUPONT',
+          status: status,
+          agapePresent: agapePresent,
+          expiresAt: DateTime.now().add(const Duration(days: 1)),
+          createdAt: DateTime.now(),
+        );
 
     test('Présent ajoute le membre à attendingMemberIds', () {
       const session = ExternalSession(id: 'e1');
@@ -98,6 +100,36 @@ void main() {
       expect(present.attendingMemberIds, ['m1']);
       final absent = applyExternalResponse(present, linkFor('m1', kPresenceStatusAbsent));
       expect(absent.attendingMemberIds, isEmpty);
+    });
+
+    test('Présent + agapePresent ajoute aussi le membre à agapeIds', () {
+      const session = ExternalSession(id: 'e1');
+      final updated = applyExternalResponse(
+        session,
+        linkFor('m1', kPresenceStatusPresent, agapePresent: true),
+      );
+      expect(updated.attendingMemberIds, ['m1']);
+      expect(updated.agapeIds, ['m1']);
+    });
+
+    test('Présent sans agapePresent ne touche pas agapeIds', () {
+      const session = ExternalSession(id: 'e1');
+      final updated = applyExternalResponse(
+        session,
+        linkFor('m1', kPresenceStatusPresent, agapePresent: false),
+      );
+      expect(updated.attendingMemberIds, ['m1']);
+      expect(updated.agapeIds, isEmpty);
+    });
+
+    test('Absent retire le membre de agapeIds même s\'il y était (changement de réponse)', () {
+      const session = ExternalSession(id: 'e1', attendingMemberIds: ['m1'], agapeIds: ['m1']);
+      final updated = applyExternalResponse(
+        session,
+        linkFor('m1', kPresenceStatusAbsent),
+      );
+      expect(updated.attendingMemberIds, isEmpty);
+      expect(updated.agapeIds, isEmpty);
     });
 
     test('les autres champs de la Tenue extérieure restent inchangés', () {
