@@ -27,13 +27,13 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!--
-    TODO(web alkhemia) : pas de client OAuth « Web » pour al-khemia-loge pour
-    l'instant (voir README, section Web multi-loges). Sans cette balise,
-    google_sign_in_web ne s'initialise pas et l'archivage Google Drive reste
-    indisponible sur ce site ; Auth email/mot de passe et Firestore ne sont pas
-    affectés. À ajouter une fois le client OAuth Web provisionné :
-    <meta name="google-signin-client_id" content="...apps.googleusercontent.com">
+    Identifiant client OAuth « Web » du projet Firebase al-khemia-loge
+    (généré via Authentication > Sign-in method > Google). Sans cette balise,
+    google_sign_in_web échoue à l'initialisation : l'archivage Google Drive
+    devient impossible.
   -->
+  <meta name="google-signin-client_id"
+        content="619780384319-hbgvfmpo3dai8qvc87ui600hfcj3kagb.apps.googleusercontent.com">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
