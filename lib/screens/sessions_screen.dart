@@ -644,8 +644,9 @@ class SessionDetailScreen extends StatelessWidget {
     );
     try {
       final chrono = _chrono(session);
+      final suffix = session.driveFileDateGradeSuffix;
       final files = <String, Uint8List>{
-        'Convocation_Tenue_$chrono.pdf': Uint8List.fromList(
+        'Convocation Tenue $chrono$suffix.pdf': Uint8List.fromList(
           await buildConvocationPdf(
             session,
             chrono,
@@ -653,7 +654,7 @@ class SessionDetailScreen extends StatelessWidget {
             lodgeVmName: state.lodgeVmName,
           ),
         ),
-        'Emargement_Tenue_$chrono.pdf': Uint8List.fromList(
+        'Emargement Tenue $chrono$suffix.pdf': Uint8List.fromList(
           await buildEmargementPdf(
             session,
             state.members,
@@ -661,7 +662,7 @@ class SessionDetailScreen extends StatelessWidget {
             state.dignitaries,
           ),
         ),
-        'PlancheTracee_Tenue_$chrono.pdf': Uint8List.fromList(
+        'Planche Tracee Tenue $chrono$suffix.pdf': Uint8List.fromList(
           await buildPlancheTraceePdf(
             session,
             state.members,

@@ -186,7 +186,8 @@ class AgapePaymentScreen extends StatelessWidget {
               .replaceAll(RegExp(r'[^\d]'), '')) ??
           0;
       final email = await DriveService.instance.archivePdfs(session, {
-        'PaiementAgapes_Tenue_$chrono.pdf': await _buildPdf(state, session),
+        'Paiement Agapes Tenue $chrono${session.driveFileDateGradeSuffix}.pdf':
+            await _buildPdf(state, session),
       });
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(

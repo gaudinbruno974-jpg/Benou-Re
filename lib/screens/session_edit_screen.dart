@@ -388,7 +388,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       ),
     );
     final res = await DriveService.instance.ensureFolderAndUpload(session, {
-      'Convocation_Tenue_$chrono.pdf': pdf,
+      'Convocation Tenue $chrono${session.driveFileDateGradeSuffix}.pdf': pdf,
     });
     final map = session.toMap();
     map['driveFolderId'] = res.folderId;

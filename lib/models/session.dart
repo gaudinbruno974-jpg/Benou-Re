@@ -301,6 +301,33 @@ class Session {
       ? normalizeGrade(degreTravail)
       : degree;
 
+  /// Suffixe « jj mm aa X » (date de la tenue + initiale du grade) ajouté
+  /// aux noms des PDF archivés sur Drive (Convocation, Émargement, Planche
+  /// tracée, Paiement des Agapes) — ex. « 27 10 24 A » pour une tenue du
+  /// 27/10/2024 au degré Apprenti. Vide si la date ou le grade manquent
+  /// (tenue pas encore complète), plutôt qu'un texte incohérent.
+  String get driveFileDateGradeSuffix {
+    final dt = dateTime;
+    final dateLabel = dt == null
+        ? ''
+        : '${dt.day.toString().padLeft(2, '0')} '
+            '${dt.month.toString().padLeft(2, '0')} '
+            '${(dt.year % 100).toString().padLeft(2, '0')}';
+    final grade = normalizeGrade(degree);
+    final gradeLetter = grade == kMaitre
+        ? 'M'
+        : grade == kCompagnon
+            ? 'C'
+            : grade == kApprenti
+                ? 'A'
+                : '';
+    final parts = [
+      if (dateLabel.isNotEmpty) dateLabel,
+      if (gradeLetter.isNotEmpty) gradeLetter,
+    ];
+    return parts.isEmpty ? '' : ' ${parts.join(' ')}';
+  }
+
   /// Nombre d'ordres du jour complémentaires non vides.
   int get ordresJourCount =>
       ordresJour.where((o) => o.trim().isNotEmpty).length;
