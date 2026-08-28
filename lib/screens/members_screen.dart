@@ -9,6 +9,7 @@ import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'directory_export_actions.dart';
 import 'directory_import_screen.dart';
+import 'member_detail_screen.dart';
 import 'member_edit_screen.dart';
 import 'passport_actions.dart';
 
@@ -65,7 +66,10 @@ class MembersScreen extends StatelessWidget {
               itemBuilder: (context, i) {
                 final m = members[i];
                 final isSelf = m.id == state.currentUser?.id;
-                return BrCard(
+                return InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: canEdit ? () => _openDetail(context, m) : null,
+                  child: BrCard(
                   accent: BrColors.forGrade(m.grade),
                   padding: const EdgeInsets.all(14),
                   child: Row(
@@ -149,9 +153,16 @@ class MembersScreen extends StatelessWidget {
                       ),
                     ],
                   ),
+                  ),
                 );
               },
             ),
+    );
+  }
+
+  void _openDetail(BuildContext context, Member member) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => MemberDetailScreen(member: member)),
     );
   }
 
