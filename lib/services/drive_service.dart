@@ -532,6 +532,37 @@ class DriveService {
   // Le scope 'drive' (pas seulement 'drive.file') déjà demandé pour
   // l'archivage couvre aussi la gestion des partages : rien à reconfigurer.
 
+  /// Vérifie qu'une permission enregistrée existe encore réellement sur
+  /// Drive — détecte la dérive (accès retiré à la main directement dans
+  /// Drive, appel précédent resté en échec silencieux) avant que la
+  /// synchronisation ne se fie à un état Firestore périmé.
+  Future<bool> permissionExists({
+    required String folderId,
+    required String permissionId,
+  }) async {
+    try {
+      return await _permissionExists(folderId, permissionId);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _permissionExists(folderId, permissionId);
+    }
+  }
+
+  Future<bool> _permissionExists(String folderId, String permissionId) async {
+    final headers = await _authHeaders();
+    final res = await http.get(
+      Uri.parse(
+        'https://www.googleapis.com/drive/v3/files/$folderId/permissions/'
+        '$permissionId?supportsAllDrives=true&fields=id',
+      ),
+      headers: headers,
+    );
+    if (res.statusCode == 200) return true;
+    if (res.statusCode == 404) return false;
+    throw DriveException('Erreur de vérification Drive : ${res.body}');
+  }
+
   /// Partage [folderId] en Éditeur avec [email], sans notification par
   /// mail (la synchronisation peut toucher plusieurs dossiers d'un coup).
   /// Renvoie l'identifiant de la permission créée, à conserver pour pouvoir

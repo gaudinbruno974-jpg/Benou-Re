@@ -29,13 +29,19 @@ class DriveAccessSyncResult {
   final List<String> granted; // "email — dossier"
   final List<String> revoked; // "email — dossier"
   final List<String> failed; // "email — dossier : erreur"
+  final List<String> driftCorrected; // "email — dossier"
   const DriveAccessSyncResult({
     required this.granted,
     required this.revoked,
     required this.failed,
+    required this.driftCorrected,
   });
 
-  bool get isEmpty => granted.isEmpty && revoked.isEmpty && failed.isEmpty;
+  bool get isEmpty =>
+      granted.isEmpty &&
+      revoked.isEmpty &&
+      failed.isEmpty &&
+      driftCorrected.isEmpty;
 }
 
 class DriveAccessSyncService {
@@ -55,9 +61,33 @@ class DriveAccessSyncService {
     final granted = <String>[];
     final revoked = <String>[];
     final failed = <String>[];
+    final driftCorrected = <String>[];
 
     for (final folder in folders) {
       final current = Map<String, String>.from(grants[folder.folderId] ?? {});
+
+      // Dérive : une permission notée dans Firestore n'existe peut-être
+      // plus réellement sur Drive (retirée à la main, appel précédent en
+      // échec silencieux). Vérifiée AVANT de décider quoi ajouter/retirer,
+      // pour ne jamais se fier à un état périmé.
+      for (final email in current.keys.toList()) {
+        final permissionId = current[email]!;
+        bool exists;
+        try {
+          exists = await _drive.permissionExists(
+            folderId: folder.folderId,
+            permissionId: permissionId,
+          );
+        } catch (e) {
+          failed.add('$email — ${folder.name} (vérification) : $e');
+          continue;
+        }
+        if (!exists) {
+          current.remove(email);
+          driftCorrected.add('$email — ${folder.name}');
+        }
+      }
+
       final shouldHave = <String>{
         for (final m in members)
           if (m.email.trim().isNotEmpty &&
@@ -105,6 +135,7 @@ class DriveAccessSyncService {
       granted: granted,
       revoked: revoked,
       failed: failed,
+      driftCorrected: driftCorrected,
     );
   }
 }

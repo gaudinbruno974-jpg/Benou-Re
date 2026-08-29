@@ -98,6 +98,11 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
                     const Color(0xFF34D399)),
               if (_result!.revoked.isNotEmpty)
                 _resultCard('Accès retirés', _result!.revoked, BrColors.gold),
+              if (_result!.driftCorrected.isNotEmpty)
+                _resultCard(
+                    'Dérive corrigée (accès périmé détecté sur Drive)',
+                    _result!.driftCorrected,
+                    BrColors.violet),
               if (_result!.failed.isNotEmpty)
                 _resultCard('Échecs', _result!.failed, BrColors.error),
             ],
