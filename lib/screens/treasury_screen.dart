@@ -489,7 +489,7 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                 SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Mode consultation. Seuls le VM et le Trésorier peuvent modifier les paiements.',
+                    'Mode consultation. Seuls le V∴M∴, le Secrétaire et le Trésorier peuvent modifier les paiements.',
                     style: TextStyle(color: BrColors.gold, fontSize: 12),
                   ),
                 ),
