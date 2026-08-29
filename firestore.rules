@@ -154,6 +154,15 @@ service cloud.firestore {
       allow write: if canEditSessions();
     }
 
+    // Log minimal des Demandes (Suggestions / Dysfonctionnements) : chrono +
+    // date + menu seulement, jamais le texte de la demande (voir
+    // firestore_repository.dart:allocateRequestChrono). Mêmes droits que les
+    // tenues.
+    match /supportRequests/{requestId} {
+      allow read: if signedIn();
+      allow write: if canEditSessions();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
