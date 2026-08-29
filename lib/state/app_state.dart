@@ -357,6 +357,10 @@ class AppState extends ChangeNotifier {
   Future<void> deleteSession(String id) => repo.deleteSession(id);
   Future<int> allocateSessionChrono() => repo.allocateSessionChrono();
 
+  // Actions Demandes (Suggestions / Dysfonctionnements)
+  Future<int> allocateRequestChrono(String menu) =>
+      repo.allocateRequestChrono(menu);
+
   // Réglages de la Loge
   Future<void> updateLodgeVmName(String name) => repo.setLodgeVmName(name);
 

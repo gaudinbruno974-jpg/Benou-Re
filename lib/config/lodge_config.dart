@@ -216,6 +216,11 @@ class LodgeConfig {
   /// Tenues extérieures reçues (voir drive_service.dart).
   final String tenuesExterieuresDriveFolderId;
 
+  /// Dossier Drive dans lequel sont archivées les Demandes (Suggestions /
+  /// Dysfonctionnements) déposées par le V∴M∴ ou le Secrétaire, un PDF par
+  /// demande (voir drive_service.dart).
+  final String requestsDriveFolderId;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -247,6 +252,7 @@ class LodgeConfig {
     this.treasuryDriveFolderId = '',
     this.passportDriveFolderId = '',
     this.tenuesExterieuresDriveFolderId = '',
+    this.requestsDriveFolderId = '',
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -459,6 +465,10 @@ class LodgeConfig {
       tenuesExterieuresDriveFolderId: text(
         'tenuesExterieuresDriveFolderId',
         tenuesExterieuresDriveFolderId,
+      ),
+      requestsDriveFolderId: text(
+        'requestsDriveFolderId',
+        requestsDriveFolderId,
       ),
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),

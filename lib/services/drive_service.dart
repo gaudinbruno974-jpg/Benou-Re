@@ -427,6 +427,29 @@ class DriveService {
     return currentEmail ?? 'compte Google';
   }
 
+  /// Archive le PDF d'une Demande (Suggestions / Dysfonctionnements), un
+  /// fichier par demande, directement dans le dossier configuré — voir
+  /// [LodgeConfig.requestsDriveFolderId].
+  Future<String> archiveSupportRequestDocument({
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final folderId = LodgeConfig.current.requestsDriveFolderId.trim();
+    if (folderId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive de Demandes configuré pour cette Loge '
+        '(requestsDriveFolderId).',
+      );
+    }
+    try {
+      return await _archivePassportDocument(folderId, fileName, bytes);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archivePassportDocument(folderId, fileName, bytes);
+    }
+  }
+
   /// Archive le carton d'une Tenue extérieure reçue (Registre des Tenues
   /// extérieures), un fichier par invitation, directement dans le dossier
   /// configuré — voir [LodgeConfig.tenuesExterieuresDriveFolderId]. Renvoie

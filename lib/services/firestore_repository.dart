@@ -474,4 +474,27 @@ class FirestoreRepository {
       return current;
     });
   }
+
+  /// Réserve et renvoie le prochain numéro de Demande (Suggestions /
+  /// Dysfonctionnements) pour la Loge courante, puis incrémente le compteur
+  /// — même principe que [allocateSessionChrono]. Consigne au passage un log
+  /// minimal (chrono + date + menu concerné), sans le texte de la demande :
+  /// celui-ci ne vit que dans le PDF archivé sur Drive.
+  Future<int> allocateRequestChrono(String menu) {
+    final ref = _db.collection('config').doc('settings');
+    final logRef = _db.collection('supportRequests').doc();
+    return _db.runTransaction<int>((tx) async {
+      final snap = await tx.get(ref);
+      final current = snap.exists
+          ? ((snap.data()?['requestChrono'] ?? 1) as num).toInt()
+          : 1;
+      tx.set(ref, {'requestChrono': current + 1}, SetOptions(merge: true));
+      tx.set(logRef, {
+        'chrono': current,
+        'date': DateTime.now().toIso8601String(),
+        'menu': menu,
+      });
+      return current;
+    });
+  }
 }

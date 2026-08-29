@@ -2340,4 +2340,100 @@ Future<Uint8List> buildActivityReportPdf({
   return doc.save();
 }
 
+// ══════════════════════════════════════════════════════════════════
+// DEMANDE (Suggestions / Dysfonctionnements — Parvis)
+// ══════════════════════════════════════════════════════════════════
+
+/// Ticket PDF d'une Demande (Suggestions / Dysfonctionnements), déposée par
+/// le V∴M∴ ou le Secrétaire depuis le Parvis — voir support_request_screen.dart.
+/// Archivé sur Drive et joint au mail envoyé à gaudin.bruno974@gmail.com :
+/// seul ce PDF porte le texte de la demande, jamais stocké en base.
+Future<Uint8List> buildSupportRequestPdf({
+  required int chrono,
+  required String objet,
+  required Member requester,
+  required String message,
+}) async {
+  final fonts = await _loadLodgeFonts();
+  final logos = await _loadLogos();
+
+  pw.Widget row(String label, String value) {
+    if (value.trim().isEmpty) return pw.SizedBox();
+    return pw.Padding(
+      padding: pw.EdgeInsets.only(bottom: 3 * _mm),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: 32 * _mm,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 10,
+                color: PdfColors.grey700,
+              ),
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(
+              value,
+              style: pw.TextStyle(font: fonts.base, fontSize: 11),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  final doc = pw.Document();
+  doc.addPage(
+    pw.Page(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.all(18 * _mm),
+      build: (context) => pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          _lodgeHeader(fonts, logos[0], logos[1]),
+          pw.SizedBox(height: 8 * _mm),
+          pw.Center(
+            child: pw.Text(
+              'DEMANDE N° $chrono',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: _navy),
+            ),
+          ),
+          pw.SizedBox(height: 10 * _mm),
+          pw.Container(
+            padding: pw.EdgeInsets.all(10 * _mm),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey400),
+              borderRadius: pw.BorderRadius.circular(4),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                row('Date', DateFormat('dd/MM/yyyy').format(DateTime.now())),
+                row('Objet', objet),
+                row(
+                  'Demandeur',
+                  '${civiliteAbbrev(requester.civilite)} ${requester.fullName}'
+                      .trim(),
+                ),
+                row('Email', requester.email),
+                row('Téléphone', requester.phone),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 10 * _mm),
+          pw.Text(
+            message,
+            style: pw.TextStyle(font: fonts.base, fontSize: 11),
+          ),
+        ],
+      ),
+    ),
+  );
+  return doc.save();
+}
+
 String _euroLabel(num v) => '${v.toStringAsFixed(2)} €';

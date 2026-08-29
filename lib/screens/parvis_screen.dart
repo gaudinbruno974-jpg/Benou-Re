@@ -18,6 +18,25 @@ import 'visitors_screen.dart';
 import 'treasury_screen.dart';
 import 'library_screen.dart';
 import 'agape_payment_sessions_screen.dart';
+import 'support_request_screen.dart';
+
+/// Cartes du Parvis, dans leur ordre d'affichage — réutilisé par
+/// support_request_screen.dart pour le menu « Votre demande concerne ».
+const List<String> kParvisCardTitles = [
+  'Tenues',
+  'Paiement des Agapes',
+  'Tenues extérieures',
+  'Membres',
+  'Visiteurs',
+  'Dignitaires',
+  "Morceaux d'architecture",
+  'Instructions',
+  'Rituels',
+  'Matériel',
+  'Trésorerie',
+  'Statistiques',
+  'Rapport pour la Grande Loge',
+];
 
 class _MenuItem {
   final String title;
@@ -152,6 +171,14 @@ class ParvisScreen extends StatelessWidget {
         BrColors.menuArchitecture,
         isVM,
         () => const ActivityReportScreen(),
+      ),
+      _MenuItem(
+        'Suggestions / Dysfonctionnements',
+        'Signaler un bug ou une idée',
+        Icons.support_agent_outlined,
+        BrColors.gold,
+        canEditSessions(user),
+        () => const SupportRequestScreen(),
       ),
     ];
     final visibleItems = items.where((i) => i.visible).toList();
