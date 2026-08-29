@@ -50,14 +50,6 @@ class ParvisScreen extends StatelessWidget {
 
     final items = <_MenuItem>[
       _MenuItem(
-        'Membres',
-        '${state.members.length} membre(s)',
-        Icons.people_outline,
-        BrColors.gold,
-        true,
-        () => const MembersScreen(),
-      ),
-      _MenuItem(
         'Tenues',
         '${state.sessions.length} tenue(s)',
         Icons.calendar_today,
@@ -66,12 +58,28 @@ class ParvisScreen extends StatelessWidget {
         () => const SessionsScreen(),
       ),
       _MenuItem(
+        'Paiement des Agapes',
+        'Médailles & signatures',
+        Icons.restaurant_outlined,
+        BrColors.menuTresorerie,
+        isTreasury,
+        () => const AgapePaymentSessionsScreen(),
+      ),
+      _MenuItem(
         'Tenues extérieures',
         '${state.externalSessions.where((s) => !s.isPast).length} à venir',
         Icons.outbound_outlined,
         BrColors.gold,
         isVisitors,
         () => const ExternalSessionsScreen(),
+      ),
+      _MenuItem(
+        'Membres',
+        '${state.members.length} membre(s)',
+        Icons.people_outline,
+        BrColors.gold,
+        true,
+        () => const MembersScreen(),
       ),
       _MenuItem(
         'Visiteurs',
@@ -128,14 +136,6 @@ class ParvisScreen extends StatelessWidget {
         BrColors.menuTresorerie,
         isTreasury,
         () => const TreasuryScreen(),
-      ),
-      _MenuItem(
-        'Paiement des Agapes',
-        'Médailles & signatures',
-        Icons.restaurant_outlined,
-        BrColors.menuTresorerie,
-        isTreasury,
-        () => const AgapePaymentSessionsScreen(),
       ),
       _MenuItem(
         'Statistiques',

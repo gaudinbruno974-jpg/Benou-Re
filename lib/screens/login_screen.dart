@@ -458,15 +458,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     const SizedBox(height: 20),
                     _testAccountsPanel(),
                   ],
-                  const SizedBox(height: 28),
-                  const Text(
-                    'EX CINERIBUS, AD LUCEM PERPETUAM',
-                    style: TextStyle(
-                      color: BrColors.muted,
-                      fontSize: 10,
-                      letterSpacing: 2,
+                  if (currentFlavor == 'benoure') ...[
+                    const SizedBox(height: 28),
+                    const Text(
+                      'EX CINERIBUS, AD LUCEM PERPETUAM',
+                      style: TextStyle(
+                        color: BrColors.muted,
+                        fontSize: 10,
+                        letterSpacing: 2,
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
