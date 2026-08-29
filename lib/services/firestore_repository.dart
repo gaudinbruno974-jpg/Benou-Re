@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../config/lodge_config.dart';
 import '../models/dignitary.dart';
+import '../models/drive_access_folder.dart';
 import '../models/external_session.dart';
 import '../models/inventory_check.dart';
 import '../models/inventory_item.dart';
@@ -496,5 +497,45 @@ class FirestoreRepository {
       });
       return current;
     });
+  }
+
+  // ─── Accès Drive par fonction (config/settings) ─────────────────
+  /// Dossiers Drive à synchroniser, avec les fonctions autorisées sur chacun
+  /// — voir DriveAccessFolder. Vide tant que la Loge n'a pas été configurée.
+  Future<List<DriveAccessFolder>> getDriveAccessFolders() async {
+    final snap = await _db.collection('config').doc('settings').get();
+    final raw = snap.data()?['driveAccessFolders'];
+    if (raw is! List) return const [];
+    return [
+      for (final entry in raw)
+        if (entry is Map)
+          DriveAccessFolder.fromMap(Map<String, dynamic>.from(entry)),
+    ];
+  }
+
+  /// Dernier état connu des accès accordés par la synchronisation :
+  /// dossier → (email → identifiant de permission Drive). Sert à ne
+  /// retirer que les accès accordés PAR la synchronisation elle-même,
+  /// jamais un partage ajouté manuellement pour une autre raison.
+  Future<Map<String, Map<String, String>>> getDriveAccessGrants() async {
+    final snap = await _db.collection('config').doc('settings').get();
+    final raw = snap.data()?['driveAccessGrants'];
+    if (raw is! Map) return {};
+    return {
+      for (final entry in raw.entries)
+        if (entry.value is Map)
+          entry.key.toString(): Map<String, String>.from(
+            (entry.value as Map).map(
+              (k, v) => MapEntry(k.toString(), v.toString()),
+            ),
+          ),
+    };
+  }
+
+  Future<void> setDriveAccessGrants(
+    Map<String, Map<String, String>> grants,
+  ) {
+    final ref = _db.collection('config').doc('settings');
+    return ref.set({'driveAccessGrants': grants}, SetOptions(merge: true));
   }
 }

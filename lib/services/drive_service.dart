@@ -528,6 +528,79 @@ class DriveService {
     return res.bodyBytes;
   }
 
+  // ─── Accès Drive par fonction (synchronisation V∴M∴) ────────────
+  // Le scope 'drive' (pas seulement 'drive.file') déjà demandé pour
+  // l'archivage couvre aussi la gestion des partages : rien à reconfigurer.
+
+  /// Partage [folderId] en Éditeur avec [email], sans notification par
+  /// mail (la synchronisation peut toucher plusieurs dossiers d'un coup).
+  /// Renvoie l'identifiant de la permission créée, à conserver pour pouvoir
+  /// la retirer plus tard.
+  Future<String> grantFolderAccess({
+    required String folderId,
+    required String email,
+  }) async {
+    try {
+      return await _grantFolderAccess(folderId, email);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _grantFolderAccess(folderId, email);
+    }
+  }
+
+  Future<String> _grantFolderAccess(String folderId, String email) async {
+    final headers = await _authHeaders();
+    final res = await http.post(
+      Uri.parse(
+        'https://www.googleapis.com/drive/v3/files/$folderId/permissions'
+        '?supportsAllDrives=true&sendNotificationEmail=false',
+      ),
+      headers: {...headers, 'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'role': 'writer',
+        'type': 'user',
+        'emailAddress': email,
+      }),
+    );
+    if (res.statusCode != 200) {
+      throw DriveException('Erreur de partage Drive ($email) : ${res.body}');
+    }
+    return (jsonDecode(res.body)['id'] as String?) ?? '';
+  }
+
+  /// Retire la permission [permissionId] du dossier [folderId] — jamais
+  /// autre chose que ce que la synchronisation a elle-même accordé.
+  Future<void> revokeFolderAccess({
+    required String folderId,
+    required String permissionId,
+  }) async {
+    try {
+      await _revokeFolderAccess(folderId, permissionId);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      await _revokeFolderAccess(folderId, permissionId);
+    }
+  }
+
+  Future<void> _revokeFolderAccess(
+    String folderId,
+    String permissionId,
+  ) async {
+    final headers = await _authHeaders();
+    final res = await http.delete(
+      Uri.parse(
+        'https://www.googleapis.com/drive/v3/files/$folderId/permissions/'
+        '$permissionId?supportsAllDrives=true',
+      ),
+      headers: headers,
+    );
+    if (res.statusCode != 204 && res.statusCode != 404) {
+      throw DriveException('Erreur de retrait Drive : ${res.body}');
+    }
+  }
+
   // ─── Gmail : envoi ou brouillon, avec pièce jointe réelle ────────────
   // Un lien mailto:/Gmail compose ne permet aucune pièce jointe (limite de
   // ces schémas d'URL, aucun contournement possible) : on passe donc par

@@ -19,6 +19,7 @@ import 'treasury_screen.dart';
 import 'library_screen.dart';
 import 'agape_payment_sessions_screen.dart';
 import 'support_request_screen.dart';
+import 'drive_access_sync_screen.dart';
 
 /// Cartes du Parvis, dans leur ordre d'affichage — réutilisé par
 /// support_request_screen.dart pour le menu « Votre demande concerne ».
@@ -179,6 +180,14 @@ class ParvisScreen extends StatelessWidget {
         BrColors.gold,
         canEditSessions(user),
         () => const SupportRequestScreen(),
+      ),
+      _MenuItem(
+        'Accès Drive',
+        'Synchroniser les autorisations',
+        Icons.sync,
+        BrColors.violet,
+        isVM,
+        () => const DriveAccessSyncScreen(),
       ),
     ];
     final visibleItems = items.where((i) => i.visible).toList();
