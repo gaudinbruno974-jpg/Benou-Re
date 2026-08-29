@@ -532,6 +532,44 @@ class DriveService {
   // Le scope 'drive' (pas seulement 'drive.file') déjà demandé pour
   // l'archivage couvre aussi la gestion des partages : rien à reconfigurer.
 
+  /// Liste les accès réels d'un dossier, tels qu'ils sont sur Drive — pas
+  /// depuis le suivi Firestore, pour aussi révéler un partage ajouté à la
+  /// main en dehors de la synchronisation. Une entrée par personne
+  /// (email, rôle Drive : owner/writer/reader/commenter).
+  Future<List<({String email, String role})>> listFolderAccess({
+    required String folderId,
+  }) async {
+    try {
+      return await _listFolderAccess(folderId);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _listFolderAccess(folderId);
+    }
+  }
+
+  Future<List<({String email, String role})>> _listFolderAccess(
+    String folderId,
+  ) async {
+    final headers = await _authHeaders();
+    final res = await http.get(
+      Uri.parse(
+        'https://www.googleapis.com/drive/v3/files/$folderId/permissions'
+        '?supportsAllDrives=true&fields=permissions(type,role,emailAddress)',
+      ),
+      headers: headers,
+    );
+    if (res.statusCode != 200) {
+      throw DriveException('Erreur de lecture des accès Drive : ${res.body}');
+    }
+    final list = (jsonDecode(res.body)['permissions'] as List?) ?? const [];
+    return [
+      for (final p in list)
+        if (p['type'] == 'user' && p['emailAddress'] != null)
+          (email: p['emailAddress'] as String, role: p['role'] as String),
+    ];
+  }
+
   /// Vérifie qu'une permission enregistrée existe encore réellement sur
   /// Drive — détecte la dérive (accès retiré à la main directement dans
   /// Drive, appel précédent resté en échec silencieux) avant que la

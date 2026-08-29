@@ -44,6 +44,14 @@ class DriveAccessSyncResult {
       driftCorrected.isEmpty;
 }
 
+/// Accès réels d'un dossier, lus en direct sur Drive (pas depuis le suivi
+/// Firestore) — pour la section « Accès existants » de l'écran.
+class FolderAccessSummary {
+  final String folderName;
+  final List<({String email, String role})> entries;
+  const FolderAccessSummary({required this.folderName, required this.entries});
+}
+
 class DriveAccessSyncService {
   DriveAccessSyncService({
     FirestoreRepository? repo,
@@ -137,5 +145,20 @@ class DriveAccessSyncService {
       failed: failed,
       driftCorrected: driftCorrected,
     );
+  }
+
+  /// Photo des accès réels, dossier par dossier, lue en direct sur Drive —
+  /// révèle aussi un partage ajouté à la main en dehors de cette
+  /// synchronisation, ce que le suivi Firestore ne montrerait jamais.
+  Future<List<FolderAccessSummary>> currentAccess() async {
+    final folders = await _repo.getDriveAccessFolders();
+    final summaries = <FolderAccessSummary>[];
+    for (final folder in folders) {
+      final entries = await _drive.listFolderAccess(folderId: folder.folderId);
+      summaries.add(
+        FolderAccessSummary(folderName: folder.name, entries: entries),
+      );
+    }
+    return summaries;
   }
 }
