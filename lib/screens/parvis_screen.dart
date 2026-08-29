@@ -214,7 +214,7 @@ class ParvisScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  'R. L. ${lodge.name}',
+                  'R∴L∴ ${lodge.name}',
                   style: const TextStyle(fontSize: 16, letterSpacing: 1),
                 ),
                 Text(
@@ -336,7 +336,7 @@ class ParvisScreen extends StatelessWidget {
             const SizedBox(height: 28),
             Center(
               child: Text(
-                'RL ${lodge.name} • RAPMM • v1.0.0',
+                'R∴L∴ ${lodge.name} • RAPMM • v1.0.0',
                 style: TextStyle(
                   color: BrColors.muted.withValues(alpha: 0.7),
                   fontSize: 11,

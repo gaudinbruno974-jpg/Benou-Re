@@ -2355,7 +2355,7 @@ Future<Uint8List> buildSupportRequestPdf({
   required String message,
 }) async {
   final fonts = await _loadLodgeFonts();
-  final logos = await _loadLogos();
+  final logo = (await _loadLogos())[1]; // logo de la Loge
 
   pw.Widget row(String label, String value) {
     if (value.trim().isEmpty) return pw.SizedBox();
@@ -2394,12 +2394,30 @@ Future<Uint8List> buildSupportRequestPdf({
       build: (context) => pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          _lodgeHeader(fonts, logos[0], logos[1]),
+          if (logo != null)
+            pw.Center(
+              child: pw.SizedBox(
+                height: 30 * _mm,
+                child: pw.Image(logo, fit: pw.BoxFit.contain),
+              ),
+            ),
+          pw.SizedBox(height: 4 * _mm),
+          pw.Center(
+            child: pw.Text(
+              LodgeConfig.current.shortTitle,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
+            ),
+          ),
           pw.SizedBox(height: 8 * _mm),
           pw.Center(
             child: pw.Text(
               'DEMANDE N° $chrono',
-              style: pw.TextStyle(font: fonts.bold, fontSize: 16, color: _navy),
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 20,
+                color: _violet,
+                letterSpacing: 1,
+              ),
             ),
           ),
           pw.SizedBox(height: 10 * _mm),
