@@ -203,7 +203,7 @@ const String _corePropsXml =
     '<cp:coreProperties '
     'xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
     'xmlns:dc="http://purl.org/dc/elements/1.1/">'
-    '<dc:creator>Grande Loge de Bourbon (GLDB)</dc:creator>'
+    '<dc:creator>Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523</dc:creator>'
     '<cp:lastModifiedBy>Grande Loge de Bourbon (GLDB)</cp:lastModifiedBy>'
     '</cp:coreProperties>';
 
