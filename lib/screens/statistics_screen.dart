@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
 import '../services/attendance_stats_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -146,7 +147,9 @@ class _MemberAttendanceTab extends StatelessWidget {
       emptyText: 'Aucune tenue passée sur cette période.',
       onExport: () async {
         final bytes = buildMemberAttendanceWorkbook(stats);
-        await saveFileLocally(context, _fileName('Assiduite', year), bytes);
+        final loge = LodgeConfig.current.name.replaceAll(' ', '_');
+        final fileName = 'Assiduite_${loge}_${year?.toString() ?? 'Historique'}.xlsx';
+        await saveFileLocally(context, fileName, bytes);
       },
       table: DataTable(
         headingRowColor: WidgetStateProperty.all(BrColors.backgroundDark),

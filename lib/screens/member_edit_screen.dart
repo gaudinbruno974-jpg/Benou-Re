@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
 import '../models/civilite.dart';
 import '../models/member.dart';
 import '../models/preferred_contact.dart';
@@ -273,7 +274,8 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           lodgeVmName: state.lodgeVmName,
         ),
       );
-      final fileName = 'Passeport - ${member.lastName} ${member.firstName}.pdf';
+      final fileName = 'Passeport GLDB ${LodgeConfig.current.name} - '
+          '${member.lastName} ${member.firstName}.pdf';
       try {
         await DriveService.instance.archivePassportDocument(
           fileName: fileName,

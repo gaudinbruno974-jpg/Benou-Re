@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
 import '../models/session.dart';
 import '../services/agape_payment_service.dart';
 import '../services/drive_service.dart';
@@ -186,7 +187,8 @@ class AgapePaymentScreen extends StatelessWidget {
               .replaceAll(RegExp(r'[^\d]'), '')) ??
           0;
       final email = await DriveService.instance.archivePdfs(session, {
-        'Paiement Agapes Tenue $chrono${session.driveFileDateGradeSuffix}.pdf':
+        'Paiement Agapes ${LodgeConfig.current.name} Tenue $chrono'
+                '${session.driveFileDateGradeSuffix}.pdf':
             await _buildPdf(state, session),
       });
       messenger.hideCurrentSnackBar();

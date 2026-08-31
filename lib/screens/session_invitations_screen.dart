@@ -84,7 +84,8 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
       );
       await Printing.sharePdf(
         bytes: Uint8List.fromList(bytes),
-        filename: 'Convocation_Tenue_${_chrono(session)}.pdf',
+        filename: 'Convocation ${LodgeConfig.current.name} Tenue '
+            '${_chrono(session)}${session.driveFileDateGradeSuffix}.pdf',
       );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Erreur PDF : $e')));
@@ -317,7 +318,8 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
       ];
       final result = await sendBulkGmails(
         pdfBytes: pdfBytes,
-        attachmentName: 'Convocation_Tenue_${widget.chrono}.pdf',
+        attachmentName: 'Convocation ${LodgeConfig.current.name} Tenue '
+            '${widget.chrono}${widget.session.driveFileDateGradeSuffix}.pdf',
         recipients: recipients,
         onProgress: (done, total) {
           if (mounted) setState(() => _bulkDone = done);
@@ -759,7 +761,8 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
       ];
       final result = await sendBulkGmails(
         pdfBytes: pdfBytes,
-        attachmentName: 'Convocation_Tenue_${widget.chrono}.pdf',
+        attachmentName: 'Convocation ${LodgeConfig.current.name} Tenue '
+            '${widget.chrono}${widget.session.driveFileDateGradeSuffix}.pdf',
         recipients: recipientsToSend,
         onProgress: (done, total) {
           if (mounted) setState(() => _bulkDone = done);

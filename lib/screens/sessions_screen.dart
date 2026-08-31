@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../services/drive_service.dart';
@@ -645,8 +646,9 @@ class SessionDetailScreen extends StatelessWidget {
     try {
       final chrono = _chrono(session);
       final suffix = session.driveFileDateGradeSuffix;
+      final loge = LodgeConfig.current.name;
       final files = <String, Uint8List>{
-        'Convocation Tenue $chrono$suffix.pdf': Uint8List.fromList(
+        'Convocation $loge Tenue $chrono$suffix.pdf': Uint8List.fromList(
           await buildConvocationPdf(
             session,
             chrono,
@@ -654,7 +656,7 @@ class SessionDetailScreen extends StatelessWidget {
             lodgeVmName: state.lodgeVmName,
           ),
         ),
-        'Emargement Tenue $chrono$suffix.pdf': Uint8List.fromList(
+        'Emargement $loge Tenue $chrono$suffix.pdf': Uint8List.fromList(
           await buildEmargementPdf(
             session,
             state.members,
@@ -662,7 +664,7 @@ class SessionDetailScreen extends StatelessWidget {
             state.dignitaries,
           ),
         ),
-        'Planche Tracee Tenue $chrono$suffix.pdf': Uint8List.fromList(
+        'Planche Tracee $loge Tenue $chrono$suffix.pdf': Uint8List.fromList(
           await buildPlancheTraceePdf(
             session,
             state.members,

@@ -99,7 +99,7 @@ void main() {
     test('reprennent le type, l\'année, la civilité (F/S) et le nom', () {
       expect(
         capitationCallFileName(member, 2026),
-        'Capitation 2026 - F - DUPONT Jean.pdf',
+        'Capitation Bénou Ré 2026 - F - DUPONT Jean.pdf',
       );
       const soeur = Member(
         id: 'm5',
@@ -109,7 +109,7 @@ void main() {
       );
       expect(
         quitusFileName(soeur, 2026),
-        'Quitus 2026 - S - MARTIN Marie.pdf',
+        'Quitus Bénou Ré 2026 - S - MARTIN Marie.pdf',
       );
     });
   });

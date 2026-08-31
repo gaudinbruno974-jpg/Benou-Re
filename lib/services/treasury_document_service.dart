@@ -103,12 +103,12 @@ String capitationCallBody(
 /// sous-dossier « Capitations {année} » porte déjà l'année et le type, le
 /// nom du fichier reprend quand même le préfixe complet à la demande.
 String capitationCallFileName(Member member, int year) =>
-    'Capitation $year - ${_civiliteLetter(member)} - '
-    '${member.lastName} ${member.firstName}.pdf';
+    'Capitation ${LodgeConfig.current.name} $year - '
+    '${_civiliteLetter(member)} - ${member.lastName} ${member.firstName}.pdf';
 
 String quitusFileName(Member member, int year) =>
-    'Quitus $year - ${_civiliteLetter(member)} - '
-    '${member.lastName} ${member.firstName}.pdf';
+    'Quitus ${LodgeConfig.current.name} $year - '
+    '${_civiliteLetter(member)} - ${member.lastName} ${member.firstName}.pdf';
 
 String quitusSubject(int year) => 'Quitus de cotisation $year';
 

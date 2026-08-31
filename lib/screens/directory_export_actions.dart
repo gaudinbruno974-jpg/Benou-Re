@@ -68,5 +68,7 @@ Future<void> exportDirectories(BuildContext context) async {
 /// de base à l'import d'une autre Loge.
 Future<void> exportDirectoryTemplate(BuildContext context) async {
   final bytes = buildDirectoryTemplate();
-  await saveFileLocally(context, 'Modele_Import_Repertoires.xlsx', bytes);
+  final fileName = 'Modele_Import_Repertoires_'
+      '${LodgeConfig.current.name.replaceAll(' ', '_')}.xlsx';
+  await saveFileLocally(context, fileName, bytes);
 }
