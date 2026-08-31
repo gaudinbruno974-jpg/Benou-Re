@@ -88,7 +88,7 @@ class _ExternalSessionList extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'R∴L∴ ${s.organizingLodge.isEmpty ? '?' : s.organizingLodge}',
+                      s.organizingLodge.isEmpty ? '?' : s.organizingLodge,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -113,6 +113,11 @@ class _ExternalSessionList extends StatelessWidget {
                           BrBadge(
                             label: '${s.attendingMemberIds.length} présent(s)',
                             color: BrColors.menuVisiteurs,
+                          ),
+                        if (s.agapeIds.isNotEmpty)
+                          BrBadge(
+                            label: '${s.agapeIds.length} aux Agapes',
+                            color: BrColors.violet,
                           ),
                       ],
                     ),

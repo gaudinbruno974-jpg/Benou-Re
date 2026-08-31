@@ -69,7 +69,7 @@ class _ExternalSessionDetailScreenState
           sessionId: session.id,
           memberId: m.id,
           memberName: m.fullName,
-          sessionLabel: 'Tenue de la R∴L∴ ${session.organizingLodge}',
+          sessionLabel: 'Tenue de la ${session.organizingLodge}',
           sessionDateLabel: sessionDateLabel,
           sessionType: session.eventTypeLabel,
           sessionDegreeLabel: session.degree == kExternalDegreeAll
@@ -187,7 +187,7 @@ class _ExternalSessionDetailScreenState
           style: TextStyle(color: Colors.white),
         ),
         content: Text(
-          'L\'invitation de la R∴L∴ ${session.organizingLodge} sera '
+          'L\'invitation de la ${session.organizingLodge} sera '
           'définitivement supprimée.',
           style: const TextStyle(color: BrColors.muted),
         ),
@@ -228,7 +228,7 @@ class _ExternalSessionDetailScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('R∴L∴ ${session.organizingLodge}'),
+        title: Text(session.organizingLodge),
         actions: canEdit
             ? [
                 IconButton(

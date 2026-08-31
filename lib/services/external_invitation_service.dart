@@ -36,7 +36,7 @@ String _heure(ExternalSession s) {
 }
 
 String externalInvitationSubject(ExternalSession s) =>
-    'Invitation reçue de la R∴L∴ ${s.organizingLodge} (${_dateCourte(s)})';
+    'Invitation reçue de la ${s.organizingLodge} (${_dateCourte(s)})';
 
 Member? _findSecretary(List<Member> members) => members
     .where((m) => foldLabel(m.function).contains('secretaire'))
@@ -89,15 +89,15 @@ String externalInvitationBody(
   final lines = <String>[
     greeting,
     '',
-    'La R∴L∴ ${s.organizingLodge}'
+    'La ${s.organizingLodge}'
         '${s.obedience.trim().isEmpty ? '' : ' (${s.obedience.trim()})'} '
         'nous invite à sa ${s.eventTypeLabel}, qui se tiendra le '
         '${_dateLongue(s)}'
         '${heure.isEmpty ? '' : ' à $heure'}'
         '${lieu.isEmpty ? '' : ', $lieu'}.',
     '',
-    'Merci de nous indiquer si vous comptez vous y rendre, afin d\'en '
-        'informer nos hôtes :',
+    'Merci de nous indiquer par l\'intermédiaire du lien ci-dessous si vous '
+        'comptez vous y rendre, afin d\'en informer nos hôtes :',
     '',
     "Vous pouvez modifier votre réponse jusqu'à la veille de la tenue.",
     '',
