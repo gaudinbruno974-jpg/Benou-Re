@@ -25,6 +25,7 @@ List<int> buildXlsx(Map<String, List<List<String>>> sheets) {
 
   add('[Content_Types].xml', _contentTypesXml(names.length));
   add('_rels/.rels', _rootRelsXml);
+  add('docProps/core.xml', _corePropsXml);
   add('xl/workbook.xml', _workbookXml(names));
   add('xl/_rels/workbook.xml.rels', _workbookRelsXml(names.length));
   add('xl/styles.xml', _stylesXml);
@@ -182,6 +183,7 @@ String _contentTypesXml(int sheetCount) {
       '<Default Extension="xml" ContentType="application/xml"/>'
       '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
       '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+      '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
       '$overrides'
       '</Types>';
 }
@@ -190,7 +192,20 @@ const String _rootRelsXml =
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
     '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>'
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'
     '</Relationships>';
+
+/// Propriétés du classeur (copyright du contenu — voir aussi
+/// _copyrightFooter dans pdf_service.dart pour l'équivalent sur les PDF) :
+/// visibles dans les propriétés du fichier, sans rien afficher à l'écran.
+const String _corePropsXml =
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+    '<cp:coreProperties '
+    'xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+    'xmlns:dc="http://purl.org/dc/elements/1.1/">'
+    '<dc:creator>Grande Loge de Bourbon (GLDB)</dc:creator>'
+    '<cp:lastModifiedBy>Grande Loge de Bourbon (GLDB)</cp:lastModifiedBy>'
+    '</cp:coreProperties>';
 
 String _workbookXml(List<String> names) {
   final sheetsXml = StringBuffer();

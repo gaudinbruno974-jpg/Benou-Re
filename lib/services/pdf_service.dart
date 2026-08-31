@@ -44,6 +44,18 @@ import 'treasury_document_service.dart'
 // 1 mm en points PDF (le paquet `pdf` travaille en points ; jsPDF en mm).
 const double _mm = PdfPageFormat.mm;
 
+/// Pied de page discret rappelant le copyright du contenu (GLDB), sur tous
+/// les documents générés — voir aussi le champ `author` de chaque
+/// `pw.Document`, qui porte la même mention dans les métadonnées du PDF.
+pw.Widget _copyrightFooter(pw.Context context) => pw.Container(
+      alignment: pw.Alignment.center,
+      margin: pw.EdgeInsets.only(top: 4 * _mm),
+      child: pw.Text(
+        '© Grande Loge de Bourbon (GLDB)',
+        style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+      ),
+    );
+
 const _navy = PdfColor.fromInt(0xFF0C235C);
 const _violet = PdfColor.fromInt(0xFF701A75);
 const _grey = PdfColor.fromInt(0xFFD9D9D9);
@@ -623,11 +635,12 @@ Future<Uint8List> buildConvocationPdf(
   var scale = 1.0;
   pw.Document doc;
   while (true) {
-    doc = pw.Document();
+    doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: pw.EdgeInsets.all(15 * _mm * scale),
+        footer: _copyrightFooter,
         build: (context) => _convocationContent(
           fonts: fonts,
           logos: logos,
@@ -676,7 +689,7 @@ Future<Uint8List> buildEmargementPdf(
   // symboles ; on garde la typo Times avec repli DejaVu pour les glyphes manquants.
   final fallback = await _loadLodgeFonts();
   final logo = (await _loadLogos())[1]; // logo de la Loge
-  final doc = pw.Document();
+  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
 
   final signatures = session.signatures;
   final type = session.type.isNotEmpty ? session.type : 'Ordinaire';
@@ -871,12 +884,15 @@ Future<Uint8List> buildEmargementPdf(
         bold: fonts.bold,
         fontFallback: [fallback.base, fallback.bold],
       ),
-      footer: (context) => pw.Container(
-        alignment: pw.Alignment.center,
-        child: pw.Text(
-          '${context.pageNumber}',
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10),
-        ),
+      footer: (context) => pw.Column(
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.Text(
+            '${context.pageNumber}',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+          ),
+          _copyrightFooter(context),
+        ],
       ),
       build: (context) => [
         header(),
@@ -943,7 +959,7 @@ Future<Uint8List> buildAgapePaymentPdf(
 ) async {
   final fonts = await _loadLodgeFonts();
   final logo = (await _loadLogos())[1]; // logo de la Loge
-  final doc = pw.Document();
+  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
 
   final payers = agapePayers(session, members, visitors, dignitaries);
   final signatures = session.agapePaymentSignatures;
@@ -977,6 +993,7 @@ Future<Uint8List> buildAgapePaymentPdf(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: pw.EdgeInsets.fromLTRB(18 * _mm, 12 * _mm, 18 * _mm, 18 * _mm),
+      footer: _copyrightFooter,
       theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
       build: (context) => [
         if (logo != null)
@@ -1479,7 +1496,7 @@ Future<Uint8List> buildPlancheTraceePdf(
 }) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
-  final doc = pw.Document();
+  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
 
   final content = <pw.Widget>[];
   content.add(_lodgeHeader(fonts, logos[0], logos[1]));
@@ -1635,6 +1652,7 @@ Future<Uint8List> buildPlancheTraceePdf(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: pw.EdgeInsets.all(15 * _mm),
+      footer: _copyrightFooter,
       build: (context) => content,
     ),
   );
@@ -1648,7 +1666,7 @@ Future<Uint8List> buildPlancheTraceePdf(
 Future<Uint8List> buildTreasuryReportPdf(int year, List<Member> members) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
-  final doc = pw.Document();
+  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
 
   String euros(num v) => '${v.toStringAsFixed(2)} €';
 
@@ -1730,12 +1748,15 @@ Future<Uint8List> buildTreasuryReportPdf(int year, List<Member> members) async {
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: pw.EdgeInsets.all(15 * _mm),
-      footer: (context) => pw.Container(
-        alignment: pw.Alignment.center,
-        child: pw.Text(
-          '${context.pageNumber} / ${context.pagesCount}',
-          style: pw.TextStyle(font: fonts.base, fontSize: 9),
-        ),
+      footer: (context) => pw.Column(
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.Text(
+            '${context.pageNumber} / ${context.pagesCount}',
+            style: pw.TextStyle(font: fonts.base, fontSize: 9),
+          ),
+          _copyrightFooter(context),
+        ],
       ),
       build: (context) => [
         _lodgeHeader(fonts, logos[0], logos[1]),
@@ -1807,11 +1828,12 @@ Future<Uint8List> buildTreasuryReportPdf(int year, List<Member> members) async {
 Future<Uint8List> _buildTreasuryLetterPdf(String title, String body) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
-  final doc = pw.Document();
+  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
   doc.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: pw.EdgeInsets.all(18 * _mm),
+      footer: _copyrightFooter,
       build: (context) => [
         // Document de Trésorerie (monde profane, association loi 1901) :
         // pas de logo d'obédience — seul celui de la Loge est affiché, à la
@@ -1916,7 +1938,7 @@ Future<Uint8List> buildPassportPdf(
     );
   }
 
-  final doc = pw.Document();
+  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
   doc.addPage(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
@@ -1971,6 +1993,8 @@ Future<Uint8List> buildPassportPdf(
             'Par mandatement du V∴M∴ $vmName',
             style: pw.TextStyle(font: fonts.base, fontSize: 10),
           ),
+          pw.SizedBox(height: 14 * _mm),
+          _copyrightFooter(context),
         ],
       ),
     ),
@@ -2002,7 +2026,7 @@ Future<Uint8List> buildActivityReportPdf({
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
   final lodge = LodgeConfig.current;
-  final doc = pw.Document();
+  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
 
   final effectifs = computeEffectifsSection(
     members,
@@ -2091,6 +2115,7 @@ Future<Uint8List> buildActivityReportPdf({
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: pw.EdgeInsets.fromLTRB(18 * _mm, 14 * _mm, 18 * _mm, 18 * _mm),
+      footer: _copyrightFooter,
       theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
       build: (context) => [
         _lodgeHeader(fonts, logos[0], logos[1]),
@@ -2386,7 +2411,7 @@ Future<Uint8List> buildSupportRequestPdf({
     );
   }
 
-  final doc = pw.Document();
+  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB)');
   doc.addPage(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
@@ -2447,6 +2472,8 @@ Future<Uint8List> buildSupportRequestPdf({
             message,
             style: pw.TextStyle(font: fonts.base, fontSize: 11),
           ),
+          pw.SizedBox(height: 14 * _mm),
+          _copyrightFooter(context),
         ],
       ),
     ),

@@ -332,7 +332,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'RL ${LodgeConfig.current.name.toUpperCase()}',
+                    'R∴L∴ ${LodgeConfig.current.name.toUpperCase()}',
                     style: const TextStyle(
                       color: BrColors.text,
                       fontSize: 26,
@@ -469,6 +469,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 20),
+                  const Text(
+                    '© 2026 Bruno Gaudin — Application concédée à la '
+                    'Grande Loge de Bourbon (GLDB)',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: BrColors.muted, fontSize: 9),
+                  ),
                 ],
               ),
             ),
