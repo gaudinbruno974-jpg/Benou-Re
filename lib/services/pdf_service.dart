@@ -51,7 +51,7 @@ pw.Widget _copyrightFooter(pw.Context context) => pw.Container(
       alignment: pw.Alignment.center,
       margin: pw.EdgeInsets.only(top: 4 * _mm),
       child: pw.Text(
-        '© Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+        '© Grande Loge de Bourbon (GLDB) - N° RNA W9R2011523',
         style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
       ),
     );
