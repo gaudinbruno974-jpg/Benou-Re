@@ -68,18 +68,8 @@ _testAccountsPetitprince = [
     password: _testPasswordPetitprince,
   ),
   (
-    label: 'Secrétaire',
-    email: 'secretaire@loge.com',
-    password: _testPasswordPetitprince,
-  ),
-  (
     label: 'Trésorier',
     email: 'tresorier@loge.com',
-    password: _testPasswordPetitprince,
-  ),
-  (
-    label: 'Vénérable Maître',
-    email: 'vm@loge.com',
     password: _testPasswordPetitprince,
   ),
 ];
@@ -103,18 +93,8 @@ _testAccountsTempleHorus = [
     password: _testPasswordTempleHorus,
   ),
   (
-    label: 'Secrétaire',
-    email: 'secretaire@loge.com',
-    password: _testPasswordTempleHorus,
-  ),
-  (
     label: 'Trésorier',
     email: 'tresorier@loge.com',
-    password: _testPasswordTempleHorus,
-  ),
-  (
-    label: 'Vénérable Maître',
-    email: 'vm@loge.com',
     password: _testPasswordTempleHorus,
   ),
 ];
@@ -138,18 +118,8 @@ _testAccountsAlKhemia = [
     password: _testPasswordAlKhemia,
   ),
   (
-    label: 'Secrétaire',
-    email: 'secretaire@loge.com',
-    password: _testPasswordAlKhemia,
-  ),
-  (
     label: 'Trésorier',
     email: 'tresorier@loge.com',
-    password: _testPasswordAlKhemia,
-  ),
-  (
-    label: 'Vénérable Maître',
-    email: 'vm@loge.com',
     password: _testPasswordAlKhemia,
   ),
 ];

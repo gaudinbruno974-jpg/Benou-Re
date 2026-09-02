@@ -352,8 +352,7 @@ class FirestoreRepository {
       'compagnonCount': compagnonCount,
       'maitreCount': maitreCount,
       'agapeTotal': agapeTotal,
-      if (recipientAgapePresent != null)
-        'recipientAgapePresent': recipientAgapePresent,
+      'recipientAgapePresent': ?recipientAgapePresent,
       'respondedAt': Timestamp.fromDate(DateTime.now()),
       'applied': false,
     });
