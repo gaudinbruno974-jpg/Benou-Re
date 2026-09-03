@@ -42,11 +42,6 @@ _testAccountsBenoure = [
     email: 'secretaire@loge.com',
     password: _testPasswordBenoure,
   ),
-  (
-    label: 'Trésorier',
-    email: 'tresorier@loge.com',
-    password: _testPasswordBenoure,
-  ),
 ];
 
 const String _testPasswordPetitprince = '000007';
@@ -65,11 +60,6 @@ _testAccountsPetitprince = [
   (
     label: 'Maître',
     email: 'maitres@loge.com',
-    password: _testPasswordPetitprince,
-  ),
-  (
-    label: 'Trésorier',
-    email: 'tresorier@loge.com',
     password: _testPasswordPetitprince,
   ),
 ];
@@ -92,11 +82,6 @@ _testAccountsTempleHorus = [
     email: 'maitres@loge.com',
     password: _testPasswordTempleHorus,
   ),
-  (
-    label: 'Trésorier',
-    email: 'tresorier@loge.com',
-    password: _testPasswordTempleHorus,
-  ),
 ];
 
 const String _testPasswordAlKhemia = '000007';
@@ -115,11 +100,6 @@ _testAccountsAlKhemia = [
   (
     label: 'Maître',
     email: 'maitres@loge.com',
-    password: _testPasswordAlKhemia,
-  ),
-  (
-    label: 'Trésorier',
-    email: 'tresorier@loge.com',
     password: _testPasswordAlKhemia,
   ),
 ];
