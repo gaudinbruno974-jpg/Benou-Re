@@ -250,6 +250,83 @@ class DriveService {
     }
   }
 
+  /// Identifiants des fichiers dont le nom commence par [namePrefix], déjà
+  /// présents dans [folderId] — utilisé pour ne garder qu'un seul fichier
+  /// « en cours » d'un type donné (voir archiveDirectoryDocument), plutôt
+  /// que d'accumuler un fichier par export.
+  Future<List<String>> _findFilesByPrefix(
+    Map<String, String> headers,
+    String folderId,
+    String namePrefix,
+  ) async {
+    final escaped = namePrefix.replaceAll("'", "\\'");
+    final q =
+        "name contains '$escaped' and '$folderId' in parents and trashed = false";
+    final uri = Uri.parse(
+      'https://www.googleapis.com/drive/v3/files?q=${Uri.encodeQueryComponent(q)}&fields=files(id,name)',
+    );
+    final res = await http.get(uri, headers: headers);
+    if (res.statusCode != 200) return [];
+    final files = (jsonDecode(res.body)['files'] as List?) ?? [];
+    return files
+        .where((f) => (f['name'] as String? ?? '').startsWith(namePrefix))
+        .map((f) => f['id'] as String)
+        .toList();
+  }
+
+  /// Archive le classeur Répertoires (Membres/Visiteurs/Dignitaires) dans le
+  /// dossier « 03 Dossier Membres » — un seul fichier à la fois : toute
+  /// version précédente (même préfixe de nom, date différente) est mise à
+  /// la corbeille avant l'archivage de la nouvelle, pour ne pas accumuler
+  /// un fichier par export — voir [LodgeConfig.membersDriveFolderId].
+  Future<String> archiveDirectoryDocument({
+    required String namePrefix,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final folderId = LodgeConfig.current.membersDriveFolderId.trim();
+    if (folderId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive de Membres configuré pour cette Loge '
+        '(membersDriveFolderId).',
+      );
+    }
+    try {
+      return await _archiveDirectoryDocument(
+        folderId,
+        namePrefix,
+        fileName,
+        bytes,
+      );
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archiveDirectoryDocument(folderId, namePrefix, fileName, bytes);
+    }
+  }
+
+  Future<String> _archiveDirectoryDocument(
+    String folderId,
+    String namePrefix,
+    String fileName,
+    Uint8List bytes,
+  ) async {
+    final headers = await _authHeaders();
+    final existing = await _findFilesByPrefix(headers, folderId, namePrefix);
+    for (final id in existing) {
+      await trashFolder(id);
+    }
+    await _uploadFile(
+      headers,
+      folderId,
+      fileName,
+      bytes,
+      contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    return currentEmail ?? 'compte Google';
+  }
+
   /// Renvoie l'identifiant du fichier Drive créé (ou mis à jour).
   Future<String> _uploadFile(
     Map<String, String> headers,
@@ -439,6 +516,29 @@ class DriveService {
       throw DriveException(
         'Aucun dossier Drive de Demandes configuré pour cette Loge '
         '(requestsDriveFolderId).',
+      );
+    }
+    try {
+      return await _archivePassportDocument(folderId, fileName, bytes);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archivePassportDocument(folderId, fileName, bytes);
+    }
+  }
+
+  /// Archive le Rapport pour la Grande Loge ou un export de la page
+  /// Statistiques, directement dans le dossier configuré (accès V∴M∴
+  /// uniquement) — voir [LodgeConfig.activityReportsDriveFolderId].
+  Future<String> archiveActivityReportDocument({
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final folderId = LodgeConfig.current.activityReportsDriveFolderId.trim();
+    if (folderId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive de Rapports d\'activité configuré pour cette '
+        'Loge (activityReportsDriveFolderId).',
       );
     }
     try {

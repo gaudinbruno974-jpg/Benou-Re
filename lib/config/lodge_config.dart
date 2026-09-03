@@ -221,6 +221,16 @@ class LodgeConfig {
   /// demande (voir drive_service.dart).
   final String requestsDriveFolderId;
 
+  /// Dossier Drive (accès V∴M∴ uniquement) dans lequel sont archivés le
+  /// Rapport pour la Grande Loge et les exports de la page Statistiques
+  /// (voir drive_service.dart).
+  final String activityReportsDriveFolderId;
+
+  /// Dossier Drive « 03 Dossier Membres » dans lequel est archivé le
+  /// classeur Répertoires (Membres/Visiteurs/Dignitaires) — un seul fichier
+  /// à la fois, voir [DriveService.archiveDirectoryDocument].
+  final String membersDriveFolderId;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -253,6 +263,8 @@ class LodgeConfig {
     this.passportDriveFolderId = '',
     this.tenuesExterieuresDriveFolderId = '',
     this.requestsDriveFolderId = '',
+    this.activityReportsDriveFolderId = '',
+    this.membersDriveFolderId = '',
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -469,6 +481,14 @@ class LodgeConfig {
       requestsDriveFolderId: text(
         'requestsDriveFolderId',
         requestsDriveFolderId,
+      ),
+      activityReportsDriveFolderId: text(
+        'activityReportsDriveFolderId',
+        activityReportsDriveFolderId,
+      ),
+      membersDriveFolderId: text(
+        'membersDriveFolderId',
+        membersDriveFolderId,
       ),
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),

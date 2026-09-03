@@ -8,6 +8,8 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
+import '../services/drive_service.dart';
 import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -64,6 +66,19 @@ class _ActivityReportScreenState extends State<ActivityReportScreen> {
         onLayout: (_) async => bytes,
         name: 'RapportActivite.pdf',
       );
+      final df = DateFormat('dd MM yy');
+      final fileName = 'Rapport activite ${LodgeConfig.current.name} '
+          '${df.format(_start!)} au ${df.format(_end!)}.pdf';
+      try {
+        await DriveService.instance.archiveActivityReportDocument(
+          fileName: fileName,
+          bytes: bytes,
+        );
+      } catch (e) {
+        if (mounted) {
+          messenger.showSnackBar(SnackBar(content: Text('Archivage Drive : $e')));
+        }
+      }
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Erreur PDF : $e')));
     } finally {

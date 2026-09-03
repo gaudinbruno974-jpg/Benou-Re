@@ -3,15 +3,33 @@
 // (même droit que les autres écrans de gestion, voir canEditSessions).
 // Un sélecteur de période (année ou « Depuis le début ») partagé par trois
 // onglets — voir attendance_stats_service.dart pour le calcul.
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
 import '../services/attendance_stats_service.dart';
+import '../services/drive_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import 'directory_export_actions.dart' show saveFileLocally;
+
+/// Archive au passage un export de statistiques sur Drive (accès V∴M∴), en
+/// plus de l'enregistrement local — best-effort, ne bloque jamais l'export
+/// local en cas d'échec (connexion Google absente, etc.).
+Future<void> _archiveStatsExport(String fileName, List<int> bytes) async {
+  try {
+    await DriveService.instance.archiveActivityReportDocument(
+      fileName: fileName,
+      bytes: Uint8List.fromList(bytes),
+    );
+  } catch (_) {
+    // Best-effort : l'export local a déjà réussi, on n'interrompt pas
+    // l'utilisateur pour un archivage Drive en échec.
+  }
+}
 
 /// Convertit l'année choisie dans le sélecteur en plage `[1er janvier,
 /// 31 décembre 23:59:59]` — `null` (« Depuis le début ») reste une période
@@ -150,6 +168,7 @@ class _MemberAttendanceTab extends StatelessWidget {
         final loge = LodgeConfig.current.name.replaceAll(' ', '_');
         final fileName = 'Assiduite_${loge}_${year?.toString() ?? 'Historique'}.xlsx';
         await saveFileLocally(context, fileName, bytes);
+        await _archiveStatsExport(fileName, bytes);
       },
       table: DataTable(
         headingRowColor: WidgetStateProperty.all(BrColors.backgroundDark),
@@ -206,7 +225,9 @@ class _VisitorFrequentationTab extends StatelessWidget {
       emptyText: 'Aucun visiteur présent sur cette période.',
       onExport: () async {
         final bytes = buildVisitorFrequentationWorkbook(stats);
-        await saveFileLocally(context, _fileName('Frequentation_Visiteurs', year), bytes);
+        final fileName = _fileName('Frequentation_Visiteurs', year);
+        await saveFileLocally(context, fileName, bytes);
+        await _archiveStatsExport(fileName, bytes);
       },
       table: DataTable(
         headingRowColor: WidgetStateProperty.all(BrColors.backgroundDark),
@@ -253,7 +274,9 @@ class _DignitaryFrequentationTab extends StatelessWidget {
       emptyText: 'Aucun dignitaire présent sur cette période.',
       onExport: () async {
         final bytes = buildDignitaryFrequentationWorkbook(stats);
-        await saveFileLocally(context, _fileName('Frequentation_Dignitaires', year), bytes);
+        final fileName = _fileName('Frequentation_Dignitaires', year);
+        await saveFileLocally(context, fileName, bytes);
+        await _archiveStatsExport(fileName, bytes);
       },
       table: DataTable(
         headingRowColor: WidgetStateProperty.all(BrColors.backgroundDark),

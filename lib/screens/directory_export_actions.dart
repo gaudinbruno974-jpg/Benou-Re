@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
 import '../services/directory_xlsx_service.dart';
+import '../services/drive_service.dart';
 import '../services/local_file_saver.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -62,6 +63,19 @@ Future<void> exportDirectories(BuildContext context) async {
   final fileName =
       'Repertoires_${LodgeConfig.current.name.replaceAll(' ', '_')}_$date.xlsx';
   await saveFileLocally(context, fileName, bytes);
+
+  final loge = LodgeConfig.current.name;
+  final driveDate = DateFormat('dd MM yy').format(DateTime.now());
+  try {
+    await DriveService.instance.archiveDirectoryDocument(
+      namePrefix: 'Repertoires $loge',
+      fileName: 'Repertoires $loge $driveDate.xlsx',
+      bytes: Uint8List.fromList(bytes),
+    );
+  } catch (_) {
+    // Best-effort : l'export local a déjà réussi, on n'interrompt pas
+    // l'utilisateur pour un archivage Drive en échec.
+  }
 }
 
 /// Télécharge un classeur modèle (en-têtes seuls, sans donnée), pour servir
