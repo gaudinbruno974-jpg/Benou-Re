@@ -366,3 +366,54 @@ List<int> buildDignitaryFrequentationWorkbook(
     ],
   });
 }
+
+/// Classeur combiné (3 feuilles), archivé sur Drive à chaque export d'un des
+/// trois onglets de la page Statistiques — voir statistics_screen.dart.
+List<int> buildStatsWorkbook({
+  required List<MemberAttendanceStat> memberStats,
+  required List<VisitorFrequentation> visitorStats,
+  required List<DignitaryFrequentation> dignitaryStats,
+}) {
+  return buildXlsx({
+    'Assiduité': [
+      kMemberAttendanceHeaders,
+      for (final s in memberStats)
+        [
+          s.fullName,
+          s.grade,
+          '${s.eligibleCount}',
+          '${s.presentCount}',
+          '${s.excusedCount}',
+          '${s.unexcusedAbsences}',
+          _pct(s.attendanceRate),
+          '${s.externalVisits}',
+          '${s.planchesCount}',
+          '${s.totalEngagement}',
+        ],
+    ],
+    'Fréquentation Visiteurs': [
+      kVisitorFrequentationHeaders,
+      for (final s in visitorStats)
+        [
+          s.fullName,
+          s.lodge,
+          s.obedience,
+          '${s.visitCount}',
+          _dateOrEmpty(s.lastVisit),
+        ],
+    ],
+    'Fréquentation Dignitaires': [
+      kDignitaryFrequentationHeaders,
+      for (final s in dignitaryStats)
+        [
+          s.fullName,
+          s.title,
+          s.protocolRank?.toString() ?? '',
+          s.lodge,
+          s.obedience,
+          '${s.visitCount}',
+          _dateOrEmpty(s.lastVisit),
+        ],
+    ],
+  });
+}

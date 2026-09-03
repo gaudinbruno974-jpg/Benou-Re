@@ -16,13 +16,45 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import 'directory_export_actions.dart' show saveFileLocally;
 
-/// Archive au passage un export de statistiques sur Drive (accès V∴M∴), en
-/// plus de l'enregistrement local — best-effort, ne bloque jamais l'export
-/// local en cas d'échec (connexion Google absente, etc.).
-Future<void> _archiveStatsExport(String fileName, List<int> bytes) async {
+/// Recalcule les 3 statistiques (Assiduité, Fréquentation Visiteurs,
+/// Fréquentation Dignitaires) pour la période en cours et archive un
+/// classeur combiné (3 feuilles) sur Drive, quel que soit celui des 3
+/// boutons d'export sur lequel on a cliqué — un seul fichier à la fois
+/// (remplace la version précédente), voir archiveStatsDocument.
+/// Best-effort : ne bloque jamais l'export local en cas d'échec (connexion
+/// Google absente, etc.).
+Future<void> _archiveCombinedStats(
+  AppState state, {
+  required DateTime? start,
+  required DateTime? end,
+}) async {
   try {
-    await DriveService.instance.archiveActivityReportDocument(
-      fileName: fileName,
+    final bytes = buildStatsWorkbook(
+      memberStats: computeMemberAttendance(
+        state.members,
+        state.sessions,
+        state.externalSessions,
+        start: start,
+        end: end,
+      ),
+      visitorStats: computeVisitorFrequentation(
+        state.visitors,
+        state.sessions,
+        start: start,
+        end: end,
+      ),
+      dignitaryStats: computeDignitaryFrequentation(
+        state.dignitaries,
+        state.sessions,
+        start: start,
+        end: end,
+      ),
+    );
+    final loge = LodgeConfig.current.name;
+    final driveDate = DateFormat('dd MM yy').format(DateTime.now());
+    await DriveService.instance.archiveStatsDocument(
+      namePrefix: 'Statistiques $loge',
+      fileName: 'Statistiques $loge $driveDate.xlsx',
       bytes: Uint8List.fromList(bytes),
     );
   } catch (_) {
@@ -168,7 +200,7 @@ class _MemberAttendanceTab extends StatelessWidget {
         final loge = LodgeConfig.current.name.replaceAll(' ', '_');
         final fileName = 'Assiduite_${loge}_${year?.toString() ?? 'Historique'}.xlsx';
         await saveFileLocally(context, fileName, bytes);
-        await _archiveStatsExport(fileName, bytes);
+        await _archiveCombinedStats(state, start: range.start, end: range.end);
       },
       table: DataTable(
         headingRowColor: WidgetStateProperty.all(BrColors.backgroundDark),
@@ -227,7 +259,7 @@ class _VisitorFrequentationTab extends StatelessWidget {
         final bytes = buildVisitorFrequentationWorkbook(stats);
         final fileName = _fileName('Frequentation_Visiteurs', year);
         await saveFileLocally(context, fileName, bytes);
-        await _archiveStatsExport(fileName, bytes);
+        await _archiveCombinedStats(state, start: range.start, end: range.end);
       },
       table: DataTable(
         headingRowColor: WidgetStateProperty.all(BrColors.backgroundDark),
@@ -276,7 +308,7 @@ class _DignitaryFrequentationTab extends StatelessWidget {
         final bytes = buildDignitaryFrequentationWorkbook(stats);
         final fileName = _fileName('Frequentation_Dignitaires', year);
         await saveFileLocally(context, fileName, bytes);
-        await _archiveStatsExport(fileName, bytes);
+        await _archiveCombinedStats(state, start: range.start, end: range.end);
       },
       table: DataTable(
         headingRowColor: WidgetStateProperty.all(BrColors.backgroundDark),

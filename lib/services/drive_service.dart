@@ -327,6 +327,37 @@ class DriveService {
     return currentEmail ?? 'compte Google';
   }
 
+  /// Archive le classeur combiné des Statistiques (Assiduité + Fréquentation
+  /// Visiteurs + Fréquentation Dignitaires, 3 feuilles) dans le dossier
+  /// « 14 Rapports d'activité » (accès V∴M∴ uniquement) — un seul fichier à
+  /// la fois, même principe que [archiveDirectoryDocument] — voir
+  /// [LodgeConfig.activityReportsDriveFolderId].
+  Future<String> archiveStatsDocument({
+    required String namePrefix,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final folderId = LodgeConfig.current.activityReportsDriveFolderId.trim();
+    if (folderId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive de Rapports d\'activité configuré pour cette '
+        'Loge (activityReportsDriveFolderId).',
+      );
+    }
+    try {
+      return await _archiveDirectoryDocument(
+        folderId,
+        namePrefix,
+        fileName,
+        bytes,
+      );
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archiveDirectoryDocument(folderId, namePrefix, fileName, bytes);
+    }
+  }
+
   /// Renvoie l'identifiant du fichier Drive créé (ou mis à jour).
   Future<String> _uploadFile(
     Map<String, String> headers,
