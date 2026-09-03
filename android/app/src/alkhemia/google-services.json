@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "619780384319",
+    "project_id": "al-khemia-loge",
+    "storage_bucket": "al-khemia-loge.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:619780384319:android:44976240ef49eaa70c7a8a",
+        "android_client_info": {
+          "package_name": "re.gldb.alkhemia"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "619780384319-i24bk06g5fbiaupn7fo7vgilagjtqnkc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "re.gldb.alkhemia",
+            "certificate_hash": "f136bcca65a8e2fbac61bb11835b3a652d6bb9e6"
+          }
+        },
+        {
+          "client_id": "619780384319-hbgvfmpo3dai8qvc87ui600hfcj3kagb.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC4Jpnm2NOshFNqzyfqEKzEq9bmXP26ZkQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "619780384319-hbgvfmpo3dai8qvc87ui600hfcj3kagb.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

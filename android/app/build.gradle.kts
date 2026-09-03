@@ -55,6 +55,10 @@ android {
             dimension = "loge"
             applicationId = "re.gldb.templehorus"
         }
+        create("alkhemia") {
+            dimension = "loge"
+            applicationId = "re.gldb.alkhemia"
+        }
     }
 
     buildTypes {
