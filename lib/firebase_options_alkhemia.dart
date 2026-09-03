@@ -21,10 +21,7 @@ class DefaultFirebaseOptions {
     }
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for android - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return android;
       case TargetPlatform.iOS:
         throw UnsupportedError(
           'DefaultFirebaseOptions have not been configured for ios - '
@@ -58,6 +55,14 @@ class DefaultFirebaseOptions {
     messagingSenderId: '619780384319',
     projectId: 'al-khemia-loge',
     authDomain: 'al-khemia-loge.firebaseapp.com',
+    storageBucket: 'al-khemia-loge.firebasestorage.app',
+  );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyC4Jpnm2NOshFNqzyfqEKzEq9bmXP26ZkQ',
+    appId: '1:619780384319:android:44976240ef49eaa70c7a8a',
+    messagingSenderId: '619780384319',
+    projectId: 'al-khemia-loge',
     storageBucket: 'al-khemia-loge.firebasestorage.app',
   );
 }
