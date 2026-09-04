@@ -74,5 +74,7 @@ flutter:
     - assets/Al-Khemia.png
     - assets/icon/LogoApkBenou.png
     - assets/icon/LogoApkAlKhemia.png
+    - assets/icon/LogoApkTempleHorus.png
+    - assets/icon/LogoApkPetitPrince.png
     - assets/fonts/DejaVuSans.ttf
     - assets/fonts/DejaVuSans-Bold.ttf
