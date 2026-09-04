@@ -145,12 +145,15 @@ List<String> _commonLines(
 List<String> _memberOnlyLines(Session session, Member? secretary) {
   final secretaryPhone = secretary?.phone.trim() ?? '';
   final telSuffix = secretaryPhone.isEmpty ? '' : ' Tél : $secretaryPhone';
+  final isApprentiTenue = Session.degreeRank(session.degreeLabel) == 1;
   return [
-    '',
-    "Je remercie tous les FF∴ et SS∴ apprentis d'arriver à "
-        '${accueilApprentisHeure(session)} pour aider à la mise en place du '
-        'Temple sous la houlette du Maître Second Surveillant et du Maître '
-        'Expert.',
+    if (isApprentiTenue) ...[
+      '',
+      "Je remercie tous les FF∴ et SS∴ apprentis d'arriver à "
+          '${accueilApprentisHeure(session)} pour aider à la mise en place du '
+          'Temple sous la houlette du Maître Second Surveillant et du Maître '
+          'Expert.',
+    ],
     '',
     "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide. "
         "Merci aux SS∴ et FF∴ Invités de s'annoncer afin d'ajuster au mieux "

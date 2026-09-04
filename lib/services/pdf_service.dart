@@ -437,6 +437,7 @@ List<pw.Widget> _convocationContent({
   required String secretaryCivilite,
   required String secretaryName,
   required String telSuffix,
+  required bool isApprentiTenue,
   required double scale,
 }) {
   return [
@@ -507,14 +508,16 @@ List<pw.Widget> _convocationContent({
           ],
         ),
       ),
-    pw.SizedBox(height: 12 * _mm * scale),
-    pw.Text(
-      "Je remercie tous les FF∴ et SS∴ apprentis d'arriver à $accueilHeure pour "
-      "aider à la mise en place du Temple sous la houlette du Maître Second "
-      "Surveillant et du Maître Expert.",
-      textAlign: pw.TextAlign.left,
-      style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
-    ),
+    if (isApprentiTenue) ...[
+      pw.SizedBox(height: 12 * _mm * scale),
+      pw.Text(
+        "Je remercie tous les FF∴ et SS∴ apprentis d'arriver à $accueilHeure pour "
+        "aider à la mise en place du Temple sous la houlette du Maître Second "
+        "Surveillant et du Maître Expert.",
+        textAlign: pw.TextAlign.left,
+        style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+      ),
+    ],
     pw.SizedBox(height: 6 * _mm * scale),
     pw.Text(
       "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide$agapeDetails.$medaille",
@@ -579,6 +582,7 @@ Future<Uint8List> buildConvocationPdf(
   final dateSource = session.dateReprise ?? session.date;
   final dateFormatted = _formatDateConvoc(dateSource);
   final degreLong = _degreToOrdinalLong(session.degreTravail ?? session.degree);
+  final isApprentiTenue = Session.degreeRank(session.degreeLabel) == 1;
   final typeTenue =
       session.typeTenue ??
       (session.type.isNotEmpty ? session.type : 'Ordinaire');
@@ -658,6 +662,7 @@ Future<Uint8List> buildConvocationPdf(
           secretaryCivilite: secretaryCivilite,
           secretaryName: secretaryName,
           telSuffix: telSuffix,
+          isApprentiTenue: isApprentiTenue,
           scale: scale,
         ),
       ),
