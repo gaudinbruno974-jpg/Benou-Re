@@ -115,18 +115,21 @@ class DriveAccessSyncResult {
   final List<String> revoked; // "email — dossier"
   final List<String> failed; // "email — dossier : erreur"
   final List<String> driftCorrected; // "email — dossier"
+  final List<String> roleFixed; // "email — dossier (ancien → nouveau)"
   const DriveAccessSyncResult({
     required this.granted,
     required this.revoked,
     required this.failed,
     required this.driftCorrected,
+    required this.roleFixed,
   });
 
   bool get isEmpty =>
       granted.isEmpty &&
       revoked.isEmpty &&
       failed.isEmpty &&
-      driftCorrected.isEmpty;
+      driftCorrected.isEmpty &&
+      roleFixed.isEmpty;
 }
 
 /// Accès réels d'un dossier, lus en direct sur Drive (pas depuis le suivi
@@ -160,6 +163,7 @@ class DriveAccessSyncService {
     final revoked = <String>[];
     final failed = <String>[];
     final driftCorrected = <String>[];
+    final roleFixed = <String>[];
 
     for (final folder in folders) {
       final shouldHave = <String>{
@@ -171,19 +175,24 @@ class DriveAccessSyncService {
       await _syncFolder(
         folderId: folder.folderId,
         name: folder.name,
+        role: 'writer',
         shouldHave: shouldHave,
         grants: grants,
         granted: granted,
         revoked: revoked,
         failed: failed,
         driftCorrected: driftCorrected,
+        roleFixed: roleFixed,
       );
     }
 
     // Bibliothèque : ouverte à TOUS les membres (pas seulement le Bureau),
     // selon leur grade — un Apprenti n'a accès qu'au niveau Apprenti, un
     // Maître a accès aux trois niveaux, même logique que l'éligibilité aux
-    // tenues (voir Session.degreeRank).
+    // tenues (voir Session.degreeRank). En Lecteur seul : consulter les
+    // planches/rituels/instructions, jamais les modifier — l'édition reste
+    // réservée au V∴M∴ et au Secrétaire via les dossiers du Bureau
+    // (07 Planches / 08 Rituel / 12 instruction, en Éditeur ci-dessus).
     for (final lib in _libraryTargets(LodgeConfig.current.libraryFolders)) {
       final shouldHave = <String>{
         for (final m in members)
@@ -194,12 +203,14 @@ class DriveAccessSyncService {
       await _syncFolder(
         folderId: lib.folderId,
         name: lib.name,
+        role: 'reader',
         shouldHave: shouldHave,
         grants: grants,
         granted: granted,
         revoked: revoked,
         failed: failed,
         driftCorrected: driftCorrected,
+        roleFixed: roleFixed,
       );
     }
 
@@ -209,33 +220,40 @@ class DriveAccessSyncService {
       revoked: revoked,
       failed: failed,
       driftCorrected: driftCorrected,
+      roleFixed: roleFixed,
     );
   }
 
   /// Synchronise un seul dossier (Bureau ou Bibliothèque) : dérive, retraits
   /// puis ajouts, sur le même principe — factorisé pour être partagé par
-  /// les deux catégories de dossiers dans [sync].
+  /// les deux catégories de dossiers dans [sync]. [role] est le rôle Drive
+  /// attendu pour CE dossier (« writer » pour le Bureau, « reader » pour la
+  /// Bibliothèque) : un accès déjà présent mais à un autre rôle (ex. un
+  /// Éditeur accordé avant l'introduction du Lecteur) est corrigé sur place.
   Future<void> _syncFolder({
     required String folderId,
     required String name,
+    required String role,
     required Set<String> shouldHave,
     required Map<String, Map<String, String>> grants,
     required List<String> granted,
     required List<String> revoked,
     required List<String> failed,
     required List<String> driftCorrected,
+    required List<String> roleFixed,
   }) async {
     final current = Map<String, String>.from(grants[folderId] ?? {});
 
     // Dérive : une permission notée dans Firestore n'existe peut-être plus
     // réellement sur Drive (retirée à la main, appel précédent en échec
-    // silencieux). Vérifiée AVANT de décider quoi ajouter/retirer, pour ne
-    // jamais se fier à un état périmé.
+    // silencieux), ou existe mais avec un rôle différent de celui attendu.
+    // Vérifié AVANT de décider quoi ajouter/retirer, pour ne jamais se fier
+    // à un état périmé.
     for (final email in current.keys.toList()) {
       final permissionId = current[email]!;
-      bool exists;
+      String? actualRole;
       try {
-        exists = await _drive.permissionExists(
+        actualRole = await _drive.permissionRole(
           folderId: folderId,
           permissionId: permissionId,
         );
@@ -243,9 +261,20 @@ class DriveAccessSyncService {
         failed.add('$email — $name (vérification) : $e');
         continue;
       }
-      if (!exists) {
+      if (actualRole == null) {
         current.remove(email);
         driftCorrected.add('$email — $name');
+      } else if (actualRole != role) {
+        try {
+          await _drive.updatePermissionRole(
+            folderId: folderId,
+            permissionId: permissionId,
+            role: role,
+          );
+          roleFixed.add('$email — $name ($actualRole → $role)');
+        } catch (e) {
+          failed.add('$email — $name (correction du rôle) : $e');
+        }
       }
     }
 
@@ -273,6 +302,7 @@ class DriveAccessSyncService {
         final permissionId = await _drive.grantFolderAccess(
           folderId: folderId,
           email: email,
+          role: role,
         );
         current[email] = permissionId;
         granted.add('$email — $name');

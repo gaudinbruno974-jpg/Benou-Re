@@ -701,55 +701,97 @@ class DriveService {
     ];
   }
 
-  /// Vérifie qu'une permission enregistrée existe encore réellement sur
-  /// Drive — détecte la dérive (accès retiré à la main directement dans
-  /// Drive, appel précédent resté en échec silencieux) avant que la
+  /// Rôle actuel d'une permission si elle existe encore réellement sur
+  /// Drive, `null` sinon — détecte à la fois la dérive (accès retiré à la
+  /// main directement dans Drive, appel précédent resté en échec silencieux)
+  /// et un rôle qui ne correspond plus à ce qu'il devrait être, avant que la
   /// synchronisation ne se fie à un état Firestore périmé.
-  Future<bool> permissionExists({
+  Future<String?> permissionRole({
     required String folderId,
     required String permissionId,
   }) async {
     try {
-      return await _permissionExists(folderId, permissionId);
+      return await _permissionRole(folderId, permissionId);
     } on DriveException catch (e) {
       if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
       _webToken = null;
-      return _permissionExists(folderId, permissionId);
+      return _permissionRole(folderId, permissionId);
     }
   }
 
-  Future<bool> _permissionExists(String folderId, String permissionId) async {
+  Future<String?> _permissionRole(String folderId, String permissionId) async {
     final headers = await _authHeaders();
     final res = await http.get(
       Uri.parse(
         'https://www.googleapis.com/drive/v3/files/$folderId/permissions/'
-        '$permissionId?supportsAllDrives=true&fields=id',
+        '$permissionId?supportsAllDrives=true&fields=id,role',
       ),
       headers: headers,
     );
-    if (res.statusCode == 200) return true;
-    if (res.statusCode == 404) return false;
+    if (res.statusCode == 200) return jsonDecode(res.body)['role'] as String?;
+    if (res.statusCode == 404) return null;
     throw DriveException('Erreur de vérification Drive : ${res.body}');
   }
 
-  /// Partage [folderId] en Éditeur avec [email], sans notification par
-  /// mail (la synchronisation peut toucher plusieurs dossiers d'un coup).
-  /// Renvoie l'identifiant de la permission créée, à conserver pour pouvoir
-  /// la retirer plus tard.
-  Future<String> grantFolderAccess({
+  /// Corrige le rôle d'une permission existante (ex. un Éditeur qui devrait
+  /// être Lecteur) sans la recréer — la même permission reste en place.
+  Future<void> updatePermissionRole({
     required String folderId,
-    required String email,
+    required String permissionId,
+    required String role,
   }) async {
     try {
-      return await _grantFolderAccess(folderId, email);
+      await _updatePermissionRole(folderId, permissionId, role);
     } on DriveException catch (e) {
       if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
       _webToken = null;
-      return _grantFolderAccess(folderId, email);
+      await _updatePermissionRole(folderId, permissionId, role);
     }
   }
 
-  Future<String> _grantFolderAccess(String folderId, String email) async {
+  Future<void> _updatePermissionRole(
+    String folderId,
+    String permissionId,
+    String role,
+  ) async {
+    final headers = await _authHeaders();
+    final res = await http.patch(
+      Uri.parse(
+        'https://www.googleapis.com/drive/v3/files/$folderId/permissions/'
+        '$permissionId?supportsAllDrives=true',
+      ),
+      headers: {...headers, 'Content-Type': 'application/json'},
+      body: jsonEncode({'role': role}),
+    );
+    if (res.statusCode != 200) {
+      throw DriveException('Erreur de mise à jour du rôle Drive : ${res.body}');
+    }
+  }
+
+  /// Partage [folderId] avec [email] au rôle [role] (« writer » par défaut,
+  /// « reader » pour la Bibliothèque), sans notification par mail (la
+  /// synchronisation peut toucher plusieurs dossiers d'un coup). Renvoie
+  /// l'identifiant de la permission créée, à conserver pour pouvoir la
+  /// retirer plus tard.
+  Future<String> grantFolderAccess({
+    required String folderId,
+    required String email,
+    String role = 'writer',
+  }) async {
+    try {
+      return await _grantFolderAccess(folderId, email, role);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _grantFolderAccess(folderId, email, role);
+    }
+  }
+
+  Future<String> _grantFolderAccess(
+    String folderId,
+    String email,
+    String role,
+  ) async {
     final headers = await _authHeaders();
     final res = await http.post(
       Uri.parse(
@@ -758,7 +800,7 @@ class DriveService {
       ),
       headers: {...headers, 'Content-Type': 'application/json'},
       body: jsonEncode({
-        'role': 'writer',
+        'role': role,
         'type': 'user',
         'emailAddress': email,
       }),

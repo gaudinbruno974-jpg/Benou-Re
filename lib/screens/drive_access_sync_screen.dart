@@ -186,6 +186,8 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
                     'Dérive corrigée (accès périmé détecté sur Drive)',
                     _result!.driftCorrected,
                     BrColors.violet),
+              if (_result!.roleFixed.isNotEmpty)
+                _resultCard('Rôle corrigé', _result!.roleFixed, BrColors.teal),
               if (_result!.failed.isNotEmpty)
                 _resultCard('Échecs', _result!.failed, BrColors.error),
             ],
