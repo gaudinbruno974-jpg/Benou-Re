@@ -1,5 +1,6 @@
 // Parvis / tableau de bord (porté depuis src/components/ParvisScreen.tsx).
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
@@ -69,20 +70,31 @@ class ParvisScreen extends StatefulWidget {
 }
 
 class _ParvisScreenState extends State<ParvisScreen> {
+  String _appVersion = '';
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) UpdateService().verifierEtProposer(context);
     });
+    _loadVersion();
+  }
+
+  Future<void> _loadVersion() async {
+    final info = await PackageInfo.fromPlatform();
+    if (mounted) {
+      setState(() => _appVersion = '${info.version} (${info.buildNumber})');
+    }
   }
 
   @override
-  Widget build(BuildContext context) => const _ParvisScreenBody();
+  Widget build(BuildContext context) => _ParvisScreenBody(appVersion: _appVersion);
 }
 
 class _ParvisScreenBody extends StatelessWidget {
-  const _ParvisScreenBody();
+  final String appVersion;
+  const _ParvisScreenBody({required this.appVersion});
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +382,8 @@ class _ParvisScreenBody extends StatelessWidget {
             const SizedBox(height: 28),
             Center(
               child: Text(
-                'R∴L∴ ${lodge.name} • RAPMM • v1.0.0',
+                'R∴L∴ ${lodge.name} • RAPMM'
+                '${appVersion.isEmpty ? '' : ' • v$appVersion'}',
                 style: TextStyle(
                   color: BrColors.muted.withValues(alpha: 0.7),
                   fontSize: 11,
