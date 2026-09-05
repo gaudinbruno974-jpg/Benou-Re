@@ -7,11 +7,53 @@
 // (suivis dans config/settings.driveAccessGrants, par identifiant de
 // permission Drive) — jamais un partage ajouté manuellement pour une autre
 // raison, comme le compte propriétaire de l'arborescence.
+import '../config/lodge_config.dart';
 import '../models/drive_access_folder.dart';
 import '../models/member.dart';
+import '../models/session.dart';
 import 'drive_service.dart';
 import 'firestore_repository.dart';
 import 'xlsx_codec.dart';
+
+/// « Morceaux d'Architecture » plutôt que la simple clé technique
+/// « Architecture » utilisée dans `config/settings.libraryFolders`.
+const Map<String, String> _libraryCategoryLabels = {
+  'Architecture': "Morceaux d'Architecture",
+};
+
+/// Un dossier de grade de la Bibliothèque, à plat — dérivé de
+/// [LodgeConfig.libraryFolders] (catégorie -> grade -> id), pour être
+/// synchronisé avec le même mécanisme que les dossiers du Bureau.
+class _LibraryTarget {
+  final String folderId;
+  final String name;
+  final int minGradeRank;
+  const _LibraryTarget({
+    required this.folderId,
+    required this.name,
+    required this.minGradeRank,
+  });
+}
+
+List<_LibraryTarget> _libraryTargets(Map<String, Map<String, String>> libraryFolders) {
+  final targets = <_LibraryTarget>[];
+  for (final category in libraryFolders.entries) {
+    for (final grade in category.value.entries) {
+      final folderId = grade.value.trim();
+      if (folderId.isEmpty) continue;
+      targets.add(
+        _LibraryTarget(
+          folderId: folderId,
+          name: 'Bibliothèque — '
+              '${_libraryCategoryLabels[category.key] ?? category.key} — '
+              '${grade.key}',
+          minGradeRank: Session.degreeRank(grade.key),
+        ),
+      );
+    }
+  }
+  return targets;
+}
 
 /// « V∴M∴ », « Secrétaire »… plutôt que les identifiants techniques
 /// (venerable/secretaire/tresorier) utilisés en base.
@@ -120,70 +162,45 @@ class DriveAccessSyncService {
     final driftCorrected = <String>[];
 
     for (final folder in folders) {
-      final current = Map<String, String>.from(grants[folder.folderId] ?? {});
-
-      // Dérive : une permission notée dans Firestore n'existe peut-être
-      // plus réellement sur Drive (retirée à la main, appel précédent en
-      // échec silencieux). Vérifiée AVANT de décider quoi ajouter/retirer,
-      // pour ne jamais se fier à un état périmé.
-      for (final email in current.keys.toList()) {
-        final permissionId = current[email]!;
-        bool exists;
-        try {
-          exists = await _drive.permissionExists(
-            folderId: folder.folderId,
-            permissionId: permissionId,
-          );
-        } catch (e) {
-          failed.add('$email — ${folder.name} (vérification) : $e');
-          continue;
-        }
-        if (!exists) {
-          current.remove(email);
-          driftCorrected.add('$email — ${folder.name}');
-        }
-      }
-
       final shouldHave = <String>{
         for (final m in members)
           if (m.email.trim().isNotEmpty &&
               driveRolesFor(m).any(folder.roles.contains))
             m.email.trim().toLowerCase(),
       };
+      await _syncFolder(
+        folderId: folder.folderId,
+        name: folder.name,
+        shouldHave: shouldHave,
+        grants: grants,
+        granted: granted,
+        revoked: revoked,
+        failed: failed,
+        driftCorrected: driftCorrected,
+      );
+    }
 
-      // Retraits : accordé par une précédente synchronisation, mais le
-      // titulaire n'a plus une fonction couverte par ce dossier.
-      for (final email in current.keys.toList()) {
-        if (shouldHave.contains(email)) continue;
-        final permissionId = current[email]!;
-        try {
-          await _drive.revokeFolderAccess(
-            folderId: folder.folderId,
-            permissionId: permissionId,
-          );
-          current.remove(email);
-          revoked.add('$email — ${folder.name}');
-        } catch (e) {
-          failed.add('$email — ${folder.name} (retrait) : $e');
-        }
-      }
-
-      // Ajouts : fonction couverte par ce dossier, pas encore d'accès.
-      for (final email in shouldHave) {
-        if (current.containsKey(email)) continue;
-        try {
-          final permissionId = await _drive.grantFolderAccess(
-            folderId: folder.folderId,
-            email: email,
-          );
-          current[email] = permissionId;
-          granted.add('$email — ${folder.name}');
-        } catch (e) {
-          failed.add('$email — ${folder.name} (ajout) : $e');
-        }
-      }
-
-      grants[folder.folderId] = current;
+    // Bibliothèque : ouverte à TOUS les membres (pas seulement le Bureau),
+    // selon leur grade — un Apprenti n'a accès qu'au niveau Apprenti, un
+    // Maître a accès aux trois niveaux, même logique que l'éligibilité aux
+    // tenues (voir Session.degreeRank).
+    for (final lib in _libraryTargets(LodgeConfig.current.libraryFolders)) {
+      final shouldHave = <String>{
+        for (final m in members)
+          if (m.email.trim().isNotEmpty &&
+              Session.degreeRank(m.grade) >= lib.minGradeRank)
+            m.email.trim().toLowerCase(),
+      };
+      await _syncFolder(
+        folderId: lib.folderId,
+        name: lib.name,
+        shouldHave: shouldHave,
+        grants: grants,
+        granted: granted,
+        revoked: revoked,
+        failed: failed,
+        driftCorrected: driftCorrected,
+      );
     }
 
     await _repo.setDriveAccessGrants(grants);
@@ -195,9 +212,82 @@ class DriveAccessSyncService {
     );
   }
 
+  /// Synchronise un seul dossier (Bureau ou Bibliothèque) : dérive, retraits
+  /// puis ajouts, sur le même principe — factorisé pour être partagé par
+  /// les deux catégories de dossiers dans [sync].
+  Future<void> _syncFolder({
+    required String folderId,
+    required String name,
+    required Set<String> shouldHave,
+    required Map<String, Map<String, String>> grants,
+    required List<String> granted,
+    required List<String> revoked,
+    required List<String> failed,
+    required List<String> driftCorrected,
+  }) async {
+    final current = Map<String, String>.from(grants[folderId] ?? {});
+
+    // Dérive : une permission notée dans Firestore n'existe peut-être plus
+    // réellement sur Drive (retirée à la main, appel précédent en échec
+    // silencieux). Vérifiée AVANT de décider quoi ajouter/retirer, pour ne
+    // jamais se fier à un état périmé.
+    for (final email in current.keys.toList()) {
+      final permissionId = current[email]!;
+      bool exists;
+      try {
+        exists = await _drive.permissionExists(
+          folderId: folderId,
+          permissionId: permissionId,
+        );
+      } catch (e) {
+        failed.add('$email — $name (vérification) : $e');
+        continue;
+      }
+      if (!exists) {
+        current.remove(email);
+        driftCorrected.add('$email — $name');
+      }
+    }
+
+    // Retraits : accordé par une précédente synchronisation, mais plus
+    // éligible aujourd'hui (fonction ou grade).
+    for (final email in current.keys.toList()) {
+      if (shouldHave.contains(email)) continue;
+      final permissionId = current[email]!;
+      try {
+        await _drive.revokeFolderAccess(
+          folderId: folderId,
+          permissionId: permissionId,
+        );
+        current.remove(email);
+        revoked.add('$email — $name');
+      } catch (e) {
+        failed.add('$email — $name (retrait) : $e');
+      }
+    }
+
+    // Ajouts : éligible, pas encore d'accès.
+    for (final email in shouldHave) {
+      if (current.containsKey(email)) continue;
+      try {
+        final permissionId = await _drive.grantFolderAccess(
+          folderId: folderId,
+          email: email,
+        );
+        current[email] = permissionId;
+        granted.add('$email — $name');
+      } catch (e) {
+        failed.add('$email — $name (ajout) : $e');
+      }
+    }
+
+    grants[folderId] = current;
+  }
+
   /// Photo des accès réels, dossier par dossier, lue en direct sur Drive —
   /// révèle aussi un partage ajouté à la main en dehors de cette
   /// synchronisation, ce que le suivi Firestore ne montrerait jamais.
+  /// Couvre les dossiers du Bureau ET ceux de la Bibliothèque.
   Future<List<FolderAccessSummary>> currentAccess() async {
     final folders = await _repo.getDriveAccessFolders();
     final summaries = <FolderAccessSummary>[];
@@ -207,6 +297,16 @@ class DriveAccessSyncService {
         FolderAccessSummary(
           folderName: folder.name,
           expectedRoles: folder.roles,
+          entries: entries,
+        ),
+      );
+    }
+    for (final lib in _libraryTargets(LodgeConfig.current.libraryFolders)) {
+      final entries = await _drive.listFolderAccess(folderId: lib.folderId);
+      summaries.add(
+        FolderAccessSummary(
+          folderName: lib.name,
+          expectedRoles: const ['Tous les membres du grade et au-dessus'],
           entries: entries,
         ),
       );

@@ -106,10 +106,11 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
               children: [
                 const Text(
                   "Accorde l'accès aux dossiers Drive de la Loge au "
-                  'V∴M∴, au Secrétaire et au Trésorier actuels, et retire '
-                  "l'accès de ceux qui ont quitté ces fonctions. Ne touche "
-                  "jamais un partage ajouté manuellement pour une autre "
-                  'raison.',
+                  'V∴M∴, au Secrétaire et au Trésorier actuels, ainsi '
+                  "qu'à chaque membre pour la Bibliothèque selon son "
+                  'grade, et retire les accès devenus obsolètes. Ne '
+                  "touche jamais un partage ajouté manuellement pour une "
+                  'autre raison.',
                   style: TextStyle(color: BrColors.muted, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
