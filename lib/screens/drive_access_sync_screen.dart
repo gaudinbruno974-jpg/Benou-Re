@@ -1,10 +1,15 @@
 // Synchronisation des accès Drive par fonction — réservé au V∴M∴ (voir
 // parvis_screen.dart). Écran volontairement simple : un bouton, un
 // résumé de ce qui a changé, puis une photo des accès réels sur Drive.
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../config/lodge_config.dart';
 import '../services/drive_access_sync_service.dart';
+import '../services/drive_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -27,6 +32,7 @@ class DriveAccessSyncScreen extends StatefulWidget {
 class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
   final _service = DriveAccessSyncService();
   bool _running = false;
+  bool _exporting = false;
   DriveAccessSyncResult? _result;
   String? _error;
   List<FolderAccessSummary>? _access;
@@ -54,6 +60,35 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
       if (mounted) setState(() => _accessError = '$e');
     }
     if (mounted) setState(() => _running = false);
+  }
+
+  /// Archive un classeur des accès Drive actuels dans « 03 Dossier Membres »
+  /// — même principe que l'archivage du Répertoire (un seul fichier à la
+  /// fois, remplacé à chaque export), voir DriveService.archiveDirectoryDocument.
+  Future<void> _exportReport() async {
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _exporting = true);
+    try {
+      final access = _access ?? await _service.currentAccess();
+      final bytes = buildDriveAccessReportWorkbook(access);
+      final loge = LodgeConfig.current.name;
+      final driveDate = DateFormat('dd MM yy').format(DateTime.now());
+      await DriveService.instance.archiveDirectoryDocument(
+        namePrefix: 'Acces Drive $loge',
+        fileName: 'Acces Drive $loge $driveDate.xlsx',
+        bytes: Uint8List.fromList(bytes),
+      );
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Rapport des accès archivé sur Drive.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('Erreur export : $e')));
+      }
+    }
+    if (mounted) setState(() => _exporting = false);
   }
 
   @override
@@ -89,6 +124,18 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
                         )
                       : const Icon(Icons.sync),
                   label: const Text('Synchroniser les accès Drive'),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton.icon(
+                  onPressed: _exporting ? null : _exportReport,
+                  icon: _exporting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.grid_on_outlined),
+                  label: const Text('Exporter les accès (xlsx)'),
                 ),
               ],
             ),

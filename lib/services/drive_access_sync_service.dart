@@ -11,6 +11,49 @@ import '../models/drive_access_folder.dart';
 import '../models/member.dart';
 import 'drive_service.dart';
 import 'firestore_repository.dart';
+import 'xlsx_codec.dart';
+
+/// « V∴M∴ », « Secrétaire »… plutôt que les identifiants techniques
+/// (venerable/secretaire/tresorier) utilisés en base.
+const Map<String, String> _roleFolderLabels = {
+  kRoleVenerable: 'V∴M∴',
+  kRoleSecretaire: 'Secrétaire',
+  kRoleTresorier: 'Trésorier',
+};
+
+const Map<String, String> _driveRoleLabels = {
+  'owner': 'Propriétaire',
+  'writer': 'Éditeur',
+  'commenter': 'Commentateur',
+  'reader': 'Lecteur',
+};
+
+const List<String> kDriveAccessReportHeaders = [
+  'Dossier',
+  'Rôles prévus',
+  'Accès réels',
+];
+
+/// Classeur (1 feuille) listant, dossier par dossier, les rôles prévus et
+/// les accès réellement constatés sur Drive — même contenu que la section
+/// « Accès existants » de l'écran, archivé pour garder une trace datée.
+List<int> buildDriveAccessReportWorkbook(List<FolderAccessSummary> access) {
+  return buildXlsx({
+    'Accès Drive': [
+      kDriveAccessReportHeaders,
+      for (final folder in access)
+        [
+          folder.folderName,
+          folder.expectedRoles
+              .map((r) => _roleFolderLabels[r] ?? r)
+              .join(', '),
+          folder.entries
+              .map((e) => '${e.email} (${_driveRoleLabels[e.role] ?? e.role})')
+              .join('; '),
+        ],
+    ],
+  });
+}
 
 /// Fonctions autorisées d'un membre, déduites de son office — mêmes
 /// critères textuels que member.dart (insensibles à la casse et aux
@@ -48,8 +91,13 @@ class DriveAccessSyncResult {
 /// Firestore) — pour la section « Accès existants » de l'écran.
 class FolderAccessSummary {
   final String folderName;
+  final List<String> expectedRoles;
   final List<({String email, String role})> entries;
-  const FolderAccessSummary({required this.folderName, required this.entries});
+  const FolderAccessSummary({
+    required this.folderName,
+    required this.expectedRoles,
+    required this.entries,
+  });
 }
 
 class DriveAccessSyncService {
@@ -156,7 +204,11 @@ class DriveAccessSyncService {
     for (final folder in folders) {
       final entries = await _drive.listFolderAccess(folderId: folder.folderId);
       summaries.add(
-        FolderAccessSummary(folderName: folder.name, entries: entries),
+        FolderAccessSummary(
+          folderName: folder.name,
+          expectedRoles: folder.roles,
+          entries: entries,
+        ),
       );
     }
     return summaries;
