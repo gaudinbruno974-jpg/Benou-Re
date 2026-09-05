@@ -1,0 +1,7 @@
+# Copier ce fichier en "key.properties" (jamais committé, voir .gitignore)
+# et renseigner les vraies valeurs. Le fichier .jks lui-même ne doit
+# jamais se trouver dans le dépôt.
+storePassword=motdepasse
+keyPassword=motdepasse
+keyAlias=benourerelease
+storeFile=/chemin/vers/benoure-release.jks

@@ -12,7 +12,20 @@
           "package_name": "re.gldb.petitprince"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "163957689546-a9ddfk0q7g750h707d62l39o9gkad7eb.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "re.gldb.petitprince",
+            "certificate_hash": "697dde13efd2b3c353b3648c45b3746e802ff507"
+          }
+        },
+        {
+          "client_id": "163957689546-kvscresepdtc8ssqk5n9825748tkot2k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyCcEbNbydm2WdtJOB5UbI-gryDFXu12Mpg"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "163957689546-kvscresepdtc8ssqk5n9825748tkot2k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

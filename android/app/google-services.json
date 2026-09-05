@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "184228725535-hm2p9fbgl8fcc4ghblknfl0fpbo8dsvc.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "re.benou.benou_re",
+            "certificate_hash": "697dde13efd2b3c353b3648c45b3746e802ff507"
+          }
+        },
+        {
           "client_id": "184228725535-kptstidkro6e2rr8naau5pbjllusf4vk.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

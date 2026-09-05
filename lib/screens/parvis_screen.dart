@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
 import '../models/member.dart';
+import '../services/update_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -56,8 +57,32 @@ class _MenuItem {
   );
 }
 
-class ParvisScreen extends StatelessWidget {
+/// Enveloppe le Parvis pour déclencher, une seule fois par ouverture de
+/// session, la vérification d'une mise à jour Android disponible (voir
+/// update_service.dart) — le Parvis étant le premier écran affiché après
+/// connexion.
+class ParvisScreen extends StatefulWidget {
   const ParvisScreen({super.key});
+
+  @override
+  State<ParvisScreen> createState() => _ParvisScreenState();
+}
+
+class _ParvisScreenState extends State<ParvisScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) UpdateService().verifierEtProposer(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => const _ParvisScreenBody();
+}
+
+class _ParvisScreenBody extends StatelessWidget {
+  const _ParvisScreenBody();
 
   @override
   Widget build(BuildContext context) {

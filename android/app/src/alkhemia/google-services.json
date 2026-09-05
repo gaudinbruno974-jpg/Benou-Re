@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "619780384319-j47r5mog7qr82eqdhdfk5ckr7gad502l.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "re.gldb.alkhemia",
+            "certificate_hash": "697dde13efd2b3c353b3648c45b3746e802ff507"
+          }
+        },
+        {
           "client_id": "619780384319-hbgvfmpo3dai8qvc87ui600hfcj3kagb.apps.googleusercontent.com",
           "client_type": 3
         }

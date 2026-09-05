@@ -12,7 +12,20 @@
           "package_name": "re.gldb.templehorus"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "735474234992-5l95hr7je2oe8vttvlvvhvvd4f8qo12h.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "re.gldb.templehorus",
+            "certificate_hash": "697dde13efd2b3c353b3648c45b3746e802ff507"
+          }
+        },
+        {
+          "client_id": "735474234992-rpd2ssc2q7p1em3ar3g8k5g0q8ro2a1s.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC7DX4-KbFv9NZYDM6y1MjEeiPBbOrbUd8"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "735474234992-rpd2ssc2q7p1em3ar3g8k5g0q8ro2a1s.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

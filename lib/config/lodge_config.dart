@@ -231,6 +231,20 @@ class LodgeConfig {
   /// à la fois, voir [DriveService.archiveDirectoryDocument].
   final String membersDriveFolderId;
 
+  /// Numéro de build (partie après le « + » de `pubspec.yaml`) de la
+  /// dernière version Android publiée hors Play Store — comparé au numéro
+  /// de build réellement installé pour proposer une mise à jour (voir
+  /// `update_service.dart`). 0 tant que rien n'a été publié.
+  final int latestAndroidVersionCode;
+
+  /// Nom de version (« 1.2.0 ») affiché dans la popup de mise à jour,
+  /// associé à [latestAndroidVersionCode].
+  final String latestAndroidVersionName;
+
+  /// Lien de téléchargement direct (Google Drive) de la dernière APK
+  /// publiée pour cette Loge.
+  final String androidApkDownloadUrl;
+
   /// Dossier Drive parent sous lequel sont créés les dossiers de tenue.
   final String driveParentFolderId;
 
@@ -265,6 +279,9 @@ class LodgeConfig {
     this.requestsDriveFolderId = '',
     this.activityReportsDriveFolderId = '',
     this.membersDriveFolderId = '',
+    this.latestAndroidVersionCode = 0,
+    this.latestAndroidVersionName = '',
+    this.androidApkDownloadUrl = '',
     required this.driveParentFolderId,
     required this.libraryFolders,
   });
@@ -440,6 +457,13 @@ class LodgeConfig {
       return value.trim();
     }
 
+    int intValue(String key, int fallback) {
+      final value = data[key];
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return fallback;
+    }
+
     return LodgeConfig(
       name: text('lodgeName', name),
       number: text('lodgeNumber', number),
@@ -489,6 +513,18 @@ class LodgeConfig {
       membersDriveFolderId: text(
         'membersDriveFolderId',
         membersDriveFolderId,
+      ),
+      latestAndroidVersionCode: intValue(
+        'latestAndroidVersionCode',
+        latestAndroidVersionCode,
+      ),
+      latestAndroidVersionName: text(
+        'latestAndroidVersionName',
+        latestAndroidVersionName,
+      ),
+      androidApkDownloadUrl: text(
+        'androidApkDownloadUrl',
+        androidApkDownloadUrl,
       ),
       driveParentFolderId: text('driveParentFolderId', driveParentFolderId),
       libraryFolders: _mergedLibraryFolders(data['libraryFolders']),
