@@ -47,6 +47,23 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
       _access = null;
       _accessError = null;
     });
+    // Authentifie une seule fois, AVANT la boucle sur les dossiers (Bureau +
+    // Bibliothèque, une vingtaine désormais). Chaque appel Drive redemande
+    // sinon sa propre autorisation dès que le jeton n'est pas en cache : si
+    // cette toute première tentative échoue (fenêtre bloquée par le
+    // navigateur), chaque dossier retente alors la sienne, ouvrant des
+    // dizaines de fenêtres de connexion Google au lieu d'une seule.
+    try {
+      await DriveService.instance.ensureDriveAuthorization();
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = '$e';
+          _running = false;
+        });
+      }
+      return;
+    }
     try {
       final result = await _service.sync(members);
       if (mounted) setState(() => _result = result);
