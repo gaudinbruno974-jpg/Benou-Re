@@ -9,6 +9,7 @@ import '../models/member.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 import 'inventory_check_screen.dart';
 import 'inventory_export_actions.dart';
 import 'inventory_history_screen.dart';
@@ -202,29 +203,10 @@ class InventoryScreen extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 _dialogField(name, 'Nom de l\'article'),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Autocomplete<String>(
-                    initialValue: TextEditingValue(text: category.text),
-                    optionsBuilder: (v) {
-                      if (v.text.trim().isEmpty) return categories;
-                      final needle = foldLabel(v.text);
-                      return categories
-                          .where((c) => foldLabel(c).contains(needle));
-                    },
-                    onSelected: (v) => category.text = v,
-                    fieldViewBuilder: (ctx, fc, fn, onSubmit) {
-                      fc.text = category.text;
-                      fc.addListener(() => category.text = fc.text);
-                      return TextField(
-                        controller: fc,
-                        focusNode: fn,
-                        style: const TextStyle(color: BrColors.text),
-                        decoration:
-                            const InputDecoration(labelText: 'Catégorie'),
-                      );
-                    },
-                  ),
+                DirectoryAutocompleteField(
+                  controller: category,
+                  label: 'Catégorie',
+                  suggestions: categories,
                 ),
                 _dialogField(quantity, 'Quantité de référence'),
                 Padding(
