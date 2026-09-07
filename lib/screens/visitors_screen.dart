@@ -172,6 +172,10 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
       for (final d in state.dignitaries) d.obedience,
       for (final e in state.externalSessions) e.obedience,
     ]);
+    final orientSuggestions = distinctSuggestions([
+      for (final v in state.visitors) v.orient,
+      for (final d in state.dignitaries) d.orient,
+    ]);
 
     final first = TextEditingController(text: visitor?.firstName ?? '');
     final last = TextEditingController(text: visitor?.lastName ?? '');
@@ -201,7 +205,11 @@ class _VisitorsScreenState extends State<VisitorsScreen> {
                   label: 'Loge',
                   suggestions: lodgeSuggestions,
                 ),
-                _dialogField(orient, 'Orient'),
+                DirectoryAutocompleteField(
+                  controller: orient,
+                  label: 'Orient',
+                  suggestions: orientSuggestions,
+                ),
                 DirectoryAutocompleteField(
                   controller: obedience,
                   label: 'Obédience',

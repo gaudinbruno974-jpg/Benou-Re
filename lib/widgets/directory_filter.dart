@@ -175,7 +175,12 @@ class DirectoryGroupSection extends StatelessWidget {
 /// d'origine, Obédience…) : l'utilisateur reste libre de saisir une valeur
 /// absente des suggestions (même mécanique que la catégorie d'un article
 /// dans l'écran Matériel, voir inventory_screen.dart).
-class DirectoryAutocompleteField extends StatelessWidget {
+/// Menu déroulant éditable (Loge / Orient / Obédience) : propose [suggestions]
+/// mais accepte aussi la saisie libre d'une valeur qui n'y figure pas encore
+/// (ex. une loge jamais enregistrée). Remplace l'ancien `Autocomplete`, dont
+/// la liste de suggestions ne s'affichait pas de façon fiable une fois placé
+/// dans une fenêtre de dialogue (`showDialog`).
+class DirectoryAutocompleteField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final List<String> suggestions;
@@ -187,27 +192,52 @@ class DirectoryAutocompleteField extends StatelessWidget {
   });
 
   @override
+  State<DirectoryAutocompleteField> createState() =>
+      _DirectoryAutocompleteFieldState();
+}
+
+class _DirectoryAutocompleteFieldState
+    extends State<DirectoryAutocompleteField> {
+  late final TextEditingController _menuController;
+
+  @override
+  void initState() {
+    super.initState();
+    _menuController = TextEditingController(text: widget.controller.text);
+    _menuController.addListener(
+      () => widget.controller.text = _menuController.text,
+    );
+  }
+
+  @override
+  void dispose() {
+    _menuController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
-      child: Autocomplete<String>(
-        initialValue: TextEditingValue(text: controller.text),
-        optionsBuilder: (v) {
-          if (v.text.trim().isEmpty) return suggestions;
-          final needle = foldLabel(v.text);
-          return suggestions.where((s) => foldLabel(s).contains(needle));
-        },
-        onSelected: (v) => controller.text = v,
-        fieldViewBuilder: (ctx, fieldController, focusNode, onSubmit) {
-          fieldController.text = controller.text;
-          fieldController.addListener(
-            () => controller.text = fieldController.text,
-          );
-          return TextField(
-            controller: fieldController,
-            focusNode: focusNode,
-            style: const TextStyle(color: BrColors.text),
-            decoration: InputDecoration(labelText: label),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return DropdownMenu<String>(
+            controller: _menuController,
+            width: constraints.maxWidth.isFinite ? constraints.maxWidth : null,
+            label: Text(widget.label),
+            enableFilter: true,
+            requestFocusOnTap: true,
+            textStyle: const TextStyle(color: BrColors.text),
+            menuStyle: MenuStyle(
+              backgroundColor: WidgetStatePropertyAll(BrColors.surface),
+            ),
+            dropdownMenuEntries: [
+              for (final s in widget.suggestions)
+                DropdownMenuEntry(value: s, label: s),
+            ],
+            onSelected: (v) {
+              if (v != null) _menuController.text = v;
+            },
           );
         },
       ),
