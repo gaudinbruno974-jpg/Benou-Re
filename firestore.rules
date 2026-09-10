@@ -46,16 +46,28 @@ service cloud.firestore {
       return canEditSessions() || myFunction().matches('.*[Tt]r[ée]sorier.*');
     }
 
+    // hautsGradesDegree (degré aux Hauts Grades) ne peut être modifié que par
+    // l'administrateur — jamais par le V∴M∴, le Secrétaire, le Trésorier ni
+    // le membre lui-même, même s'ils ont par ailleurs le droit de mettre à
+    // jour le reste de la fiche. La lecture reste, elle, au niveau du
+    // document entier (limite Firestore : impossible de la restreindre par
+    // champ) — ce champ est donc caché côté appli, pas protégé en lecture.
+    function touchesHautsGrades() {
+      return request.resource.data.diff(resource.data)
+        .affectedKeys().hasAny(['hautsGradesDegree']);
+    }
+
     // Membres : lisibles par tous les membres connectés ; chacun peut mettre à
     // jour sa propre fiche, la création / suppression est réservée au bureau.
     match /members/{memberId} {
       allow read: if signedIn();
-      allow update: if canEditSessions() || canEditTreasury()
+      allow update: if (canEditSessions() || canEditTreasury()
         || request.auth.uid == memberId
         // Fiches dont l'identifiant n'est pas l'UID Auth : le rattachement
         // est porté par le champ authUid.
         || (signedIn()
-            && request.auth.uid == resource.data.get('authUid', ''));
+            && request.auth.uid == resource.data.get('authUid', '')))
+        && (!touchesHautsGrades() || isAdmin());
       allow create, delete: if canEditSessions();
     }
 

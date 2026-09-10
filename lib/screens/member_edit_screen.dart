@@ -66,6 +66,8 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
       'entryDate': TextEditingController(text: m?.entryDate ?? ''),
       'lodgeDues': TextEditingController(text: '${m?.lodgeDues ?? 0}'),
       'orderDues': TextEditingController(text: '${m?.orderDues ?? 0}'),
+      'hautsGradesDegree':
+          TextEditingController(text: m?.hautsGradesDegree ?? ''),
     };
     _grade = normalizeGrade(m?.grade ?? kApprenti);
     _status = m?.status ?? 'Actif';
@@ -125,6 +127,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           status: _status,
           lodgeDues: lodgeDues,
           orderDues: orderDues,
+          hautsGradesDegree: _ctrls['hautsGradesDegree']!.text.trim(),
         )
         .withDuesForYear(year, currentDues);
     final messenger = ScaffoldMessenger.of(context);
@@ -305,6 +308,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     // vérification, lui, n'a de sens que généré par l'intéressé lui-même —
     // voir le bouton dédié sur sa propre ligne dans members_screen.dart.
     final canGeneratePassportPdf = canManageAccount;
+    final canSeeHautsGrades = canViewHautsGrades(currentUser);
     return Scaffold(
       appBar: AppBar(
           title: Text(isNew ? 'Nouveau membre' : 'Modifier le membre')),
@@ -425,6 +429,26 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                 ],
               ),
             ),
+            if (canSeeHautsGrades) ...[
+              const SizedBox(height: 24),
+              const BrSectionTitle('HAUTS GRADES', icon: Icons.stars_outlined),
+              const SizedBox(height: 14),
+              BrCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _field('hautsGradesDegree', 'Degré', last: true),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Axe séparé du grade de loge bleue ci-dessus. Réservé à '
+                      "l'administrateur : jamais visible ni exporté côté loge "
+                      'bleue.',
+                      style: TextStyle(color: BrColors.muted, fontSize: 11),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             if (!isNew && canGeneratePassportPdf) ...[
               const SizedBox(height: 24),
               const BrSectionTitle('HISTORIQUE', icon: Icons.history),

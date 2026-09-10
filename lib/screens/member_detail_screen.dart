@@ -21,6 +21,7 @@ class MemberDetailScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final isSelf = member.id == state.currentUser?.id;
     final loginEmail = member.effectiveLoginEmail;
+    final canSeeHautsGrades = canViewHautsGrades(state.currentUser);
     final events = state.memberEvents
         .where((e) => e.memberId == member.id)
         .toList()
@@ -88,10 +89,18 @@ class MemberDetailScreen extends StatelessWidget {
                 _row('Office / Fonction', member.function),
                 _row('Civilité', member.civilite),
                 _row('Grade', member.grade),
-                _row('Statut', member.status, last: true),
+                _row('Statut', member.status, last: !canSeeHautsGrades),
               ],
             ),
           ),
+          if (canSeeHautsGrades) ...[
+            const SizedBox(height: 24),
+            const BrSectionTitle('HAUTS GRADES', icon: Icons.stars_outlined),
+            const SizedBox(height: 14),
+            BrCard(
+              child: _row('Degré', member.hautsGradesDegree, last: true),
+            ),
+          ],
           if (events.isNotEmpty || member.entryDate.isNotEmpty) ...[
             const SizedBox(height: 24),
             const BrSectionTitle('HISTORIQUE', icon: Icons.history),

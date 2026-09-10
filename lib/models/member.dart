@@ -302,6 +302,13 @@ class Member {
   final num elevationDuesPaidAmount;
   final bool isAdmin;
 
+  /// Degré aux Hauts Grades (ex. « 18e degré »), axe totalement distinct du
+  /// grade symbolique de loge bleue ([grade]) — un Maître en loge bleue peut
+  /// être à un degré quelconque, ou aucun, aux Hauts Grades. Réservé à
+  /// l'administrateur : jamais affiché ni exporté côté loge bleue (voir
+  /// [canViewHautsGrades]).
+  final String hautsGradesDegree;
+
   /// Cotisations par année (clé = année, ex. 2024). Permet de conserver
   /// l'historique. Les champs à plat ci-dessus restent synchronisés avec
   /// l'année courante pour la compatibilité avec la version web.
@@ -338,6 +345,7 @@ class Member {
     this.elevationDuesPaid = false,
     this.elevationDuesPaidAmount = 0,
     this.isAdmin = false,
+    this.hautsGradesDegree = '',
     this.duesByYear = const {},
   });
 
@@ -394,6 +402,7 @@ class Member {
       elevationDuesPaid: flat.elevationDuesPaid,
       elevationDuesPaidAmount: flat.elevationDuesPaidAmount,
       isAdmin: (map['isAdmin'] ?? false) as bool,
+      hautsGradesDegree: (map['hautsGradesDegree'] ?? '') as String,
       duesByYear: byYear,
     );
   }
@@ -432,6 +441,7 @@ class Member {
       'elevationDuesPaid': flat.elevationDuesPaid,
       'elevationDuesPaidAmount': flat.elevationDuesPaidAmount,
       'isAdmin': isAdmin,
+      'hautsGradesDegree': hautsGradesDegree,
       'duesByYear': {
         for (final e in duesByYear.entries) '${e.key}': e.value.toMap(),
       },
@@ -498,6 +508,7 @@ class Member {
     bool? elevationDuesPaid,
     num? elevationDuesPaidAmount,
     bool? isAdmin,
+    String? hautsGradesDegree,
     Map<int, DuesYear>? duesByYear,
   }) {
     return Member(
@@ -532,7 +543,14 @@ class Member {
       elevationDuesPaidAmount:
           elevationDuesPaidAmount ?? this.elevationDuesPaidAmount,
       isAdmin: isAdmin ?? this.isAdmin,
+      hautsGradesDegree: hautsGradesDegree ?? this.hautsGradesDegree,
       duesByYear: duesByYear ?? this.duesByYear,
     );
   }
 }
+
+/// Consultation et modification du degré aux Hauts Grades ([Member.
+/// hautsGradesDegree]) : réservé à l'administrateur, jamais au V∴M∴, au
+/// Secrétaire ni au reste du bureau, même sur leur propre loge — axe
+/// totalement séparé de [canEditSessions].
+bool canViewHautsGrades(Member? user) => user?.isAdmin ?? false;
