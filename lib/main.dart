@@ -4,11 +4,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
 
+import 'config/flavor.dart';
 import 'config/lodge_config.dart';
 import 'firebase_options.dart';
 import 'state/app_state.dart';
 import 'theme.dart';
 import 'widgets/br_decor.dart';
+import 'screens/grande_loge_home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/parvis_screen.dart';
 import 'screens/passport_verify_screen.dart';
@@ -145,6 +147,13 @@ class _Root extends StatelessWidget {
     // Utilisateur non connecté → LoginScreen
     if (state.currentUser == null) {
       return const LoginScreen();
+    }
+
+    // Grande Loge : pas de Parvis loge bleue (Tenues, Trésorerie...), qui
+    // n'a pas de sens pour ce flavor — accueil dédié, voir la planche de
+    // cette étape (fondation seulement).
+    if (currentFlavor == 'grandeloge') {
+      return const GrandeLogeHomeScreen();
     }
 
     // Utilisateur connecté → ParvisScreen

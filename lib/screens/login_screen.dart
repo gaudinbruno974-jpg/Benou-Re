@@ -282,7 +282,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'R∴L∴ ${LodgeConfig.current.name.toUpperCase()}',
+                    // « R∴L∴ » (Respectable Loge) ne s'applique qu'aux 4
+                    // loges bleues — la Grande Loge n'est pas une loge.
+                    currentFlavor == 'grandeloge'
+                        ? LodgeConfig.current.name.toUpperCase()
+                        : 'R∴L∴ ${LodgeConfig.current.name.toUpperCase()}',
                     style: const TextStyle(
                       color: BrColors.text,
                       fontSize: 26,

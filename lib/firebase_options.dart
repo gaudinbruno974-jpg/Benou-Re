@@ -15,6 +15,7 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'config/flavor.dart';
 import 'firebase_options_alkhemia.dart' as alkhemia;
 import 'firebase_options_benoure.dart' as benoure;
+import 'firebase_options_grandeloge.dart' as grandeloge;
 import 'firebase_options_petitprince.dart' as petitprince;
 import 'firebase_options_templehorus.dart' as templehorus;
 
@@ -28,6 +29,9 @@ class DefaultFirebaseOptions {
     }
     if (currentFlavor == 'alkhemia') {
       return alkhemia.DefaultFirebaseOptions.currentPlatform;
+    }
+    if (currentFlavor == 'grandeloge') {
+      return grandeloge.DefaultFirebaseOptions.currentPlatform;
     }
     return benoure.DefaultFirebaseOptions.currentPlatform;
   }

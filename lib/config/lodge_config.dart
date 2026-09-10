@@ -116,6 +116,27 @@ const LinearGradient kAlKhemiaCardGradient = LinearGradient(
   colors: [Color(0xFF4A3350), Color(0xFF2E1F36)],
 );
 
+// Identité souveraine : bordeaux profond et or, distincte des 4 loges (aucune
+// n'utilise le bordeaux) — évoque l'autorité de l'obédience elle-même plutôt
+// qu'une loge particulière.
+const Color kGrandeLogePrimary = Color(0xFF7A1F2B);
+const Color kGrandeLogeAccent = Color(0xFFD9A916);
+const Color kGrandeLogeAccentBright = Color(0xFFF2D98A);
+const Color kGrandeLogeBackground = Color(0xFF3B0E16);
+const Color kGrandeLogeBackgroundDark = Color(0xFF26090F);
+const Color kGrandeLogeSurface = Color(0xFF54171F);
+const LinearGradient kGrandeLogeBackgroundGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF481118), Color(0xFF320B10), Color(0xFF1D0709)],
+  stops: [0.0, 0.55, 1.0],
+);
+const LinearGradient kGrandeLogeCardGradient = LinearGradient(
+  begin: Alignment.topLeft,
+  end: Alignment.bottomRight,
+  colors: [Color(0xFF63202A), Color(0xFF43141B)],
+);
+
 /// Rend une chaîne sans signes diacritiques (« Bénou Ré » → « Benou Re »).
 ///
 /// Les documents officiels écrivent le nom de la Loge en capitales non
@@ -434,8 +455,37 @@ class LodgeConfig {
     libraryFolders: {},
   );
 
+  /// Valeurs de repli, propres au flavor Grande Loge de Bourbon.
+  ///
+  /// Pas une loge bleue : pas de tenues, trésorerie, ni Bibliothèque à ce
+  /// stade ([driveParentFolderId] et [libraryFolders] vides), [number] et
+  /// [defaultMeetingPlace] sans objet. [lodgeLogoAsset] reprend le logo de
+  /// l'obédience en l'absence de logo propre.
+  static const LodgeConfig grandeLoge = LodgeConfig(
+    name: 'Grande Loge de Bourbon',
+    number: '',
+    orient: 'Saint-Pierre',
+    orientLong: 'Saint Pierre – Île de la Réunion',
+    obedienceAcronym: 'GLDB',
+    defaultMeetingPlace: '',
+    obedienceLogoAsset: 'assets/GLDB.png',
+    lodgeLogoAsset: 'assets/GLDB.png',
+    primaryColor: kGrandeLogePrimary,
+    accentColor: kGrandeLogeAccent,
+    accentBrightColor: kGrandeLogeAccentBright,
+    backgroundColor: kGrandeLogeBackground,
+    backgroundDarkColor: kGrandeLogeBackgroundDark,
+    surfaceColor: kGrandeLogeSurface,
+    backgroundGradient: kGrandeLogeBackgroundGradient,
+    cardGradient: kGrandeLogeCardGradient,
+    webOrigin: 'https://grande-loge-bourbon.web.app',
+    driveParentFolderId: '',
+    libraryFolders: {},
+  );
+
   /// Repli propre au flavor actif (voir `lib/config/flavor.dart`).
   static LodgeConfig get forCurrentFlavor {
+    if (currentFlavor == 'grandeloge') return grandeLoge;
     if (currentFlavor == 'petitprince') return petitPrince;
     if (currentFlavor == 'templehorus') return templeHorus;
     if (currentFlavor == 'alkhemia') return alKhemia;

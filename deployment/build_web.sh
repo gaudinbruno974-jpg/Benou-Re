@@ -8,11 +8,12 @@
 #         ./deployment/build_web.sh petitprince
 #         ./deployment/build_web.sh templehorus
 #         ./deployment/build_web.sh alkhemia
+#         ./deployment/build_web.sh grandeloge
 set -euo pipefail
 
 FLAVOR="${1:-}"
-if [[ "$FLAVOR" != "benoure" && "$FLAVOR" != "petitprince" && "$FLAVOR" != "templehorus" && "$FLAVOR" != "alkhemia" ]]; then
-  echo "Usage: $0 <benoure|petitprince|templehorus|alkhemia>" >&2
+if [[ "$FLAVOR" != "benoure" && "$FLAVOR" != "petitprince" && "$FLAVOR" != "templehorus" && "$FLAVOR" != "alkhemia" && "$FLAVOR" != "grandeloge" ]]; then
+  echo "Usage: $0 <benoure|petitprince|templehorus|alkhemia|grandeloge>" >&2
   exit 1
 fi
 

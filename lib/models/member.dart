@@ -309,6 +309,12 @@ class Member {
   /// [canViewHautsGrades]).
   final String hautsGradesDegree;
 
+  /// Code de rôle stable (ex. « sgm », « gm », « admin »), pour le flavor
+  /// Grande Loge — distinct de [function], qui reste le libellé d'office
+  /// affiché (« Sérénissime Grand Maître »). Vide et sans usage pour les
+  /// quatre loges bleues.
+  final String role;
+
   /// Cotisations par année (clé = année, ex. 2024). Permet de conserver
   /// l'historique. Les champs à plat ci-dessus restent synchronisés avec
   /// l'année courante pour la compatibilité avec la version web.
@@ -346,6 +352,7 @@ class Member {
     this.elevationDuesPaidAmount = 0,
     this.isAdmin = false,
     this.hautsGradesDegree = '',
+    this.role = '',
     this.duesByYear = const {},
   });
 
@@ -403,6 +410,7 @@ class Member {
       elevationDuesPaidAmount: flat.elevationDuesPaidAmount,
       isAdmin: (map['isAdmin'] ?? false) as bool,
       hautsGradesDegree: (map['hautsGradesDegree'] ?? '') as String,
+      role: (map['role'] ?? '') as String,
       duesByYear: byYear,
     );
   }
@@ -442,6 +450,7 @@ class Member {
       'elevationDuesPaidAmount': flat.elevationDuesPaidAmount,
       'isAdmin': isAdmin,
       'hautsGradesDegree': hautsGradesDegree,
+      'role': role,
       'duesByYear': {
         for (final e in duesByYear.entries) '${e.key}': e.value.toMap(),
       },
@@ -509,6 +518,7 @@ class Member {
     num? elevationDuesPaidAmount,
     bool? isAdmin,
     String? hautsGradesDegree,
+    String? role,
     Map<int, DuesYear>? duesByYear,
   }) {
     return Member(
@@ -544,6 +554,7 @@ class Member {
           elevationDuesPaidAmount ?? this.elevationDuesPaidAmount,
       isAdmin: isAdmin ?? this.isAdmin,
       hautsGradesDegree: hautsGradesDegree ?? this.hautsGradesDegree,
+      role: role ?? this.role,
       duesByYear: duesByYear ?? this.duesByYear,
     );
   }
