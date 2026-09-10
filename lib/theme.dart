@@ -17,42 +17,54 @@ class BrColors {
           ? kTempleHorusAccent
           : currentFlavor == 'alkhemia'
               ? kAlKhemiaAccent
-              : kBenouReAccent;
+              : currentFlavor == 'grandeloge'
+                  ? kGrandeLogeAccent
+                  : kBenouReAccent;
   static const goldBright = currentFlavor == 'petitprince'
       ? kPetitPrinceAccentBright
       : currentFlavor == 'templehorus'
           ? kTempleHorusAccentBright
           : currentFlavor == 'alkhemia'
               ? kAlKhemiaAccentBright
-              : kBenouReAccentBright;
+              : currentFlavor == 'grandeloge'
+                  ? kGrandeLogeAccentBright
+                  : kBenouReAccentBright;
   static const teal = currentFlavor == 'petitprince'
       ? kPetitPrincePrimary
       : currentFlavor == 'templehorus'
           ? kTempleHorusPrimary
           : currentFlavor == 'alkhemia'
               ? kAlKhemiaPrimary
-              : kBenouRePrimary;
+              : currentFlavor == 'grandeloge'
+                  ? kGrandeLogePrimary
+                  : kBenouRePrimary;
   static const background = currentFlavor == 'petitprince'
       ? kPetitPrinceBackground
       : currentFlavor == 'templehorus'
           ? kTempleHorusBackground
           : currentFlavor == 'alkhemia'
               ? kAlKhemiaBackground
-              : kBenouReBackground;
+              : currentFlavor == 'grandeloge'
+                  ? kGrandeLogeBackground
+                  : kBenouReBackground;
   static const backgroundDark = currentFlavor == 'petitprince'
       ? kPetitPrinceBackgroundDark
       : currentFlavor == 'templehorus'
           ? kTempleHorusBackgroundDark
           : currentFlavor == 'alkhemia'
               ? kAlKhemiaBackgroundDark
-              : kBenouReBackgroundDark;
+              : currentFlavor == 'grandeloge'
+                  ? kGrandeLogeBackgroundDark
+                  : kBenouReBackgroundDark;
   static const surface = currentFlavor == 'petitprince'
       ? kPetitPrinceSurface
       : currentFlavor == 'templehorus'
           ? kTempleHorusSurface
           : currentFlavor == 'alkhemia'
               ? kAlKhemiaSurface
-              : kBenouReSurface;
+              : currentFlavor == 'grandeloge'
+                  ? kGrandeLogeSurface
+                  : kBenouReSurface;
   static const muted = Color(0xFFC4D8D8);
   static const text = Color(0xFFF8FAFA);
 
@@ -79,7 +91,9 @@ class BrColors {
           ? kTempleHorusBackgroundGradient
           : currentFlavor == 'alkhemia'
               ? kAlKhemiaBackgroundGradient
-              : kBenouReBackgroundGradient;
+              : currentFlavor == 'grandeloge'
+                  ? kGrandeLogeBackgroundGradient
+                  : kBenouReBackgroundGradient;
 
   /// Dégradé utilisé pour les cartes contrastées (voir `BrCard`).
   static const cardGradient = currentFlavor == 'petitprince'
@@ -88,7 +102,9 @@ class BrColors {
           ? kTempleHorusCardGradient
           : currentFlavor == 'alkhemia'
               ? kAlKhemiaCardGradient
-              : kBenouReCardGradient;
+              : currentFlavor == 'grandeloge'
+                  ? kGrandeLogeCardGradient
+                  : kBenouReCardGradient;
 
   /// Dégradé doré (accents, titres, boutons mis en valeur).
   static const goldGradient = LinearGradient(
