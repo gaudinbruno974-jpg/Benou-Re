@@ -22,7 +22,7 @@ const List<_HgMenuItem> _kHgMenuItems = [
   _HgMenuItem('Dignitaires', Icons.workspace_premium_outlined, BrColors.violet),
   _HgMenuItem('Instructions', Icons.school_outlined, BrColors.menuInstruction),
   _HgMenuItem(
-    'Rapport pour la Grande Loge',
+    'Rapport au Souverain Sanctuaire',
     Icons.summarize_outlined,
     BrColors.menuArchitecture,
   ),
