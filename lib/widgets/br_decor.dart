@@ -34,17 +34,18 @@ class _WatermarkPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Halo doré très discret en haut de l'écran.
     final halo = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          BrColors.gold.withValues(alpha: 0.10),
-          BrColors.gold.withValues(alpha: 0.0),
-        ],
-      ).createShader(
-        Rect.fromCircle(
-          center: Offset(size.width * 0.5, size.height * 0.06),
-          radius: size.width * 0.85,
-        ),
-      );
+      ..shader =
+          RadialGradient(
+            colors: [
+              BrColors.gold.withValues(alpha: 0.10),
+              BrColors.gold.withValues(alpha: 0.0),
+            ],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * 0.5, size.height * 0.06),
+              radius: size.width * 0.85,
+            ),
+          );
     canvas.drawRect(Offset.zero & size, halo);
 
     final stroke = Paint()
@@ -152,7 +153,10 @@ class BrSectionTitle extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Container(height: 1, color: BrColors.gold.withValues(alpha: 0.2)),
+          child: Container(
+            height: 1,
+            color: BrColors.gold.withValues(alpha: 0.2),
+          ),
         ),
       ],
     );
@@ -345,6 +349,102 @@ class BrMenuTile extends StatelessWidget {
             size: 15,
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Tuile de menu « image plein format » — pour un menu qui se lit comme une
+/// galerie (ex. l'accueil du flavor Grande Loge) plutôt qu'une liste de
+/// lignes : l'image remplit toute la tuile carrée, le titre/sous-titre sont
+/// superposés en bas sur un dégradé, pas de barre ni d'icône séparée.
+class BrImageMenuTile extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final String imageAsset;
+  final VoidCallback? onTap;
+  const BrImageMenuTile({
+    super.key,
+    required this.title,
+    required this.imageAsset,
+    this.subtitle,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 1,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(BrColors.radiusM),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Ink(
+            decoration: BoxDecoration(
+              border: Border.all(color: BrColors.gold.withValues(alpha: 0.28)),
+              boxShadow: BrColors.softShadow,
+            ),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  imageAsset,
+                  fit: BoxFit.cover,
+                  filterQuality: FilterQuality.high,
+                  isAntiAlias: true,
+                ),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      stops: const [0.0, 0.55, 1.0],
+                      colors: [
+                        Colors.transparent,
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.75),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 12,
+                  right: 12,
+                  bottom: 12,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.3,
+                        ),
+                      ),
+                      if (subtitle != null && subtitle!.isNotEmpty)
+                        Text(
+                          subtitle!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.85),
+                            fontSize: 11.5,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

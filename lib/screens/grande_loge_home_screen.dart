@@ -1,18 +1,14 @@
-// Accueil du flavor Grande Loge de Bourbon (utilisé par le Souverain
-// Sanctuaire Traditionnel de La Réunion — voir l'image de fond de
-// login_screen.dart) — accueil nominatif par rôle, puis un menu de pavés
-// (même style que le Parvis des loges bleues, voir BrMenuTile) : « Loges
-// Bleues » ouvre la liste des 4 loges, avec en plus MMA-Kherou et la
-// recherche par degré à travers les 4 loges
-// (grande_loge_lodges_list_screen.dart) ; IAH-MES ouvre un écran « à
-// venir » en attendant son propre contenu. Pas de pavé « Souverain
-// Sanctuaire » : toute cette page le représente déjà.
+// Accueil du flavor Grande Loge de Bourbon, utilisé par le Souverain
+// Sanctuaire Traditionnel de La Réunion (voir l'image de fond de
+// login_screen.dart) — le titre de la barre du haut reprend donc son nom,
+// pas « Grande Loge de Bourbon ». Menu en grille de grandes images (voir
+// BrImageMenuTile) plutôt qu'en liste : « Loges Bleues » ouvre la liste des
+// 4 loges, avec en plus MMA-Kherou (grande_loge_lodges_list_screen.dart) ;
+// IAH-MES ouvre un écran « à venir » en attendant son propre contenu.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../config/lodge_config.dart';
 import '../state/app_state.dart';
-import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
 import 'grande_loge_lodges_list_screen.dart';
@@ -34,14 +30,9 @@ class GrandeLogeHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final user = state.currentUser;
-    final roleLabel = kGrandeLogeRoleLabels[user?.role ?? ''] ??
-        (user?.function.isNotEmpty == true ? user!.function : 'Compte');
-
     return Scaffold(
       appBar: AppBar(
-        title: Text(LodgeConfig.current.name),
+        title: const Text('Souverain Sanctuaire'),
         actions: [
           IconButton(
             tooltip: 'Se déconnecter',
@@ -50,46 +41,15 @@ class GrandeLogeHomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(28),
+      body: GridView.count(
+        padding: const EdgeInsets.all(20),
+        crossAxisCount: 2,
+        mainAxisSpacing: 16,
+        crossAxisSpacing: 16,
         children: [
-          BrCard(
-            padding: const EdgeInsets.all(28),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.stars_outlined,
-                    color: BrColors.gold, size: 40),
-                const SizedBox(height: 16),
-                Text(
-                  user?.fullName.isNotEmpty == true
-                      ? user!.fullName
-                      : 'Bienvenue',
-                  style: const TextStyle(
-                    color: BrColors.text,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  roleLabel,
-                  style: const TextStyle(color: BrColors.muted, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-          const BrSectionTitle('VOTRE ESPACE DE TRAVAIL',
-              icon: Icons.workspaces_outline),
-          const SizedBox(height: 16),
-          BrMenuTile(
+          BrImageMenuTile(
             title: 'Loges Bleues',
             subtitle: 'Consulter les 4 loges',
-            icon: Icons.people_outline,
-            color: BrColors.gold,
             imageAsset: 'assets/GLDB.png',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
@@ -97,12 +57,9 @@ class GrandeLogeHomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 14),
-          BrMenuTile(
+          BrImageMenuTile(
             title: 'IAH-MES',
             subtitle: 'Atelier 4°-14°',
-            icon: Icons.workspace_premium_outlined,
-            color: BrColors.menuInstruction,
             imageAsset: 'assets/Iah-Mes.jfif',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
