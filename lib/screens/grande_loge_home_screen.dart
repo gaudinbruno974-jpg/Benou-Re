@@ -6,7 +6,7 @@
 // disponible (SliverGridDelegateWithMaxCrossAxisExtent) plutôt qu'un
 // nombre de colonnes fixe, pour que chaque tuile reste raisonnable même
 // sur un grand écran : « Loges Bleues » ouvre la liste des 4 loges
-// (grande_loge_lodges_list_screen.dart) ; IAH-MES, MMA-Kherou et le
+// (grande_loge_lodges_list_screen.dart) ; IAH-MES, MAA-Kherou et le
 // répertoire du Souverain Sanctuaire ouvrent chacun un écran « à venir »
 // en attendant leur propre contenu.
 import 'package:flutter/material.dart';
@@ -79,14 +79,14 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             ),
           ),
           BrImageMenuTile(
-            title: 'MMA-Kherou',
+            title: 'MAA-Kherou',
             subtitle: 'Loge de recherche',
-            imageAsset: 'assets/MMA-Kherou.jfif',
+            imageAsset: 'assets/MAA-Kherou.jfif',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const GrandeLogeComingSoonScreen(
-                  title: 'MMA-Kherou',
-                  imageAsset: 'assets/MMA-Kherou.jfif',
+                  title: 'MAA-Kherou',
+                  imageAsset: 'assets/MAA-Kherou.jfif',
                 ),
               ),
             ),

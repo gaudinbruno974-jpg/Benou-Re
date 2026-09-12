@@ -1,5 +1,5 @@
 // Écran générique « à venir » — pour les entités Grande Loge sans écran
-// dédié pour l'instant (MMA-Kherou, Iah-Mes, Souverain Sanctuaire).
+// dédié pour l'instant (MAA-Kherou, Iah-Mes, Souverain Sanctuaire).
 import 'package:flutter/material.dart';
 
 import '../theme.dart';

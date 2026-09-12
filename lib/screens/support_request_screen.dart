@@ -28,7 +28,7 @@ const String _kSupportEmail = 'gaudin.bruno974@gmail.com';
 const List<String> kGrandeLogeSupportCategories = [
   'Loges Bleues',
   'IAH-MES',
-  'MMA-Kherou',
+  'MAA-Kherou',
   'Souverain Sanctuaire',
   'Connexion',
 ];

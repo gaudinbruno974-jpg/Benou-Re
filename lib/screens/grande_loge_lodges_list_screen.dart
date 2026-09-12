@@ -5,7 +5,7 @@
 // l'obédience) : le titre l'affiche en toutes lettres. Chaque tuile affiche
 // le nombre de membres actifs (lecture croisée, voir
 // lodge_reader_service.dart) et ouvre un sous-menu Membres / Tenue pour
-// cette loge. MMA-Kherou n'en fait plus partie : c'est une tuile directe
+// cette loge. MAA-Kherou n'en fait plus partie : c'est une tuile directe
 // de l'accueil, pas une loge bleue.
 import 'package:flutter/material.dart';
 
