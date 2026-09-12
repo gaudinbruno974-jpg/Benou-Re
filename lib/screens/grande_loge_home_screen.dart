@@ -13,9 +13,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../state/app_state.dart';
+import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
 import 'grande_loge_lodges_list_screen.dart';
+import 'support_request_screen.dart';
 
 /// Libellé lisible d'un rôle Grande Loge, à partir de son code stable
 /// (voir [Member.role]) — le code reste la valeur de référence en base,
@@ -99,6 +101,17 @@ class GrandeLogeHomeScreen extends StatelessWidget {
                   title: 'Répertoire du Souverain Sanctuaire',
                   imageAsset: 'assets/Souverain-Sanctuaire.jfif',
                 ),
+              ),
+            ),
+          ),
+          BrImageMenuTile(
+            title: 'Suggestions',
+            subtitle: 'Dysfonctionnements',
+            icon: Icons.support_agent_outlined,
+            color: BrColors.gold,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const SupportRequestScreen(),
               ),
             ),
           ),

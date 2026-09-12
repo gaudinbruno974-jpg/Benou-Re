@@ -395,7 +395,11 @@ pw.Widget _lodgeHeader(
   );
 }
 
-Future<List<pw.ImageProvider?>> _loadLogos() async {
+/// [lodgeOverride] permet de générer un PDF pour une autre loge que celle du
+/// flavor courant (Grande Loge consultant une loge bleue en lecture croisée,
+/// voir grande_loge_lodge_activity_report_screen.dart) — par défaut, celle du
+/// flavor courant, comme avant.
+Future<List<pw.ImageProvider?>> _loadLogos({LodgeConfig? lodgeOverride}) async {
   Future<pw.ImageProvider?> load(String path) async {
     try {
       return await imageFromAssetBundle(path);
@@ -404,7 +408,7 @@ Future<List<pw.ImageProvider?>> _loadLogos() async {
     }
   }
 
-  final lodge = LodgeConfig.current;
+  final lodge = lodgeOverride ?? LodgeConfig.current;
   return Future.wait([
     load(lodge.obedienceLogoAsset),
     load(lodge.lodgeLogoAsset),
@@ -2018,6 +2022,8 @@ String _fmtDdMmYyyy(DateTime? d) => d == null
 
 /// Document en lecture seule : n'agrège que ce qui est déjà enregistré
 /// ailleurs (voir activity_report_service.dart), aucune écriture.
+/// [lodgeOverride] : voir _loadLogos — génère le rapport pour cette loge
+/// plutôt que celle du flavor courant (consultation croisée Grande Loge).
 Future<Uint8List> buildActivityReportPdf({
   required DateTime start,
   required DateTime end,
@@ -2027,10 +2033,11 @@ Future<Uint8List> buildActivityReportPdf({
   required List<Visitor> visitors,
   required List<Dignitary> dignitaries,
   required List<MemberEvent> memberEvents,
+  LodgeConfig? lodgeOverride,
 }) async {
   final fonts = await _loadLodgeFonts();
-  final logos = await _loadLogos();
-  final lodge = LodgeConfig.current;
+  final logos = await _loadLogos(lodgeOverride: lodgeOverride);
+  final lodge = lodgeOverride ?? LodgeConfig.current;
   final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
 
   final effectifs = computeEffectifsSection(

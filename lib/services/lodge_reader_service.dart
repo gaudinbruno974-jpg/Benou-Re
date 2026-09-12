@@ -12,12 +12,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 
+import '../config/lodge_config.dart';
 import '../firebase_options_alkhemia.dart' as alkhemia;
 import '../firebase_options_benoure.dart' as benoure;
 import '../firebase_options_petitprince.dart' as petitprince;
 import '../firebase_options_templehorus.dart' as templehorus;
+import '../models/dignitary.dart';
+import '../models/external_session.dart';
 import '../models/member.dart';
+import '../models/member_event.dart';
 import '../models/session.dart';
+import '../models/visitor.dart';
 
 /// Une des quatre loges, du point de vue de la lecture croisée Grande Loge.
 class LodgeReaderTarget {
@@ -29,12 +34,20 @@ class LodgeReaderTarget {
   /// Logo de la loge (même asset que celui de son propre flavor, voir
   /// LodgeConfig), pour l'afficher sur les pavés Grande Loge.
   final String logoAsset;
+
+  /// Configuration par défaut (compilée) de cette loge — sert de base à
+  /// [LodgeReaderService.lodgeConfigOf], qui la fusionne avec son document
+  /// `config/settings` réel (nom, dossiers Drive de bibliothèque...), exactement
+  /// comme `LodgeConfig.forCurrentFlavor.mergedWith(...)` le fait pour la
+  /// loge elle-même (voir firestore_repository.dart:lodgeConfigStream).
+  final LodgeConfig baseConfig;
   const LodgeReaderTarget({
     required this.key,
     required this.label,
     required this.options,
     required this.readerEmail,
     required this.logoAsset,
+    required this.baseConfig,
   });
 }
 
@@ -51,6 +64,7 @@ const List<LodgeReaderTarget> kLodgeReaderTargets = [
     options: alkhemia.DefaultFirebaseOptions.web,
     readerEmail: 'lecture-grandeloge@alkhemia.gldb.placeholder',
     logoAsset: 'assets/Al-Khemia.png',
+    baseConfig: LodgeConfig.alKhemia,
   ),
   LodgeReaderTarget(
     key: 'petitprince',
@@ -58,6 +72,7 @@ const List<LodgeReaderTarget> kLodgeReaderTargets = [
     options: petitprince.DefaultFirebaseOptions.web,
     readerEmail: 'lecture-grandeloge@petitprince.gldb.placeholder',
     logoAsset: 'assets/Petit-Prince.png',
+    baseConfig: LodgeConfig.petitPrince,
   ),
   LodgeReaderTarget(
     key: 'templehorus',
@@ -65,6 +80,7 @@ const List<LodgeReaderTarget> kLodgeReaderTargets = [
     options: templehorus.DefaultFirebaseOptions.web,
     readerEmail: 'lecture-grandeloge@templehorus.gldb.placeholder',
     logoAsset: 'assets/Temple-Horus.png',
+    baseConfig: LodgeConfig.templeHorus,
   ),
   LodgeReaderTarget(
     key: 'benoure',
@@ -72,6 +88,7 @@ const List<LodgeReaderTarget> kLodgeReaderTargets = [
     options: benoure.DefaultFirebaseOptions.web,
     readerEmail: 'lecture-grandeloge@benoure.gldb.placeholder',
     logoAsset: 'assets/Benou-Re.png',
+    baseConfig: LodgeConfig.benouRe,
   ),
 ];
 
@@ -154,5 +171,76 @@ class LodgeReaderService {
       return dbb.compareTo(da);
     });
     return sessions;
+  }
+
+  /// Tenues extérieures reçues par [target], les plus récentes en premier.
+  Future<List<ExternalSession>> externalSessionsOf(
+    LodgeReaderTarget target,
+  ) async {
+    final db = await _firestoreFor(target);
+    final snap = await db.collection('externalSessions').get();
+    final sessions = [
+      for (final doc in snap.docs) ExternalSession.fromMap(doc.id, doc.data()),
+    ];
+    sessions.sort((a, b) {
+      final da = a.dateTime;
+      final dbb = b.dateTime;
+      if (da == null && dbb == null) return 0;
+      if (da == null) return 1;
+      if (dbb == null) return -1;
+      return dbb.compareTo(da);
+    });
+    return sessions;
+  }
+
+  /// Répertoire des visiteurs de [target], trié par nom.
+  Future<List<Visitor>> visitorsOf(LodgeReaderTarget target) async {
+    final db = await _firestoreFor(target);
+    final snap = await db.collection('visitors').get();
+    final visitors = [
+      for (final doc in snap.docs) Visitor.fromMap(doc.id, doc.data()),
+    ];
+    visitors.sort(
+      (a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
+    );
+    return visitors;
+  }
+
+  /// Répertoire des dignitaires de [target], trié par nom.
+  Future<List<Dignitary>> dignitariesOf(LodgeReaderTarget target) async {
+    final db = await _firestoreFor(target);
+    final snap = await db.collection('dignitaries').get();
+    final dignitaries = [
+      for (final doc in snap.docs) Dignitary.fromMap(doc.id, doc.data()),
+    ];
+    dignitaries.sort(
+      (a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
+    );
+    return dignitaries;
+  }
+
+  /// Historique des membres (élévations, changements de statut) de [target] —
+  /// nécessaire au rapport d'activité (voir buildActivityReportPdf), sans
+  /// écran de consultation dédié.
+  Future<List<MemberEvent>> memberEventsOf(LodgeReaderTarget target) async {
+    final db = await _firestoreFor(target);
+    final snap = await db.collection('memberEvents').get();
+    return [
+      for (final doc in snap.docs) MemberEvent.fromMap(doc.id, doc.data()),
+    ];
+  }
+
+  /// Configuration réelle de [target] (nom, dossiers Drive de bibliothèque...) :
+  /// la base compilée ([LodgeReaderTarget.baseConfig]) fusionnée avec son
+  /// document `config/settings`, exactement comme la loge le fait pour
+  /// elle-même (voir firestore_repository.dart:lodgeConfigStream). Nécessaire
+  /// car `templeHorus`/`alKhemia` n'ont pas encore de dossiers renseignés
+  /// dans leur config compilée par défaut — seul Firestore a la valeur réelle.
+  Future<LodgeConfig> lodgeConfigOf(LodgeReaderTarget target) async {
+    final db = await _firestoreFor(target);
+    final snap = await db.collection('config').doc('settings').get();
+    final data = snap.data();
+    if (data == null) return target.baseConfig;
+    return target.baseConfig.mergedWith(data);
   }
 }

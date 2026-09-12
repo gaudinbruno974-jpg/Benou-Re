@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../config/flavor.dart';
 import '../config/lodge_config.dart';
 import '../services/drive_service.dart';
 import '../services/pdf_service.dart';
@@ -20,6 +21,20 @@ import 'parvis_screen.dart' show kParvisCardTitles;
 
 const String _kAutre = 'Autre';
 const String _kSupportEmail = 'gaudin.bruno974@gmail.com';
+
+/// Catégories du menu « Votre demande concerne » côté Grande Loge : les
+/// tuiles de son propre accueil (voir grande_loge_home_screen.dart), pas
+/// celles du Parvis d'une loge bleue (kParvisCardTitles), sans objet ici.
+const List<String> kGrandeLogeSupportCategories = [
+  'Loges Bleues',
+  'IAH-MES',
+  'MMA-Kherou',
+  'Souverain Sanctuaire',
+  'Connexion',
+];
+
+List<String> get _supportCategories =>
+    currentFlavor == 'grandeloge' ? kGrandeLogeSupportCategories : kParvisCardTitles;
 
 class SupportRequestScreen extends StatefulWidget {
   const SupportRequestScreen({super.key});
@@ -32,7 +47,7 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
   final _formKey = GlobalKey<FormState>();
   final _subjectCtrl = TextEditingController();
   final _messageCtrl = TextEditingController();
-  String _menu = kParvisCardTitles.first;
+  String _menu = _supportCategories.first;
   bool _sending = false;
 
   @override
@@ -76,8 +91,11 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
       await DriveService.instance.sendGmailWithAttachment(
         to: _kSupportEmail,
         subject: 'Demande n°$chrono - ${lodge.name} - $dateStr - $objet',
-        body: 'Nouvelle demande transmise depuis le Parvis de la R∴L∴ '
-            '${lodge.name}.\n\nVoir le PDF joint pour le détail.',
+        body: currentFlavor == 'grandeloge'
+            ? 'Nouvelle demande transmise depuis ${lodge.name}.\n\n'
+                'Voir le PDF joint pour le détail.'
+            : 'Nouvelle demande transmise depuis le Parvis de la R∴L∴ '
+                '${lodge.name}.\n\nVoir le PDF joint pour le détail.',
         attachmentName: fileName,
         attachmentBytes: bytes,
       );
@@ -100,7 +118,7 @@ class _SupportRequestScreenState extends State<SupportRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final options = [...kParvisCardTitles, _kAutre];
+    final options = [..._supportCategories, _kAutre];
     return Scaffold(
       appBar: AppBar(title: const Text('Suggestions / Dysfonctionnements')),
       body: Form(

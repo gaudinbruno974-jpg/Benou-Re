@@ -361,18 +361,27 @@ class BrMenuTile extends StatelessWidget {
 class BrImageMenuTile extends StatelessWidget {
   final String title;
   final String? subtitle;
-  final String imageAsset;
+
+  /// Image plein cadre. Si absente, [icon] est affiché à la place sur un
+  /// fond dégradé (même esprit que BrMenuTile) — pour une tuile sans photo
+  /// dédiée (ex. Suggestions / Dysfonctionnements).
+  final String? imageAsset;
+  final IconData? icon;
+  final Color? color;
   final VoidCallback? onTap;
   const BrImageMenuTile({
     super.key,
     required this.title,
-    required this.imageAsset,
+    this.imageAsset,
+    this.icon,
+    this.color,
     this.subtitle,
     this.onTap,
-  });
+  }) : assert(imageAsset != null || icon != null);
 
   @override
   Widget build(BuildContext context) {
+    final accent = color ?? BrColors.gold;
     return AspectRatio(
       aspectRatio: 1,
       child: Material(
@@ -389,12 +398,29 @@ class BrImageMenuTile extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                Image.asset(
-                  imageAsset,
-                  fit: BoxFit.cover,
-                  filterQuality: FilterQuality.high,
-                  isAntiAlias: true,
-                ),
+                if (imageAsset != null)
+                  Image.asset(
+                    imageAsset!,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.high,
+                    isAntiAlias: true,
+                  )
+                else
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          accent.withValues(alpha: 0.32),
+                          accent.withValues(alpha: 0.10),
+                        ],
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(icon, color: accent, size: 40),
+                    ),
+                  ),
                 DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
