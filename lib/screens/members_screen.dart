@@ -13,16 +13,6 @@ import 'member_detail_screen.dart';
 import 'member_edit_screen.dart';
 import 'passport_actions.dart';
 
-/// Comptes techniques (lecture croisée Grande Loge, support technique) :
-/// une vraie fiche Firestore est nécessaire pour chacun — sans elle, ils
-/// récupèrent les droits complets du Bureau (faille `!hasMemberDoc()`, voir
-/// firestore.rules) — mais ce ne sont pas des membres de la Loge, donc ils
-/// ne doivent pas apparaître dans la liste des membres.
-const Set<String> _kHiddenTechnicalRoles = {
-  'lecture_grandeloge',
-  'support_technique',
-};
-
 class MembersScreen extends StatelessWidget {
   const MembersScreen({super.key});
 
@@ -31,7 +21,7 @@ class MembersScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final canEdit = canEditSessions(state.currentUser);
     final members = [...state.members]
-      ..removeWhere((m) => _kHiddenTechnicalRoles.contains(m.role))
+      ..removeWhere((m) => kHiddenTechnicalRoles.contains(m.role))
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
 
     return Scaffold(

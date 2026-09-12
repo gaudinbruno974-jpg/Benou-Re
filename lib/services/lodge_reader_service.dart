@@ -124,31 +124,30 @@ class LodgeReaderService {
     return FirebaseFirestore.instanceFor(app: app);
   }
 
-  /// Nombre de membres actifs sur [target] — sonde minimale pour vérifier la
-  /// connexion croisée depuis l'appli elle-même. Pas encore d'écran de
-  /// consultation détaillée (étape suivante).
+  /// Nombre de membres actifs sur [target], comptes techniques exclus (voir
+  /// [kHiddenTechnicalRoles]) — pas de `.count()` agrégée côté serveur ici
+  /// (elle ne sait pas exclure par rôle sans index composite) : on relit tout
+  /// et on filtre côté client, comme [membersOf].
   Future<int> memberCount(LodgeReaderTarget target) async {
-    final db = await _firestoreFor(target);
-    final snap = await db
-        .collection('members')
-        .where('status', isEqualTo: 'Actif')
-        .count()
-        .get();
-    return snap.count ?? 0;
+    final members = await membersOf(target);
+    return members.where((m) => m.status == 'Actif').length;
   }
 
-  /// Fiches complètes des membres de [target], triées par nom — pour
-  /// l'écran de consultation détaillée. Inclut hautsGradesDegree : c'est
-  /// justement pour la Grande Loge que ce champ existe (voir Member.
-  /// hautsGradesDegree) ; la restriction « admin seul » ne s'applique qu'à
-  /// l'affichage côté loge bleue, pas ici.
+  /// Fiches complètes des membres de [target], comptes techniques exclus
+  /// (voir [kHiddenTechnicalRoles]), triées par nom — pour l'écran de
+  /// consultation détaillée. Inclut hautsGradesDegree : c'est justement pour
+  /// la Grande Loge que ce champ existe (voir Member.hautsGradesDegree) ; la
+  /// restriction « admin seul » ne s'applique qu'à l'affichage côté loge
+  /// bleue, pas ici.
   Future<List<Member>> membersOf(LodgeReaderTarget target) async {
     final db = await _firestoreFor(target);
     final snap = await db.collection('members').get();
     final members = [
       for (final doc in snap.docs) Member.fromMap(doc.id, doc.data()),
-    ];
-    members.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+    ]..removeWhere((m) => kHiddenTechnicalRoles.contains(m.role));
+    members.sort(
+      (a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()),
+    );
     return members;
   }
 

@@ -8,6 +8,18 @@ const String kMaitre = 'Maître';
 
 const List<String> kGrades = [kApprenti, kCompagnon, kMaitre];
 
+/// Rôles de comptes techniques (`Member.role`) : une vraie fiche est
+/// nécessaire pour ces comptes (sinon ils récupèrent les droits complets du
+/// Bureau via la faille `!hasMemberDoc()`, voir firestore.rules), mais ce ne
+/// sont pas des membres de la Loge — à exclure des listes/comptages visibles
+/// aux humains (membres actifs, effectif...), aussi bien côté loge bleue
+/// (members_screen.dart) que côté lecture croisée Grande Loge
+/// (lodge_reader_service.dart).
+const Set<String> kHiddenTechnicalRoles = {
+  'lecture_grandeloge',
+  'support_technique',
+};
+
 /// Offices de l'Atelier, dans l'ordre du tableau de Loge.
 const List<String> kFunctions = [
   'Aucun',
@@ -212,17 +224,17 @@ class DuesYear {
 
   /// Une entrée « vierge » : mêmes montants mais tout marqué non-payé.
   DuesYear resetPaid() => copyWith(
-        lodgeDuesPaid: false,
-        lodgeDuesPaidAmount: 0,
-        orderDuesPaid: false,
-        orderDuesPaidAmount: 0,
-        elevationDuesPaid: false,
-        elevationDuesPaidAmount: 0,
-        lodgeDuesPaidDate: '',
-        orderDuesPaidDate: '',
-        quitusSent: false,
-        quitusSentDate: '',
-      );
+    lodgeDuesPaid: false,
+    lodgeDuesPaidAmount: 0,
+    orderDuesPaid: false,
+    orderDuesPaidAmount: 0,
+    elevationDuesPaid: false,
+    elevationDuesPaidAmount: 0,
+    lodgeDuesPaidDate: '',
+    orderDuesPaidDate: '',
+    quitusSent: false,
+    quitusSentDate: '',
+  );
 
   /// Vrai une fois les deux lignes (Loge et Ordre) intégralement réglées —
   /// c'est à ce moment qu'un Quitus (document unique, combiné) peut être émis.
@@ -250,10 +262,10 @@ class DuesYear {
 
   /// Recalcule les booléens « soldé » à partir des versements enregistrés.
   DuesYear syncPaidFlags() => copyWith(
-        lodgeDuesPaid: _settled(lodgeDues, lodgeDuesPaidAmount),
-        orderDuesPaid: _settled(orderDues, orderDuesPaidAmount),
-        elevationDuesPaid: _settled(elevationDues, elevationDuesPaidAmount),
-      );
+    lodgeDuesPaid: _settled(lodgeDues, lodgeDuesPaidAmount),
+    orderDuesPaid: _settled(orderDues, orderDuesPaidAmount),
+    elevationDuesPaid: _settled(elevationDues, elevationDuesPaidAmount),
+  );
 
   static bool _settled(num dues, num paidAmount) =>
       paidAmount > 0 && paidAmount >= dues;
@@ -367,8 +379,7 @@ class Member {
       rawByYear.forEach((key, value) {
         final year = int.tryParse('$key');
         if (year != null && value is Map) {
-          byYear[year] =
-              DuesYear.fromMap(Map<String, dynamic>.from(value));
+          byYear[year] = DuesYear.fromMap(Map<String, dynamic>.from(value));
         }
       });
     }
