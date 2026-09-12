@@ -16,6 +16,7 @@ import '../firebase_options_alkhemia.dart' as alkhemia;
 import '../firebase_options_benoure.dart' as benoure;
 import '../firebase_options_petitprince.dart' as petitprince;
 import '../firebase_options_templehorus.dart' as templehorus;
+import '../models/member.dart';
 
 /// Une des quatre loges, du point de vue de la lecture croisée Grande Loge.
 class LodgeReaderTarget {
@@ -107,5 +108,20 @@ class LodgeReaderService {
         .count()
         .get();
     return snap.count ?? 0;
+  }
+
+  /// Fiches complètes des membres de [target], triées par nom — pour
+  /// l'écran de consultation détaillée. Inclut hautsGradesDegree : c'est
+  /// justement pour la Grande Loge que ce champ existe (voir Member.
+  /// hautsGradesDegree) ; la restriction « admin seul » ne s'applique qu'à
+  /// l'affichage côté loge bleue, pas ici.
+  Future<List<Member>> membersOf(LodgeReaderTarget target) async {
+    final db = await _firestoreFor(target);
+    final snap = await db.collection('members').get();
+    final members = [
+      for (final doc in snap.docs) Member.fromMap(doc.id, doc.data()),
+    ];
+    members.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+    return members;
   }
 }

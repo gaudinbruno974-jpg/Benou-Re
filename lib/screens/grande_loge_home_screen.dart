@@ -1,7 +1,8 @@
-// Accueil du flavor Grande Loge de Bourbon — fondation minimale : accueil
-// nominatif par rôle, plus un aperçu du nombre de membres actifs des 4
-// loges (preuve visible de la lecture croisée, voir lodge_reader_service.dart)
-// — pas encore d'écran de consultation détaillée ni de recherche par degré.
+// Accueil du flavor Grande Loge de Bourbon — accueil nominatif par rôle,
+// plus un aperçu du nombre de membres actifs des 4 loges (preuve visible de
+// la lecture croisée, voir lodge_reader_service.dart) : chaque loge ouvre
+// sur sa consultation détaillée (grande_loge_lodge_members_screen.dart).
+// Pas encore de recherche par degré à travers les 4 loges à la fois.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +11,7 @@ import '../services/lodge_reader_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'grande_loge_lodge_members_screen.dart';
 
 /// Libellé lisible d'un rôle Grande Loge, à partir de son code stable
 /// (voir [Member.role]) — le code reste la valeur de référence en base,
@@ -120,43 +122,58 @@ class _GrandeLogeHomeScreenState extends State<GrandeLogeHomeScreen> {
                     const SizedBox(height: 14),
                     for (final target in kLodgeReaderTargets)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                target.label,
-                                style: const TextStyle(
-                                    color: BrColors.text, fontSize: 14),
-                              ),
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(BrColors.radiusS),
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => GrandeLogeLodgeMembersScreen(
+                                  target: target),
                             ),
-                            if (_errors.containsKey(target.key))
-                              const Icon(Icons.error_outline,
-                                  color: BrColors.error, size: 18)
-                            else if (_counts.containsKey(target.key))
-                              Text(
-                                '${_counts[target.key]}',
-                                style: const TextStyle(
-                                  color: BrColors.goldBright,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    target.label,
+                                    style: const TextStyle(
+                                        color: BrColors.text, fontSize: 14),
+                                  ),
                                 ),
-                              )
-                            else
-                              const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: BrColors.muted),
-                              ),
-                          ],
+                                if (_errors.containsKey(target.key))
+                                  const Icon(Icons.error_outline,
+                                      color: BrColors.error, size: 18)
+                                else if (_counts.containsKey(target.key))
+                                  Text(
+                                    '${_counts[target.key]}',
+                                    style: const TextStyle(
+                                      color: BrColors.goldBright,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  )
+                                else
+                                  const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: BrColors.muted),
+                                  ),
+                                const SizedBox(width: 8),
+                                const Icon(Icons.chevron_right,
+                                    color: BrColors.muted, size: 18),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     const Text(
                       'Lecture seule, via un compte technique dédié par '
-                      'loge. Les écrans de consultation détaillée et la '
-                      'recherche par degré viendront dans une prochaine '
-                      'étape.',
+                      'loge. Touchez une loge pour consulter ses membres. '
+                      'La recherche par degré à travers les 4 loges '
+                      'viendra dans une prochaine étape.',
                       style: TextStyle(color: BrColors.muted, fontSize: 11),
                     ),
                   ],
