@@ -262,6 +262,11 @@ class BrMenuTile extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
+
+  /// Image (logo) affichée à la place de [icon] quand renseignée — même
+  /// emplacement et mêmes dimensions, juste recadrée en carré plutôt que
+  /// l'icône sur fond dégradé.
+  final String? imageAsset;
   const BrMenuTile({
     super.key,
     required this.title,
@@ -269,6 +274,7 @@ class BrMenuTile extends StatelessWidget {
     required this.icon,
     required this.color,
     this.onTap,
+    this.imageAsset,
   });
 
   @override
@@ -279,23 +285,27 @@ class BrMenuTile extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       child: Row(
         children: [
-          Container(
-            height: 50,
-            width: 50,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(BrColors.radiusS),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  color.withValues(alpha: 0.28),
-                  color.withValues(alpha: 0.08),
-                ],
+          ClipRRect(
+            borderRadius: BorderRadius.circular(BrColors.radiusS),
+            child: Container(
+              height: 50,
+              width: 50,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    color.withValues(alpha: 0.28),
+                    color.withValues(alpha: 0.08),
+                  ],
+                ),
+                border: Border.all(color: color.withValues(alpha: 0.45)),
               ),
-              border: Border.all(color: color.withValues(alpha: 0.45)),
+              child: imageAsset != null
+                  ? Image.asset(imageAsset!, fit: BoxFit.cover)
+                  : Icon(icon, color: color, size: 24),
             ),
-            child: Icon(icon, color: color, size: 24),
           ),
           const SizedBox(width: 16),
           Expanded(

@@ -47,7 +47,7 @@ class _GrandeLogeLodgesListScreenState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Membres — Les 4 loges')),
+      appBar: AppBar(title: const Text('Loges Bleues')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
         children: [
@@ -58,6 +58,7 @@ class _GrandeLogeLodgesListScreenState
                 title: target.label,
                 subtitle: _subtitle(target),
                 icon: Icons.account_balance_outlined,
+                imageAsset: target.logoAsset,
                 color: _errors.containsKey(target.key)
                     ? BrColors.error
                     : BrColors.gold,

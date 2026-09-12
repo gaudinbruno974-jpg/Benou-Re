@@ -1,8 +1,10 @@
 // Accueil du flavor Grande Loge de Bourbon — accueil nominatif par rôle,
 // puis un menu de pavés (même style que le Parvis des loges bleues, voir
-// BrMenuTile) : « Membres » ouvre la liste des 4 loges
+// BrMenuTile) : « Loges Bleues » ouvre la liste des 4 loges
 // (grande_loge_lodges_list_screen.dart), « Recherche par degré » cherche à
-// travers les 4 loges à la fois (grande_loge_degree_search_screen.dart).
+// travers les 4 loges à la fois (grande_loge_degree_search_screen.dart),
+// et les corps de Hauts Grades (MMA-Kherou, Iah-Mes, Souverain Sanctuaire)
+// ouvrent un écran « à venir » en attendant leur propre contenu.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +12,7 @@ import '../config/lodge_config.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'grande_loge_coming_soon_screen.dart';
 import 'grande_loge_degree_search_screen.dart';
 import 'grande_loge_lodges_list_screen.dart';
 
@@ -82,7 +85,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
               icon: Icons.workspaces_outline),
           const SizedBox(height: 16),
           BrMenuTile(
-            title: 'Membres',
+            title: 'Loges Bleues',
             subtitle: 'Consulter les 4 loges',
             icon: Icons.people_outline,
             color: BrColors.gold,
@@ -101,6 +104,54 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const GrandeLogeDegreeSearchScreen(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          BrMenuTile(
+            title: 'MMA-Kherou',
+            subtitle: 'Loge de recherche',
+            icon: Icons.menu_book_outlined,
+            color: BrColors.menuArchitecture,
+            imageAsset: 'assets/MMA-Kherou.jfif',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const GrandeLogeComingSoonScreen(
+                  title: 'MMA-Kherou',
+                  imageAsset: 'assets/MMA-Kherou.jfif',
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          BrMenuTile(
+            title: 'Iah-Mes',
+            subtitle: 'Atelier 4°-14°',
+            icon: Icons.workspace_premium_outlined,
+            color: BrColors.menuInstruction,
+            imageAsset: 'assets/Iah-Mes.jfif',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const GrandeLogeComingSoonScreen(
+                  title: 'Iah-Mes',
+                  imageAsset: 'assets/Iah-Mes.jfif',
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          BrMenuTile(
+            title: 'Souverain Sanctuaire',
+            subtitle: 'Corps de Hauts Grades',
+            icon: Icons.account_balance_outlined,
+            color: BrColors.menuRituels,
+            imageAsset: 'assets/Souverain-Sanctuaire.jfif',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const GrandeLogeComingSoonScreen(
+                  title: 'Souverain Sanctuaire',
+                  imageAsset: 'assets/Souverain-Sanctuaire.jfif',
+                ),
               ),
             ),
           ),

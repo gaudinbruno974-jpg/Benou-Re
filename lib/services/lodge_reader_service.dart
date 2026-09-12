@@ -24,11 +24,16 @@ class LodgeReaderTarget {
   final String label;
   final FirebaseOptions options;
   final String readerEmail;
+
+  /// Logo de la loge (même asset que celui de son propre flavor, voir
+  /// LodgeConfig), pour l'afficher sur les pavés Grande Loge.
+  final String logoAsset;
   const LodgeReaderTarget({
     required this.key,
     required this.label,
     required this.options,
     required this.readerEmail,
+    required this.logoAsset,
   });
 }
 
@@ -44,24 +49,28 @@ const List<LodgeReaderTarget> kLodgeReaderTargets = [
     label: 'Bénou Ré',
     options: benoure.DefaultFirebaseOptions.web,
     readerEmail: 'lecture-grandeloge@benoure.gldb.placeholder',
+    logoAsset: 'assets/Benou-Re.png',
   ),
   LodgeReaderTarget(
     key: 'petitprince',
     label: 'Le Petit Prince',
     options: petitprince.DefaultFirebaseOptions.web,
     readerEmail: 'lecture-grandeloge@petitprince.gldb.placeholder',
+    logoAsset: 'assets/Petit-Prince.png',
   ),
   LodgeReaderTarget(
     key: 'templehorus',
     label: "Le Temple d'Horus",
     options: templehorus.DefaultFirebaseOptions.web,
     readerEmail: 'lecture-grandeloge@templehorus.gldb.placeholder',
+    logoAsset: 'assets/Temple-Horus.png',
   ),
   LodgeReaderTarget(
     key: 'alkhemia',
     label: 'AL-KHEMIA',
     options: alkhemia.DefaultFirebaseOptions.web,
     readerEmail: 'lecture-grandeloge@alkhemia.gldb.placeholder',
+    logoAsset: 'assets/Al-Khemia.png',
   ),
 ];
 
