@@ -1,9 +1,8 @@
 // Accueil du flavor Grande Loge de Bourbon — accueil nominatif par rôle,
 // puis un menu de pavés (même style que le Parvis des loges bleues, voir
-// BrMenuTile) : « Loges Bleues » ouvre la liste des 4 loges
-// (grande_loge_lodges_list_screen.dart), « Recherche par degré » cherche à
-// travers les 4 loges à la fois (grande_loge_degree_search_screen.dart),
-// et les corps de Hauts Grades (MMA-Kherou, Iah-Mes, Souverain Sanctuaire)
+// BrMenuTile) : « Loges Bleues » ouvre la liste des 4 loges, avec en plus
+// MMA-Kherou et la recherche par degré à travers les 4 loges
+// (grande_loge_lodges_list_screen.dart) ; IAH-MES et Souverain Sanctuaire
 // ouvrent un écran « à venir » en attendant leur propre contenu.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,7 +12,6 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
-import 'grande_loge_degree_search_screen.dart';
 import 'grande_loge_lodges_list_screen.dart';
 
 /// Libellé lisible d'un rôle Grande Loge, à partir de son code stable
@@ -89,6 +87,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             subtitle: 'Consulter les 4 loges',
             icon: Icons.people_outline,
             color: BrColors.gold,
+            imageAsset: 'assets/GLDB.png',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const GrandeLogeLodgesListScreen(),
@@ -97,35 +96,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           BrMenuTile(
-            title: 'Recherche par degré',
-            subtitle: 'Hauts Grades, à travers les 4 loges',
-            icon: Icons.search,
-            color: BrColors.violet,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GrandeLogeDegreeSearchScreen(),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          BrMenuTile(
-            title: 'MMA-Kherou',
-            subtitle: 'Loge de recherche',
-            icon: Icons.menu_book_outlined,
-            color: BrColors.menuArchitecture,
-            imageAsset: 'assets/MMA-Kherou.jfif',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GrandeLogeComingSoonScreen(
-                  title: 'MMA-Kherou',
-                  imageAsset: 'assets/MMA-Kherou.jfif',
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          BrMenuTile(
-            title: 'Iah-Mes',
+            title: 'IAH-MES',
             subtitle: 'Atelier 4°-14°',
             icon: Icons.workspace_premium_outlined,
             color: BrColors.menuInstruction,
@@ -133,7 +104,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => const GrandeLogeComingSoonScreen(
-                  title: 'Iah-Mes',
+                  title: 'IAH-MES',
                   imageAsset: 'assets/Iah-Mes.jfif',
                 ),
               ),

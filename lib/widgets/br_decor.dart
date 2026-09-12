@@ -303,7 +303,12 @@ class BrMenuTile extends StatelessWidget {
                 border: Border.all(color: color.withValues(alpha: 0.45)),
               ),
               child: imageAsset != null
-                  ? Image.asset(imageAsset!, fit: BoxFit.cover)
+                  ? Image.asset(
+                      imageAsset!,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.high,
+                      isAntiAlias: true,
+                    )
                   : Icon(icon, color: color, size: 24),
             ),
           ),

@@ -17,6 +17,7 @@ import '../firebase_options_benoure.dart' as benoure;
 import '../firebase_options_petitprince.dart' as petitprince;
 import '../firebase_options_templehorus.dart' as templehorus;
 import '../models/member.dart';
+import '../models/session.dart';
 
 /// Une des quatre loges, du point de vue de la lecture croisée Grande Loge.
 class LodgeReaderTarget {
@@ -132,5 +133,26 @@ class LodgeReaderService {
     ];
     members.sort((a, b) => a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
     return members;
+  }
+
+  /// Tenues de [target], les plus récentes en premier — même règle Firestore
+  /// que les fiches membres (`allow read: if signedIn()`, voir
+  /// firestore.rules), donc pas de règle à modifier côté loges bleues pour
+  /// cette lecture croisée.
+  Future<List<Session>> sessionsOf(LodgeReaderTarget target) async {
+    final db = await _firestoreFor(target);
+    final snap = await db.collection('sessions').get();
+    final sessions = [
+      for (final doc in snap.docs) Session.fromMap(doc.id, doc.data()),
+    ];
+    sessions.sort((a, b) {
+      final da = a.dateTime;
+      final dbb = b.dateTime;
+      if (da == null && dbb == null) return 0;
+      if (da == null) return 1;
+      if (dbb == null) return -1;
+      return dbb.compareTo(da);
+    });
+    return sessions;
   }
 }

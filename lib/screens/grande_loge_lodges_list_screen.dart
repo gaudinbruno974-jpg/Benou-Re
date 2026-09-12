@@ -1,13 +1,18 @@
-// Liste des 4 loges (pavés, style Parvis) — ouverte depuis le pavé
-// « Membres » de l'accueil Grande Loge. Chaque pavé affiche le nombre de
-// membres actifs (lecture croisée, voir lodge_reader_service.dart) et
-// ouvre la consultation détaillée de cette loge.
+// Liste des 4 loges bleues (pavés, style Parvis) — ouverte depuis le pavé
+// « Loges Bleues » de l'accueil Grande Loge. Chaque pavé affiche le nombre
+// de membres actifs (lecture croisée, voir lodge_reader_service.dart) et
+// ouvre un sous-menu Membres / Tenue pour cette loge. Les corps de
+// recherche liés (MMA-Kherou, recherche par degré à travers les 4 loges)
+// sont regroupés ici plutôt que sur l'accueil, pour laisser celui-ci
+// épuré.
 import 'package:flutter/material.dart';
 
 import '../services/lodge_reader_service.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
-import 'grande_loge_lodge_members_screen.dart';
+import 'grande_loge_coming_soon_screen.dart';
+import 'grande_loge_degree_search_screen.dart';
+import 'grande_loge_lodge_menu_screen.dart';
 
 class GrandeLogeLodgesListScreen extends StatefulWidget {
   const GrandeLogeLodgesListScreen({super.key});
@@ -64,12 +69,43 @@ class _GrandeLogeLodgesListScreenState
                     : BrColors.gold,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) =>
-                        GrandeLogeLodgeMembersScreen(target: target),
+                    builder: (_) => GrandeLogeLodgeMenuScreen(target: target),
                   ),
                 ),
               ),
             ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: BrMenuTile(
+              title: 'MMA-Kherou',
+              subtitle: 'Loge de recherche',
+              icon: Icons.menu_book_outlined,
+              color: BrColors.menuArchitecture,
+              imageAsset: 'assets/MMA-Kherou.jfif',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const GrandeLogeComingSoonScreen(
+                    title: 'MMA-Kherou',
+                    imageAsset: 'assets/MMA-Kherou.jfif',
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: BrMenuTile(
+              title: 'Recherche par degré',
+              subtitle: 'Hauts Grades, à travers les 4 loges',
+              icon: Icons.search,
+              color: BrColors.violet,
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const GrandeLogeDegreeSearchScreen(),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
