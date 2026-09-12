@@ -13,6 +13,16 @@ import 'member_detail_screen.dart';
 import 'member_edit_screen.dart';
 import 'passport_actions.dart';
 
+/// Comptes techniques (lecture croisée Grande Loge, support technique) :
+/// une vraie fiche Firestore est nécessaire pour chacun — sans elle, ils
+/// récupèrent les droits complets du Bureau (faille `!hasMemberDoc()`, voir
+/// firestore.rules) — mais ce ne sont pas des membres de la Loge, donc ils
+/// ne doivent pas apparaître dans la liste des membres.
+const Set<String> _kHiddenTechnicalRoles = {
+  'lecture_grandeloge',
+  'support_technique',
+};
+
 class MembersScreen extends StatelessWidget {
   const MembersScreen({super.key});
 
@@ -21,6 +31,7 @@ class MembersScreen extends StatelessWidget {
     final state = context.watch<AppState>();
     final canEdit = canEditSessions(state.currentUser);
     final members = [...state.members]
+      ..removeWhere((m) => _kHiddenTechnicalRoles.contains(m.role))
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
 
     return Scaffold(
@@ -57,8 +68,11 @@ class MembersScreen extends StatelessWidget {
           : null,
       body: members.isEmpty
           ? const Center(
-              child: Text('Aucun membre',
-                  style: TextStyle(color: BrColors.muted)))
+              child: Text(
+                'Aucun membre',
+                style: TextStyle(color: BrColors.muted),
+              ),
+            )
           : ListView.separated(
               padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
               itemCount: members.length,
@@ -70,89 +84,99 @@ class MembersScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                   onTap: canEdit ? () => _openDetail(context, m) : null,
                   child: BrCard(
-                  accent: BrColors.forGrade(m.grade),
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      BrAvatar(
-                        firstName: m.firstName,
-                        lastName: m.lastName,
-                        size: 48,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              m.fullName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15.5,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              children: [
-                                BrGradeBadge(grade: m.grade),
-                                BrBadge(
-                                  label: m.function == 'Aucun'
-                                      ? 'Frère'
-                                      : m.function,
-                                  color: BrColors.teal,
-                                  icon: Icons.workspace_premium_outlined,
+                    accent: BrColors.forGrade(m.grade),
+                    padding: const EdgeInsets.all(14),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        BrAvatar(
+                          firstName: m.firstName,
+                          lastName: m.lastName,
+                          size: 48,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                m.fullName,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15.5,
                                 ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              m.email,
-                              style: const TextStyle(
-                                color: BrColors.muted,
-                                fontSize: 12,
                               ),
-                            ),
+                              const SizedBox(height: 8),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 6,
+                                children: [
+                                  BrGradeBadge(grade: m.grade),
+                                  BrBadge(
+                                    label: m.function == 'Aucun'
+                                        ? 'Frère'
+                                        : m.function,
+                                    color: BrColors.teal,
+                                    icon: Icons.workspace_premium_outlined,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                m.email,
+                                style: const TextStyle(
+                                  color: BrColors.muted,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Seul le membre connecté génère son propre QR de
+                            // vérification (Passeport Maçonnique) — jamais un
+                            // tiers en son nom, même autorisé à modifier.
+                            if (isSelf)
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                tooltip: 'Afficher mon QR (Passeport)',
+                                icon: const Icon(
+                                  Icons.qr_code_2,
+                                  color: BrColors.violet,
+                                  size: 20,
+                                ),
+                                onPressed: () =>
+                                    showMemberPassportQr(context, m),
+                              ),
+                            if (canEdit) ...[
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(
+                                  Icons.edit,
+                                  color: BrColors.gold,
+                                  size: 20,
+                                ),
+                                onPressed: () => _openEdit(context, m),
+                              ),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  color: Color(0xFFFB7185),
+                                  size: 20,
+                                ),
+                                onPressed: () => _confirmDelete(context, m),
+                              ),
+                            ] else
+                              _StatusChip(status: m.status),
                           ],
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Seul le membre connecté génère son propre QR de
-                          // vérification (Passeport Maçonnique) — jamais un
-                          // tiers en son nom, même autorisé à modifier.
-                          if (isSelf)
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              tooltip: 'Afficher mon QR (Passeport)',
-                              icon: const Icon(Icons.qr_code_2,
-                                  color: BrColors.violet, size: 20),
-                              onPressed: () => showMemberPassportQr(context, m),
-                            ),
-                          if (canEdit) ...[
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              icon: const Icon(Icons.edit,
-                                  color: BrColors.gold, size: 20),
-                              onPressed: () => _openEdit(context, m),
-                            ),
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              icon: const Icon(Icons.delete_outline,
-                                  color: Color(0xFFFB7185), size: 20),
-                              onPressed: () => _confirmDelete(context, m),
-                            ),
-                          ] else
-                            _StatusChip(status: m.status),
-                        ],
-                      ),
-                    ],
-                  ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -167,9 +191,9 @@ class MembersScreen extends StatelessWidget {
   }
 
   void _openEdit(BuildContext context, Member? member) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => MemberEditScreen(member: member)),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => MemberEditScreen(member: member)));
   }
 
   Future<void> _confirmDelete(BuildContext context, Member m) async {
@@ -178,18 +202,26 @@ class MembersScreen extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: BrColors.surface,
-        title: const Text('Supprimer ce membre ?',
-            style: TextStyle(color: Colors.white)),
-        content: Text('${m.fullName} sera définitivement supprimé.',
-            style: const TextStyle(color: BrColors.muted)),
+        title: const Text(
+          'Supprimer ce membre ?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: Text(
+          '${m.fullName} sera définitivement supprimé.',
+          style: const TextStyle(color: BrColors.muted),
+        ),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Annuler')),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
           TextButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('Supprimer',
-                  style: TextStyle(color: Color(0xFFFB7185)))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Supprimer',
+              style: TextStyle(color: Color(0xFFFB7185)),
+            ),
+          ),
         ],
       ),
     );
