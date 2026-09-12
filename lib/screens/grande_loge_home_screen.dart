@@ -1,9 +1,12 @@
-// Accueil du flavor Grande Loge de Bourbon — accueil nominatif par rôle,
-// puis un menu de pavés (même style que le Parvis des loges bleues, voir
-// BrMenuTile) : « Loges Bleues » ouvre la liste des 4 loges, avec en plus
-// MMA-Kherou et la recherche par degré à travers les 4 loges
-// (grande_loge_lodges_list_screen.dart) ; IAH-MES et Souverain Sanctuaire
-// ouvrent un écran « à venir » en attendant leur propre contenu.
+// Accueil du flavor Grande Loge de Bourbon (utilisé par le Souverain
+// Sanctuaire Traditionnel de La Réunion — voir l'image de fond de
+// login_screen.dart) — accueil nominatif par rôle, puis un menu de pavés
+// (même style que le Parvis des loges bleues, voir BrMenuTile) : « Loges
+// Bleues » ouvre la liste des 4 loges, avec en plus MMA-Kherou et la
+// recherche par degré à travers les 4 loges
+// (grande_loge_lodges_list_screen.dart) ; IAH-MES ouvre un écran « à
+// venir » en attendant son propre contenu. Pas de pavé « Souverain
+// Sanctuaire » : toute cette page le représente déjà.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -106,22 +109,6 @@ class GrandeLogeHomeScreen extends StatelessWidget {
                 builder: (_) => const GrandeLogeComingSoonScreen(
                   title: 'IAH-MES',
                   imageAsset: 'assets/Iah-Mes.jfif',
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          BrMenuTile(
-            title: 'Souverain Sanctuaire',
-            subtitle: 'Corps de Hauts Grades',
-            icon: Icons.account_balance_outlined,
-            color: BrColors.menuRituels,
-            imageAsset: 'assets/Souverain-Sanctuaire.jfif',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GrandeLogeComingSoonScreen(
-                  title: 'Souverain Sanctuaire',
-                  imageAsset: 'assets/Souverain-Sanctuaire.jfif',
                 ),
               ),
             ),
