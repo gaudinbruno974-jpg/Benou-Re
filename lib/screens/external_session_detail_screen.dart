@@ -465,47 +465,79 @@ class _MemberRow extends StatelessWidget {
       child: BrCard(
         accent: attending ? BrColors.menuVisiteurs : BrColors.muted,
         padding: const EdgeInsets.all(12),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
-              width: 32,
-              child: Checkbox(
-                value: selected,
-                onChanged: onSelectedChanged,
-                side: const BorderSide(color: BrColors.muted),
-              ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(member.fullName,
-                      style: const TextStyle(color: BrColors.text, fontSize: 13)),
-                  Text(_statusLabel,
-                      style: const TextStyle(color: BrColors.muted, fontSize: 11)),
-                ],
-              ),
-            ),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: attending ? BrColors.menuVisiteurs : BrColors.muted,
-                side: BorderSide(
-                  color: attending ? BrColors.menuVisiteurs : BrColors.muted,
+            Row(
+              children: [
+                SizedBox(
+                  width: 32,
+                  child: Checkbox(
+                    value: selected,
+                    onChanged: onSelectedChanged,
+                    side: const BorderSide(color: BrColors.muted),
+                  ),
                 ),
-                visualDensity: VisualDensity.compact,
-              ),
-              onPressed: onToggleAttending,
-              child: Text(attending ? 'Présent Tenue' : 'Marquer présent'),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(member.fullName,
+                          style: const TextStyle(
+                              color: BrColors.text, fontSize: 13)),
+                      Text(_statusLabel,
+                          style: const TextStyle(
+                              color: BrColors.muted, fontSize: 11)),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 6),
-            OutlinedButton(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: agape ? BrColors.violet : BrColors.muted,
-                side: BorderSide(color: agape ? BrColors.violet : BrColors.muted),
-                visualDensity: VisualDensity.compact,
-              ),
-              onPressed: onToggleAgape,
-              child: Text(agape ? 'Présent Agapes' : 'Marquer agapes'),
+            const SizedBox(height: 8),
+            // Boutons sur leur propre ligne, largeur partagée à égalité
+            // (Expanded) : sur un écran étroit, le nom du membre ci-dessus
+            // ne se fait plus écraser par le texte des deux boutons voisins
+            // dans la même ligne (c'était le bug d'affichage — chaque
+            // lettre du nom passait à la ligne, faute de place).
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          attending ? BrColors.menuVisiteurs : BrColors.muted,
+                      side: BorderSide(
+                        color: attending
+                            ? BrColors.menuVisiteurs
+                            : BrColors.muted,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: onToggleAttending,
+                    child: FittedBox(
+                      child: Text(
+                          attending ? 'Présent Tenue' : 'Marquer présent'),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor:
+                          agape ? BrColors.violet : BrColors.muted,
+                      side: BorderSide(
+                          color: agape ? BrColors.violet : BrColors.muted),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    onPressed: onToggleAgape,
+                    child: FittedBox(
+                      child:
+                          Text(agape ? 'Présent Agapes' : 'Marquer agapes'),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
