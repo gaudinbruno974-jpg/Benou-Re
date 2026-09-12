@@ -5,13 +5,12 @@
 // l'obédience) : le titre l'affiche en toutes lettres. Chaque tuile affiche
 // le nombre de membres actifs (lecture croisée, voir
 // lodge_reader_service.dart) et ouvre un sous-menu Membres / Tenue pour
-// cette loge. MMA-Kherou (loge de recherche) est regroupée ici plutôt que
-// sur l'accueil, pour laisser celui-ci épuré.
+// cette loge. MMA-Kherou n'en fait plus partie : c'est une tuile directe
+// de l'accueil, pas une loge bleue.
 import 'package:flutter/material.dart';
 
 import '../services/lodge_reader_service.dart';
 import '../widgets/br_decor.dart';
-import 'grande_loge_coming_soon_screen.dart';
 import 'grande_loge_lodge_menu_screen.dart';
 
 class GrandeLogeLodgesListScreen extends StatefulWidget {
@@ -55,11 +54,13 @@ class _GrandeLogeLodgesListScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Grande Loge de Bourbon')),
-      body: GridView.count(
+      body: GridView(
         padding: const EdgeInsets.all(20),
-        crossAxisCount: 2,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 240,
+          mainAxisSpacing: 16,
+          crossAxisSpacing: 16,
+        ),
         children: [
           for (final target in kLodgeReaderTargets)
             BrImageMenuTile(
@@ -72,19 +73,6 @@ class _GrandeLogeLodgesListScreenState
                 ),
               ),
             ),
-          BrImageMenuTile(
-            title: 'MMA-Kherou',
-            subtitle: 'Loge de recherche',
-            imageAsset: 'assets/MMA-Kherou.jfif',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GrandeLogeComingSoonScreen(
-                  title: 'MMA-Kherou',
-                  imageAsset: 'assets/MMA-Kherou.jfif',
-                ),
-              ),
-            ),
-          ),
         ],
       ),
     );
