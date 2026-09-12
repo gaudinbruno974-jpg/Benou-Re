@@ -245,7 +245,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Stack(
         children: [
           if (isSST)
-            const Positioned.fill(child: ColoredBox(color: Colors.black)),
+            const Positioned.fill(child: ColoredBox(color: Colors.white)),
           if (isSST)
             Positioned.fill(
               child: Image.asset(
@@ -324,21 +324,23 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 32),
                       BrCard(
-                        padding: const EdgeInsets.all(26),
+                        padding: EdgeInsets.all(isSST ? 18 : 26),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            const Text(
-                              'ORIENT DE SAINT-PIERRE',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: BrColors.goldBright,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 3,
+                            if (!isSST) ...[
+                              const Text(
+                                'ORIENT DE SAINT-PIERRE',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: BrColors.goldBright,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 3,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 20),
+                              const SizedBox(height: 20),
+                            ],
                             if (_error != null) ...[
                               Container(
                                 padding: const EdgeInsets.all(12),
@@ -450,13 +452,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ],
-                      const SizedBox(height: 20),
-                      const Text(
-                        '© 2026 Bruno Gaudin — Application concédée à la '
-                        'Grande Loge de Bourbon (GLDB)',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: BrColors.muted, fontSize: 9),
-                      ),
+                      if (!isSST) ...[
+                        const SizedBox(height: 20),
+                        const Text(
+                          '© 2026 Bruno Gaudin — Application concédée à la '
+                          'Grande Loge de Bourbon (GLDB)',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: BrColors.muted, fontSize: 9),
+                        ),
+                      ],
                     ],
                   ),
                 ),
