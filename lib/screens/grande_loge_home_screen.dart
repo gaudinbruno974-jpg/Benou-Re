@@ -15,8 +15,9 @@ import 'package:provider/provider.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
-import 'grande_loge_coming_soon_screen.dart';
+import 'grande_loge_hg_menu_screen.dart';
 import 'grande_loge_lodges_list_screen.dart';
+import 'grande_loge_sst_repertoire_screen.dart';
 import 'support_request_screen.dart';
 
 /// Libellé lisible d'un rôle Grande Loge, à partir de son code stable
@@ -71,10 +72,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             imageAsset: 'assets/Iah-Mes.jfif',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const GrandeLogeComingSoonScreen(
-                  title: 'IAH-MES',
-                  imageAsset: 'assets/Iah-Mes.jfif',
-                ),
+                builder: (_) => const GrandeLogeHgMenuScreen(title: 'IAH-MES'),
               ),
             ),
           ),
@@ -84,10 +82,8 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             imageAsset: 'assets/MAA-Kherou.jfif',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const GrandeLogeComingSoonScreen(
-                  title: 'MAA-Kherou',
-                  imageAsset: 'assets/MAA-Kherou.jfif',
-                ),
+                builder: (_) =>
+                    const GrandeLogeHgMenuScreen(title: 'MAA-Kherou'),
               ),
             ),
           ),
@@ -97,10 +93,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             imageAsset: 'assets/Souverain-Sanctuaire.jfif',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const GrandeLogeComingSoonScreen(
-                  title: 'Répertoire du Souverain Sanctuaire',
-                  imageAsset: 'assets/Souverain-Sanctuaire.jfif',
-                ),
+                builder: (_) => const GrandeLogeSstRepertoireScreen(),
               ),
             ),
           ),
@@ -110,9 +103,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             icon: Icons.support_agent_outlined,
             color: BrColors.gold,
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const SupportRequestScreen(),
-              ),
+              MaterialPageRoute(builder: (_) => const SupportRequestScreen()),
             ),
           ),
         ],
