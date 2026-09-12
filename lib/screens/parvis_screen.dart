@@ -71,14 +71,38 @@ class ParvisScreen extends StatefulWidget {
 
 class _ParvisScreenState extends State<ParvisScreen> {
   String _appVersion = '';
+  late final AppState _appState;
+  bool _updateChecked = false;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) UpdateService().verifierEtProposer(context);
-    });
+    // `authLoading` passe à faux dès que Firebase Auth répond, souvent bien
+    // avant que le flux Firestore `config/settings` (chargé en parallèle)
+    // n'ait livré sa première valeur — un contrôle unique ici, au tout
+    // premier frame, trouvait donc systématiquement
+    // `latestAndroidVersionCode` encore à sa valeur par défaut (0) et ne
+    // proposait jamais la mise à jour, quelle que soit la version publiée.
+    // On réessaie désormais à chaque notification de l'état tant que la
+    // configuration n'est pas encore arrivée.
+    _appState = context.read<AppState>();
+    _appState.addListener(_maybeCheckUpdate);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeCheckUpdate());
     _loadVersion();
+  }
+
+  void _maybeCheckUpdate() {
+    if (_updateChecked || !mounted) return;
+    if (LodgeConfig.current.latestAndroidVersionCode <= 0) return;
+    _updateChecked = true;
+    _appState.removeListener(_maybeCheckUpdate);
+    UpdateService().verifierEtProposer(context);
+  }
+
+  @override
+  void dispose() {
+    _appState.removeListener(_maybeCheckUpdate);
+    super.dispose();
   }
 
   Future<void> _loadVersion() async {
