@@ -106,9 +106,20 @@ class _ParvisScreenState extends State<ParvisScreen> {
   }
 
   Future<void> _loadVersion() async {
-    final info = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() => _appVersion = '${info.version} (${info.buildNumber})');
+    // Sans try/catch, un échec de PackageInfo (peu probable mais jamais
+    // vérifié en conditions réelles sur Android — le seul autre appel de ce
+    // plugin, dans update_service.dart, n'est en pratique jamais atteint
+    // tant que la configuration de la Loge n'est pas chargée, voir le
+    // correctif de _maybeCheckUpdate ci-dessus) restait invisible : le pied
+    // de page n'affichait alors jamais rien, sans indice pour comprendre
+    // pourquoi.
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() => _appVersion = '${info.version} (${info.buildNumber})');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _appVersion = 'indisponible ($e)');
     }
   }
 
