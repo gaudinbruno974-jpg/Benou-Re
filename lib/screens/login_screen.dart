@@ -247,137 +247,166 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   /// Écran de connexion du Souverain Sanctuaire Traditionnel de La Réunion :
-  /// le sceau (couronne, aigles) occupe tout l'écran, sans titre ni encadré
-  /// — seuls les deux champs de connexion et le bouton restent, en bas de
-  /// la page.
+  /// le sceau (couronne, aigles) occupe l'écran, sans titre ni encadré —
+  /// seuls les deux champs de connexion et le bouton restent. Sur un écran
+  /// large, ils sont placés dans un bandeau latéral pour ne pas recouvrir
+  /// le sceau ; sur un écran étroit (mobile), pas assez de place pour un
+  /// bandeau, donc ils restent ancrés en bas, par-dessus l'image.
   Widget _sstBody(BuildContext context) {
-    return Stack(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 760;
+        return Stack(
+          children: [
+            const Positioned.fill(child: ColoredBox(color: Colors.white)),
+            Positioned.fill(
+              child: Padding(
+                padding: wide
+                    ? const EdgeInsets.only(right: 380)
+                    : EdgeInsets.zero,
+                child: Image.asset(
+                  'assets/Souverain-Sanctuaire.jfif',
+                  fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                ),
+              ),
+            ),
+            if (!wide)
+              // Fond blanc conservé partout ; on ne fonce qu'en bas, où
+              // siègent les champs, pour rester lisible sans griser le
+              // reste de l'image.
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: const [0.0, 0.6, 1.0],
+                        colors: [
+                          Colors.transparent,
+                          Colors.transparent,
+                          Colors.black.withValues(alpha: 0.6),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            if (wide)
+              Positioned(
+                top: 0,
+                bottom: 0,
+                right: 0,
+                width: 380,
+                child: ColoredBox(
+                  color: BrColors.background,
+                  child: SafeArea(
+                    child: Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(28),
+                        child: _sstLoginForm(),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              SafeArea(
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(24),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: _sstLoginForm(),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _sstLoginForm() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Positioned.fill(child: ColoredBox(color: Colors.white)),
-        Positioned.fill(
-          child: Image.asset(
-            'assets/Souverain-Sanctuaire.jfif',
-            fit: BoxFit.contain,
-            filterQuality: FilterQuality.high,
-          ),
-        ),
-        // Fond blanc conservé partout ; on ne fonce qu'en bas, où siègent
-        // les champs, pour rester lisible sans griser le reste de l'image.
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  stops: const [0.0, 0.6, 1.0],
-                  colors: [
-                    Colors.transparent,
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.6),
-                  ],
-                ),
-              ),
+        if (_error != null) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: BrColors.error.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: BrColors.error.withValues(alpha: 0.3)),
+            ),
+            child: Text(
+              _error!,
+              style: TextStyle(color: BrColors.error, fontSize: 13),
             ),
           ),
-        ),
-        SafeArea(
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 440),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    if (_error != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: BrColors.error.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: BrColors.error.withValues(alpha: 0.3),
-                          ),
-                        ),
-                        child: Text(
-                          _error!,
-                          style: TextStyle(color: BrColors.error, fontSize: 13),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-                    TextField(
-                      controller: _emailCtrl,
-                      keyboardType: TextInputType.emailAddress,
-                      style: const TextStyle(color: BrColors.text),
-                      decoration: const InputDecoration(
-                        labelText: 'Email de connexion',
-                        prefixIcon: Icon(
-                          Icons.mail_outline,
-                          color: BrColors.gold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _passwordCtrl,
-                      obscureText: true,
-                      style: const TextStyle(color: BrColors.text),
-                      decoration: const InputDecoration(
-                        labelText: 'Mot de passe',
-                        prefixIcon: Icon(
-                          Icons.lock_outline,
-                          color: BrColors.gold,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Checkbox(
-                          value: _rememberMe,
-                          onChanged: (value) => setState(() {
-                            _rememberMe = value ?? false;
-                            if (!_rememberMe) {
-                              SharedPreferences.getInstance().then(
-                                (prefs) => prefs.remove('remember_email'),
-                              );
-                            }
-                          }),
-                          activeColor: BrColors.teal,
-                          checkColor: BrColors.text,
-                        ),
-                        const Text(
-                          'Se souvenir de moi',
-                          style: TextStyle(color: BrColors.muted),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    ElevatedButton.icon(
-                      onPressed: _loading
-                          ? null
-                          : () => _login(_emailCtrl.text, _passwordCtrl.text),
-                      icon: _loading
-                          ? const SizedBox(
-                              height: 18,
-                              width: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: BrColors.text,
-                              ),
-                            )
-                          : const Icon(Icons.login, size: 18),
-                      label: const Text('ENTRER'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          const SizedBox(height: 16),
+        ],
+        TextField(
+          controller: _emailCtrl,
+          keyboardType: TextInputType.emailAddress,
+          style: const TextStyle(color: BrColors.text),
+          decoration: const InputDecoration(
+            labelText: 'Email de connexion',
+            prefixIcon: Icon(Icons.mail_outline, color: BrColors.gold),
           ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _passwordCtrl,
+          obscureText: true,
+          style: const TextStyle(color: BrColors.text),
+          decoration: const InputDecoration(
+            labelText: 'Mot de passe',
+            prefixIcon: Icon(Icons.lock_outline, color: BrColors.gold),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Checkbox(
+              value: _rememberMe,
+              onChanged: (value) => setState(() {
+                _rememberMe = value ?? false;
+                if (!_rememberMe) {
+                  SharedPreferences.getInstance().then(
+                    (prefs) => prefs.remove('remember_email'),
+                  );
+                }
+              }),
+              activeColor: BrColors.teal,
+              checkColor: BrColors.text,
+            ),
+            const Text(
+              'Se souvenir de moi',
+              style: TextStyle(color: BrColors.muted),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          onPressed: _loading
+              ? null
+              : () => _login(_emailCtrl.text, _passwordCtrl.text),
+          icon: _loading
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: BrColors.text,
+                  ),
+                )
+              : const Icon(Icons.login, size: 18),
+          label: const Text('ENTRER'),
         ),
       ],
     );

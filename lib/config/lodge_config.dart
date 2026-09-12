@@ -116,25 +116,25 @@ const LinearGradient kAlKhemiaCardGradient = LinearGradient(
   colors: [Color(0xFF4A3350), Color(0xFF2E1F36)],
 );
 
-// Identité souveraine : vert émeraude profond et or, distincte des 4 loges
-// (aucune n'utilise le vert) — évoque l'autorité de l'obédience elle-même
-// plutôt qu'une loge particulière.
-const Color kGrandeLogePrimary = Color(0xFF2E9968);
+// Identité souveraine : bleu clair et or (remplace le vert d'origine, jugé
+// pas assez lisible/agréable à l'usage) — évoque l'autorité de l'obédience
+// elle-même plutôt qu'une loge particulière.
+const Color kGrandeLogePrimary = Color(0xFF3AA0DE);
 const Color kGrandeLogeAccent = Color(0xFFD9A916);
 const Color kGrandeLogeAccentBright = Color(0xFFF2D98A);
-const Color kGrandeLogeBackground = Color(0xFF17593C);
-const Color kGrandeLogeBackgroundDark = Color(0xFF0E3F2A);
-const Color kGrandeLogeSurface = Color(0xFF2C7A51);
+const Color kGrandeLogeBackground = Color(0xFF1B4F78);
+const Color kGrandeLogeBackgroundDark = Color(0xFF102E48);
+const Color kGrandeLogeSurface = Color(0xFF2A6FA0);
 const LinearGradient kGrandeLogeBackgroundGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF1B6B48), Color(0xFF134D33), Color(0xFF0B301F)],
+  colors: [Color(0xFF1E5A86), Color(0xFF14405F), Color(0xFF0A2438)],
   stops: [0.0, 0.55, 1.0],
 );
 const LinearGradient kGrandeLogeCardGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF328A5D), Color(0xFF22643F)],
+  colors: [Color(0xFF3480B8), Color(0xFF215B87)],
 );
 
 /// Rend une chaîne sans signes diacritiques (« Bénou Ré » → « Benou Re »).
@@ -560,10 +560,7 @@ class LodgeConfig {
         'activityReportsDriveFolderId',
         activityReportsDriveFolderId,
       ),
-      membersDriveFolderId: text(
-        'membersDriveFolderId',
-        membersDriveFolderId,
-      ),
+      membersDriveFolderId: text('membersDriveFolderId', membersDriveFolderId),
       latestAndroidVersionCode: intValue(
         'latestAndroidVersionCode',
         latestAndroidVersionCode,
