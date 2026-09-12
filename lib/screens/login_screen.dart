@@ -242,232 +242,335 @@ class _LoginScreenState extends State<LoginScreen> {
     final isSST = currentFlavor == 'grandeloge';
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          if (isSST)
-            const Positioned.fill(child: ColoredBox(color: Colors.white)),
-          if (isSST)
-            Positioned.fill(
-              child: Image.asset(
-                'assets/Souverain-Sanctuaire.jfif',
-                fit: BoxFit.contain,
-                filterQuality: FilterQuality.high,
-              ),
-            ),
-          if (isSST)
-            Positioned.fill(
-              child: Container(color: Colors.black.withValues(alpha: 0.4)),
-            ),
-          SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(24),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 440),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // L'œil fait doublon avec l'image de fond du Souverain
-                      // Sanctuaire (couronne, aigles) : masqué pour ce flavor.
-                      if (!isSST)
-                        Container(
-                          height: 92,
-                          width: 92,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
-                              colors: [
-                                BrColors.surface.withValues(alpha: 0.9),
-                                BrColors.backgroundDark.withValues(alpha: 0.9),
-                              ],
-                            ),
-                            border: Border.all(
-                              color: BrColors.gold.withValues(alpha: 0.5),
-                              width: 1.5,
-                            ),
-                            boxShadow: BrColors.raisedShadow,
-                          ),
-                          child: const Icon(
-                            Icons.remove_red_eye_outlined,
-                            color: BrColors.goldBright,
-                            size: 44,
-                          ),
-                        ),
-                      if (!isSST) const SizedBox(height: 20),
-                      Text(
-                        // « R∴L∴ » (Respectable Loge) ne s'applique qu'aux 4
-                        // loges bleues — la Grande Loge n'est pas une loge.
-                        // Ce flavor sert le Souverain Sanctuaire Traditionnel
-                        // de La Réunion : le nom affiché ici est le sien, pas
-                        // « Grande Loge de Bourbon » (voir LodgeConfig.name,
-                        // toujours utilisé ailleurs — Firestore, etc.).
-                        isSST
-                            ? 'SOUVERAIN SANCTUAIRE\nTRADITIONNEL DE LA RÉUNION'
-                            : currentFlavor == 'grandeloge'
-                            ? LodgeConfig.current.name.toUpperCase()
-                            : 'R∴L∴ ${LodgeConfig.current.name.toUpperCase()}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: BrColors.text,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 2,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      const Text(
-                        'Ordre Initiatique Ancien et Primitif de Memphis-Misraïm',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: BrColors.muted, fontSize: 11),
-                      ),
-                      const SizedBox(height: 32),
-                      BrCard(
-                        padding: EdgeInsets.all(isSST ? 18 : 26),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (!isSST) ...[
-                              const Text(
-                                'ORIENT DE SAINT-PIERRE',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: BrColors.goldBright,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 3,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                            ],
-                            if (_error != null) ...[
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: BrColors.error.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: BrColors.error.withValues(
-                                      alpha: 0.3,
-                                    ),
-                                  ),
-                                ),
-                                child: Text(
-                                  _error!,
-                                  style: TextStyle(
-                                    color: BrColors.error,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                            ],
-                            TextField(
-                              controller: _emailCtrl,
-                              keyboardType: TextInputType.emailAddress,
-                              style: const TextStyle(color: BrColors.text),
-                              decoration: const InputDecoration(
-                                labelText: 'Email de connexion',
-                                prefixIcon: Icon(
-                                  Icons.mail_outline,
-                                  color: BrColors.gold,
-                                ),
-                                hintText: 'ex: vm@loge.com',
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            TextField(
-                              controller: _passwordCtrl,
-                              obscureText: true,
-                              style: const TextStyle(color: BrColors.text),
-                              decoration: const InputDecoration(
-                                labelText: 'Mot de passe',
-                                prefixIcon: Icon(
-                                  Icons.lock_outline,
-                                  color: BrColors.gold,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            // ============= LA CASE À COCHER =============
-                            Row(
-                              children: [
-                                Checkbox(
-                                  value: _rememberMe,
-                                  onChanged: (value) => setState(() {
-                                    _rememberMe = value ?? false;
-                                    if (!_rememberMe) {
-                                      SharedPreferences.getInstance().then(
-                                        (prefs) =>
-                                            prefs.remove('remember_email'),
-                                      );
-                                    }
-                                  }),
-                                  activeColor: BrColors.teal,
-                                  checkColor: BrColors.text,
-                                ),
-                                const Text(
-                                  'Se souvenir de moi',
-                                  style: TextStyle(color: BrColors.muted),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            // =============================================
-                            ElevatedButton.icon(
-                              onPressed: _loading
-                                  ? null
-                                  : () => _login(
-                                      _emailCtrl.text,
-                                      _passwordCtrl.text,
-                                    ),
-                              icon: _loading
-                                  ? const SizedBox(
-                                      height: 18,
-                                      width: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: BrColors.text,
-                                      ),
-                                    )
-                                  : const Icon(Icons.login, size: 18),
-                              label: const Text('ENTRER SUR LE PARVIS'),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (kShowTestAccounts) ...[
-                        const SizedBox(height: 20),
-                        _testAccountsPanel(),
-                      ],
-                      if (currentFlavor == 'benoure') ...[
-                        const SizedBox(height: 28),
-                        const Text(
-                          'EX CINERIBUS, AD LUCEM PERPETUAM',
-                          style: TextStyle(
-                            color: BrColors.muted,
-                            fontSize: 10,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                      ],
-                      if (!isSST) ...[
-                        const SizedBox(height: 20),
-                        const Text(
-                          '© 2026 Bruno Gaudin — Application concédée à la '
-                          'Grande Loge de Bourbon (GLDB)',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: BrColors.muted, fontSize: 9),
-                        ),
-                      ],
-                    ],
-                  ),
+      body: isSST ? _sstBody(context) : _standardBody(context),
+    );
+  }
+
+  /// Écran de connexion du Souverain Sanctuaire Traditionnel de La Réunion :
+  /// le sceau (couronne, aigles) occupe tout l'écran, sans titre ni encadré
+  /// — seuls les deux champs de connexion et le bouton restent, en bas de
+  /// la page.
+  Widget _sstBody(BuildContext context) {
+    return Stack(
+      children: [
+        const Positioned.fill(child: ColoredBox(color: Colors.white)),
+        Positioned.fill(
+          child: Image.asset(
+            'assets/Souverain-Sanctuaire.jfif',
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
+          ),
+        ),
+        // Fond blanc conservé partout ; on ne fonce qu'en bas, où siègent
+        // les champs, pour rester lisible sans griser le reste de l'image.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  stops: const [0.0, 0.6, 1.0],
+                  colors: [
+                    Colors.transparent,
+                    Colors.transparent,
+                    Colors.black.withValues(alpha: 0.6),
+                  ],
                 ),
               ),
             ),
           ),
-        ],
+        ),
+        SafeArea(
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_error != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: BrColors.error.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: BrColors.error.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Text(
+                          _error!,
+                          style: TextStyle(color: BrColors.error, fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    TextField(
+                      controller: _emailCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(color: BrColors.text),
+                      decoration: const InputDecoration(
+                        labelText: 'Email de connexion',
+                        prefixIcon: Icon(
+                          Icons.mail_outline,
+                          color: BrColors.gold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: _passwordCtrl,
+                      obscureText: true,
+                      style: const TextStyle(color: BrColors.text),
+                      decoration: const InputDecoration(
+                        labelText: 'Mot de passe',
+                        prefixIcon: Icon(
+                          Icons.lock_outline,
+                          color: BrColors.gold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _rememberMe,
+                          onChanged: (value) => setState(() {
+                            _rememberMe = value ?? false;
+                            if (!_rememberMe) {
+                              SharedPreferences.getInstance().then(
+                                (prefs) => prefs.remove('remember_email'),
+                              );
+                            }
+                          }),
+                          activeColor: BrColors.teal,
+                          checkColor: BrColors.text,
+                        ),
+                        const Text(
+                          'Se souvenir de moi',
+                          style: TextStyle(color: BrColors.muted),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ElevatedButton.icon(
+                      onPressed: _loading
+                          ? null
+                          : () => _login(_emailCtrl.text, _passwordCtrl.text),
+                      icon: _loading
+                          ? const SizedBox(
+                              height: 18,
+                              width: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: BrColors.text,
+                              ),
+                            )
+                          : const Icon(Icons.login, size: 18),
+                      label: const Text('ENTRER'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Écran de connexion des 4 loges bleues — inchangé.
+  Widget _standardBody(BuildContext context) {
+    return SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 92,
+                  width: 92,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        BrColors.surface.withValues(alpha: 0.9),
+                        BrColors.backgroundDark.withValues(alpha: 0.9),
+                      ],
+                    ),
+                    border: Border.all(
+                      color: BrColors.gold.withValues(alpha: 0.5),
+                      width: 1.5,
+                    ),
+                    boxShadow: BrColors.raisedShadow,
+                  ),
+                  child: const Icon(
+                    Icons.remove_red_eye_outlined,
+                    color: BrColors.goldBright,
+                    size: 44,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  // « R∴L∴ » (Respectable Loge) ne s'applique qu'aux 4 loges
+                  // bleues — la Grande Loge n'est pas une loge, mais elle
+                  // n'a plus son propre écran ici (voir _sstBody).
+                  'R∴L∴ ${LodgeConfig.current.name.toUpperCase()}',
+                  style: const TextStyle(
+                    color: BrColors.text,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Ordre Initiatique Ancien et Primitif de Memphis-Misraïm',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: BrColors.muted, fontSize: 11),
+                ),
+                const SizedBox(height: 32),
+                BrCard(
+                  padding: const EdgeInsets.all(26),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Text(
+                        'ORIENT DE SAINT-PIERRE',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: BrColors.goldBright,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 3,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      if (_error != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: BrColors.error.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: BrColors.error.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Text(
+                            _error!,
+                            style: TextStyle(
+                              color: BrColors.error,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                      TextField(
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        style: const TextStyle(color: BrColors.text),
+                        decoration: const InputDecoration(
+                          labelText: 'Email de connexion',
+                          prefixIcon: Icon(
+                            Icons.mail_outline,
+                            color: BrColors.gold,
+                          ),
+                          hintText: 'ex: vm@loge.com',
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: _passwordCtrl,
+                        obscureText: true,
+                        style: const TextStyle(color: BrColors.text),
+                        decoration: const InputDecoration(
+                          labelText: 'Mot de passe',
+                          prefixIcon: Icon(
+                            Icons.lock_outline,
+                            color: BrColors.gold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // ============= LA CASE À COCHER =============
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _rememberMe,
+                            onChanged: (value) => setState(() {
+                              _rememberMe = value ?? false;
+                              if (!_rememberMe) {
+                                SharedPreferences.getInstance().then(
+                                  (prefs) => prefs.remove('remember_email'),
+                                );
+                              }
+                            }),
+                            activeColor: BrColors.teal,
+                            checkColor: BrColors.text,
+                          ),
+                          const Text(
+                            'Se souvenir de moi',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      // =============================================
+                      ElevatedButton.icon(
+                        onPressed: _loading
+                            ? null
+                            : () => _login(_emailCtrl.text, _passwordCtrl.text),
+                        icon: _loading
+                            ? const SizedBox(
+                                height: 18,
+                                width: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: BrColors.text,
+                                ),
+                              )
+                            : const Icon(Icons.login, size: 18),
+                        label: const Text('ENTRER SUR LE PARVIS'),
+                      ),
+                    ],
+                  ),
+                ),
+                if (kShowTestAccounts) ...[
+                  const SizedBox(height: 20),
+                  _testAccountsPanel(),
+                ],
+                if (currentFlavor == 'benoure') ...[
+                  const SizedBox(height: 28),
+                  const Text(
+                    'EX CINERIBUS, AD LUCEM PERPETUAM',
+                    style: TextStyle(
+                      color: BrColors.muted,
+                      fontSize: 10,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 20),
+                const Text(
+                  '© 2026 Bruno Gaudin — Application concédée à la '
+                  'Grande Loge de Bourbon (GLDB)',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: BrColors.muted, fontSize: 9),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
