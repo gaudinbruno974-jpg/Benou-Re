@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
 import '../models/agenda_item.dart';
+import '../models/civilite.dart';
 import '../models/member.dart';
 import '../models/session.dart';
 import '../state/app_state.dart';
@@ -361,8 +362,12 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
           row.authorId = authorId;
           row.title = titleController.text.trim();
           final author = members.firstWhere((m) => m.id == authorId);
+          // F∴ / S∴ selon la civilité, même convention que le reste du
+          // document (voir civiliteAbbrev) — absent jusqu'ici sur cette
+          // ligne précise.
           row.controller.text = agendaPlancheLine(
-            authorDisplayName: maskPersonName(author.fullName),
+            authorDisplayName:
+                '${civiliteAbbrev(author.civilite)} ${maskPersonName(author.fullName)}',
             title: row.title,
           );
         } else {
