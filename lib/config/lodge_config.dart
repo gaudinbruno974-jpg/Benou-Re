@@ -119,22 +119,22 @@ const LinearGradient kAlKhemiaCardGradient = LinearGradient(
 // Identité souveraine : vert émeraude profond et or, distincte des 4 loges
 // (aucune n'utilise le vert) — évoque l'autorité de l'obédience elle-même
 // plutôt qu'une loge particulière.
-const Color kGrandeLogePrimary = Color(0xFF1B6E4C);
+const Color kGrandeLogePrimary = Color(0xFF2E9968);
 const Color kGrandeLogeAccent = Color(0xFFD9A916);
 const Color kGrandeLogeAccentBright = Color(0xFFF2D98A);
-const Color kGrandeLogeBackground = Color(0xFF0F3D2A);
-const Color kGrandeLogeBackgroundDark = Color(0xFF092A1C);
-const Color kGrandeLogeSurface = Color(0xFF1D5A3D);
+const Color kGrandeLogeBackground = Color(0xFF17593C);
+const Color kGrandeLogeBackgroundDark = Color(0xFF0E3F2A);
+const Color kGrandeLogeSurface = Color(0xFF2C7A51);
 const LinearGradient kGrandeLogeBackgroundGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF12492F), Color(0xFF0C3120), Color(0xFF061C13)],
+  colors: [Color(0xFF1B6B48), Color(0xFF134D33), Color(0xFF0B301F)],
   stops: [0.0, 0.55, 1.0],
 );
 const LinearGradient kGrandeLogeCardGradient = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
-  colors: [Color(0xFF246E4A), Color(0xFF184A32)],
+  colors: [Color(0xFF328A5D), Color(0xFF22643F)],
 );
 
 /// Rend une chaîne sans signes diacritiques (« Bénou Ré » → « Benou Re »).

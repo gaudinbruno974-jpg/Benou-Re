@@ -253,6 +253,88 @@ class BrBadge extends StatelessWidget {
   }
 }
 
+/// Pavé de menu (icône, titre, sous-titre, chevron) — style des cartes du
+/// Parvis (Tenues, Membres...), extrait ici pour être réutilisé ailleurs
+/// (ex. l'accueil du flavor Grande Loge) sans dupliquer la mise en page.
+class BrMenuTile extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+  const BrMenuTile({
+    super.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BrCard(
+      onTap: onTap,
+      accent: color,
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        children: [
+          Container(
+            height: 50,
+            width: 50,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(BrColors.radiusS),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  color.withValues(alpha: 0.28),
+                  color.withValues(alpha: 0.08),
+                ],
+              ),
+              border: Border.all(color: color.withValues(alpha: 0.45)),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: BrColors.text,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: BrColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.arrow_forward_ios,
+            color: BrColors.gold.withValues(alpha: 0.8),
+            size: 15,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 /// Badge de grade maçonnique (couleur dérivée du grade).
 class BrGradeBadge extends StatelessWidget {
   final String grade;

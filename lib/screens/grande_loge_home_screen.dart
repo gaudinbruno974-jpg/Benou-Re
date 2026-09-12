@@ -1,17 +1,17 @@
 // Accueil du flavor Grande Loge de Bourbon — accueil nominatif par rôle,
-// plus un aperçu du nombre de membres actifs des 4 loges (preuve visible de
-// la lecture croisée, voir lodge_reader_service.dart) : chaque loge ouvre
-// sur sa consultation détaillée (grande_loge_lodge_members_screen.dart).
-// Pas encore de recherche par degré à travers les 4 loges à la fois.
+// puis un menu de pavés (même style que le Parvis des loges bleues, voir
+// BrMenuTile) : « Membres » ouvre la liste des 4 loges
+// (grande_loge_lodges_list_screen.dart), « Recherche par degré » cherche à
+// travers les 4 loges à la fois (grande_loge_degree_search_screen.dart).
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
-import '../services/lodge_reader_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
-import 'grande_loge_lodge_members_screen.dart';
+import 'grande_loge_degree_search_screen.dart';
+import 'grande_loge_lodges_list_screen.dart';
 
 /// Libellé lisible d'un rôle Grande Loge, à partir de son code stable
 /// (voir [Member.role]) — le code reste la valeur de référence en base,
@@ -25,31 +25,8 @@ const Map<String, String> kGrandeLogeRoleLabels = {
   'admin': 'Administrateur',
 };
 
-class GrandeLogeHomeScreen extends StatefulWidget {
+class GrandeLogeHomeScreen extends StatelessWidget {
   const GrandeLogeHomeScreen({super.key});
-
-  @override
-  State<GrandeLogeHomeScreen> createState() => _GrandeLogeHomeScreenState();
-}
-
-class _GrandeLogeHomeScreenState extends State<GrandeLogeHomeScreen> {
-  final Map<String, int> _counts = {};
-  final Map<String, String> _errors = {};
-
-  @override
-  void initState() {
-    super.initState();
-    for (final target in kLodgeReaderTargets) {
-      LodgeReaderService.instance.memberCount(target).then(
-        (count) {
-          if (mounted) setState(() => _counts[target.key] = count);
-        },
-        onError: (e) {
-          if (mounted) setState(() => _errors[target.key] = '$e');
-        },
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,119 +46,65 @@ class _GrandeLogeHomeScreenState extends State<GrandeLogeHomeScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              BrCard(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.stars_outlined,
-                        color: BrColors.gold, size: 40),
-                    const SizedBox(height: 16),
-                    Text(
-                      user?.fullName.isNotEmpty == true
-                          ? user!.fullName
-                          : 'Bienvenue',
-                      style: const TextStyle(
-                        color: BrColors.text,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      roleLabel,
-                      style:
-                          const TextStyle(color: BrColors.muted, fontSize: 13),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+      body: ListView(
+        padding: const EdgeInsets.all(28),
+        children: [
+          BrCard(
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.stars_outlined,
+                    color: BrColors.gold, size: 40),
+                const SizedBox(height: 16),
+                Text(
+                  user?.fullName.isNotEmpty == true
+                      ? user!.fullName
+                      : 'Bienvenue',
+                  style: const TextStyle(
+                    color: BrColors.text,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-              const SizedBox(height: 20),
-              BrCard(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text(
-                      'MEMBRES ACTIFS PAR LOGE',
-                      style: TextStyle(
-                        color: BrColors.gold,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    for (final target in kLodgeReaderTargets)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 4),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(BrColors.radiusS),
-                          onTap: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => GrandeLogeLodgeMembersScreen(
-                                  target: target),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 6),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    target.label,
-                                    style: const TextStyle(
-                                        color: BrColors.text, fontSize: 14),
-                                  ),
-                                ),
-                                if (_errors.containsKey(target.key))
-                                  const Icon(Icons.error_outline,
-                                      color: BrColors.error, size: 18)
-                                else if (_counts.containsKey(target.key))
-                                  Text(
-                                    '${_counts[target.key]}',
-                                    style: const TextStyle(
-                                      color: BrColors.goldBright,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  )
-                                else
-                                  const SizedBox(
-                                    width: 14,
-                                    height: 14,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: BrColors.muted),
-                                  ),
-                                const SizedBox(width: 8),
-                                const Icon(Icons.chevron_right,
-                                    color: BrColors.muted, size: 18),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    const Text(
-                      'Lecture seule, via un compte technique dédié par '
-                      'loge. Touchez une loge pour consulter ses membres. '
-                      'La recherche par degré à travers les 4 loges '
-                      'viendra dans une prochaine étape.',
-                      style: TextStyle(color: BrColors.muted, fontSize: 11),
-                    ),
-                  ],
+                const SizedBox(height: 6),
+                Text(
+                  roleLabel,
+                  style: const TextStyle(color: BrColors.muted, fontSize: 13),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+          const SizedBox(height: 24),
+          const BrSectionTitle('VOTRE ESPACE DE TRAVAIL',
+              icon: Icons.workspaces_outline),
+          const SizedBox(height: 16),
+          BrMenuTile(
+            title: 'Membres',
+            subtitle: 'Consulter les 4 loges',
+            icon: Icons.people_outline,
+            color: BrColors.gold,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const GrandeLogeLodgesListScreen(),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          BrMenuTile(
+            title: 'Recherche par degré',
+            subtitle: 'Hauts Grades, à travers les 4 loges',
+            icon: Icons.search,
+            color: BrColors.violet,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const GrandeLogeDegreeSearchScreen(),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
