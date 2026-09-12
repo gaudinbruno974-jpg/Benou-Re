@@ -245,18 +245,18 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Stack(
         children: [
           if (isSST)
+            const Positioned.fill(child: ColoredBox(color: Colors.black)),
+          if (isSST)
             Positioned.fill(
               child: Image.asset(
                 'assets/Souverain-Sanctuaire.jfif',
-                fit: BoxFit.cover,
+                fit: BoxFit.contain,
                 filterQuality: FilterQuality.high,
               ),
             ),
           if (isSST)
             Positioned.fill(
-              child: Container(
-                color: BrColors.backgroundDark.withValues(alpha: 0.72),
-              ),
+              child: Container(color: Colors.black.withValues(alpha: 0.4)),
             ),
           SafeArea(
             child: Center(
@@ -267,38 +267,48 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        height: 92,
-                        width: 92,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [
-                              BrColors.surface.withValues(alpha: 0.9),
-                              BrColors.backgroundDark.withValues(alpha: 0.9),
-                            ],
+                      // L'œil fait doublon avec l'image de fond du Souverain
+                      // Sanctuaire (couronne, aigles) : masqué pour ce flavor.
+                      if (!isSST)
+                        Container(
+                          height: 92,
+                          width: 92,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                BrColors.surface.withValues(alpha: 0.9),
+                                BrColors.backgroundDark.withValues(alpha: 0.9),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: BrColors.gold.withValues(alpha: 0.5),
+                              width: 1.5,
+                            ),
+                            boxShadow: BrColors.raisedShadow,
                           ),
-                          border: Border.all(
-                            color: BrColors.gold.withValues(alpha: 0.5),
-                            width: 1.5,
+                          child: const Icon(
+                            Icons.remove_red_eye_outlined,
+                            color: BrColors.goldBright,
+                            size: 44,
                           ),
-                          boxShadow: BrColors.raisedShadow,
                         ),
-                        child: const Icon(
-                          Icons.remove_red_eye_outlined,
-                          color: BrColors.goldBright,
-                          size: 44,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
+                      if (!isSST) const SizedBox(height: 20),
                       Text(
                         // « R∴L∴ » (Respectable Loge) ne s'applique qu'aux 4
                         // loges bleues — la Grande Loge n'est pas une loge.
-                        currentFlavor == 'grandeloge'
+                        // Ce flavor sert le Souverain Sanctuaire Traditionnel
+                        // de La Réunion : le nom affiché ici est le sien, pas
+                        // « Grande Loge de Bourbon » (voir LodgeConfig.name,
+                        // toujours utilisé ailleurs — Firestore, etc.).
+                        isSST
+                            ? 'SOUVERAIN SANCTUAIRE\nTRADITIONNEL DE LA RÉUNION'
+                            : currentFlavor == 'grandeloge'
                             ? LodgeConfig.current.name.toUpperCase()
                             : 'R∴L∴ ${LodgeConfig.current.name.toUpperCase()}',
+                        textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: BrColors.text,
                           fontSize: 26,
