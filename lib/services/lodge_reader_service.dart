@@ -46,11 +46,11 @@ const String _readerPassword = 'GLDB-lecture-grandeloge-2026!';
 
 const List<LodgeReaderTarget> kLodgeReaderTargets = [
   LodgeReaderTarget(
-    key: 'benoure',
-    label: 'Bénou Ré',
-    options: benoure.DefaultFirebaseOptions.web,
-    readerEmail: 'lecture-grandeloge@benoure.gldb.placeholder',
-    logoAsset: 'assets/Benou-Re.png',
+    key: 'alkhemia',
+    label: 'AL-KHEMIA',
+    options: alkhemia.DefaultFirebaseOptions.web,
+    readerEmail: 'lecture-grandeloge@alkhemia.gldb.placeholder',
+    logoAsset: 'assets/Al-Khemia.png',
   ),
   LodgeReaderTarget(
     key: 'petitprince',
@@ -67,11 +67,11 @@ const List<LodgeReaderTarget> kLodgeReaderTargets = [
     logoAsset: 'assets/Temple-Horus.png',
   ),
   LodgeReaderTarget(
-    key: 'alkhemia',
-    label: 'AL-KHEMIA',
-    options: alkhemia.DefaultFirebaseOptions.web,
-    readerEmail: 'lecture-grandeloge@alkhemia.gldb.placeholder',
-    logoAsset: 'assets/Al-Khemia.png',
+    key: 'benoure',
+    label: 'Bénou Ré',
+    options: benoure.DefaultFirebaseOptions.web,
+    readerEmail: 'lecture-grandeloge@benoure.gldb.placeholder',
+    logoAsset: 'assets/Benou-Re.png',
   ),
 ];
 
