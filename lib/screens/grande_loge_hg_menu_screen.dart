@@ -13,6 +13,7 @@ import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
 import 'grande_loge_hg_members_screen.dart';
+import 'grande_loge_hg_sessions_screen.dart';
 
 class _HgMenuItem {
   final String title;
@@ -67,6 +68,12 @@ const List<_HgMenuItem> _kMaaKherouMenuItems = [
   _HgMenuItem('Accès Drive', Icons.sync, BrColors.violet),
 ];
 
+/// Une tenue avec un vrai écran n'est câblée que pour IAH-MES pour l'instant
+/// (gabarit de convocation MAA-Kherou pas encore défini, voir l'utilisateur :
+/// « MAA-Kherou on verra après »).
+bool _hasSessionsScreen(String title, HgBody body) =>
+    title == 'Tenues' && body.key == kIahMes.key;
+
 class GrandeLogeHgMenuScreen extends StatelessWidget {
   final HgBody body;
   const GrandeLogeHgMenuScreen({super.key, required this.body});
@@ -86,16 +93,26 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 14),
               child: BrMenuTile(
                 title: item.title,
-                subtitle: item.title == 'Membres' ? 'Effectif' : 'À venir',
+                subtitle: item.title == 'Membres'
+                    ? 'Effectif'
+                    : _hasSessionsScreen(item.title, body)
+                    ? 'Convocations'
+                    : 'À venir',
                 icon: item.icon,
                 color: item.color,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => item.title == 'Membres'
-                        ? GrandeLogeHgMembersScreen(body: body)
-                        : GrandeLogeComingSoonScreen(
-                            title: '${item.title} — ${body.label}',
-                          ),
+                    builder: (_) {
+                      if (item.title == 'Membres') {
+                        return GrandeLogeHgMembersScreen(body: body);
+                      }
+                      if (_hasSessionsScreen(item.title, body)) {
+                        return GrandeLogeHgSessionsScreen(body: body);
+                      }
+                      return GrandeLogeComingSoonScreen(
+                        title: '${item.title} — ${body.label}',
+                      );
+                    },
                   ),
                 ),
               ),
