@@ -12,6 +12,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../models/hg_body.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -72,7 +73,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             imageAsset: 'assets/Iah-Mes.jfif',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => const GrandeLogeHgMenuScreen(title: 'IAH-MES'),
+                builder: (_) => const GrandeLogeHgMenuScreen(body: kIahMes),
               ),
             ),
           ),
@@ -82,8 +83,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
             imageAsset: 'assets/MAA-Kherou.jfif',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) =>
-                    const GrandeLogeHgMenuScreen(title: 'MAA-Kherou'),
+                builder: (_) => const GrandeLogeHgMenuScreen(body: kMaaKherou),
               ),
             ),
           ),

@@ -46,6 +46,29 @@ service cloud.firestore {
       return canEditSessions() || myFunction().matches('.*[Tt]r[ée]sorier.*');
     }
 
+    // Rôle stable (voir Member.role) — utilisé uniquement par le flavor
+    // Grande Loge (grande-loge-bourbon), dont les comptes officiers n'ont pas
+    // de fonction correspondant aux regex ci-dessus (« Sérénissime Grand
+    // Maître », etc. ne matchent ni Vénérable ni Secrétaire). Sans effet sur
+    // les 4 loges bleues : leurs comptes n'ont pas de champ `role`.
+    function myRole() {
+      return hasMemberDoc() ? me().get('role', '') : '';
+    }
+
+    // Droits d'édition des corps de Hauts Grades gérés depuis la Grande
+    // Loge (IAH-MES, MAA-Kherou — voir models/hg_body.dart côté appli, la
+    // même règle y est dupliquée pour l'affichage) : périmètre différent par
+    // corps, confirmé explicitement par l'utilisateur.
+    function canEditIahMes() {
+      return signedIn() && (isAdmin() || myRole() == 'sgm' || myRole() == 'atelier_4_14');
+    }
+
+    function canEditMaaKherou() {
+      return signedIn() && (
+        isAdmin() || myRole() == 'sgm' || myRole() == 'gm' || myRole() == 'perfection'
+      );
+    }
+
     // hautsGradesDegree (degré aux Hauts Grades) ne peut être modifié que par
     // l'administrateur — jamais par le V∴M∴, le Secrétaire, le Trésorier ni
     // le membre lui-même, même s'ils ont par ailleurs le droit de mettre à
@@ -173,6 +196,30 @@ service cloud.firestore {
     match /supportRequests/{requestId} {
       allow read: if signedIn();
       allow write: if canEditSessions();
+    }
+
+    // Corps de Hauts Grades gérés depuis la Grande Loge (grande-loge-bourbon
+    // uniquement — ces collections n'existent pas dans les 4 loges bleues) :
+    // effectif et tenues d'IAH-MES et de MAA-Kherou, chacun avec son propre
+    // périmètre d'édition (voir canEditIahMes/canEditMaaKherou ci-dessus).
+    match /iahmesMembers/{memberId} {
+      allow read: if signedIn();
+      allow write: if canEditIahMes();
+    }
+
+    match /iahmesSessions/{sessionId} {
+      allow read: if signedIn();
+      allow write: if canEditIahMes();
+    }
+
+    match /maakherouMembers/{memberId} {
+      allow read: if signedIn();
+      allow write: if canEditMaaKherou();
+    }
+
+    match /maakherouSessions/{sessionId} {
+      allow read: if signedIn();
+      allow write: if canEditMaaKherou();
     }
 
     match /{document=**} {
