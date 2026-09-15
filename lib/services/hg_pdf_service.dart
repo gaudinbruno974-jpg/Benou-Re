@@ -66,7 +66,9 @@ String _formatDateLong(String? dateStr) {
 Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
   final fonts = await _loadFonts();
   final logoIahMes = await _loadImage('assets/Iah-Mes.jfif');
-  final logoGldb = await _loadImage('assets/GLDB.png');
+  final logoSouverainSanctuaire = await _loadImage(
+    'assets/Souverain-Sanctuaire.jfif',
+  );
   final degreeName = kIahMesDegreeNames[session.degree] ?? '';
   final lieu = session.lieu.trim().isEmpty
       ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
@@ -120,18 +122,8 @@ Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
           style: pw.TextStyle(
             font: fonts.base,
             fontStyle: pw.FontStyle.italic,
-            fontSize: 8,
-            color: PdfColors.grey700,
-          ),
-        ),
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Padding(
-            padding: pw.EdgeInsets.only(top: 2 * _mm),
-            child: pw.Text(
-              'A∴L∴G∴D∴S∴A∴D∴M∴',
-              style: pw.TextStyle(font: fonts.bold, fontSize: 9),
-            ),
+            fontSize: 9.5,
+            color: PdfColors.grey800,
           ),
         ),
         pw.SizedBox(height: 4 * _mm),
@@ -175,7 +167,17 @@ Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
                 ],
               ),
             ),
-            logoBox(logoGldb),
+            pw.Column(
+              children: [
+                pw.Text(
+                  'A∴L∴G∴D∴S∴A∴D∴M∴',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 9),
+                ),
+                pw.SizedBox(height: 2 * _mm),
+                logoBox(logoSouverainSanctuaire),
+              ],
+            ),
           ],
         ),
         pw.SizedBox(height: 5 * _mm),
