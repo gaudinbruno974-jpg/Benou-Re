@@ -1,6 +1,7 @@
 // Tenues d'un corps de Hauts Grades (IAH-MES) — liste + génération de la
-// convocation PDF (voir hg_pdf_service.dart). MAA-Kherou n'est pas encore
-// câblé sur cet écran (gabarit de convocation à définir séparément).
+// convocation PDF (archivée sur Drive) + accès Présences / Émargement /
+// Planche tracée. MAA-Kherou n'est pas encore câblé sur cet écran (gabarit
+// de convocation à définir séparément).
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -10,11 +11,15 @@ import 'package:provider/provider.dart';
 
 import '../models/hg_body.dart';
 import '../models/hg_session.dart';
+import '../services/drive_service.dart';
 import '../services/hg_body_service.dart';
 import '../services/hg_pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'grande_loge_hg_emargement_screen.dart';
+import 'grande_loge_hg_planche_screen.dart';
+import 'grande_loge_hg_presence_screen.dart';
 import 'grande_loge_hg_session_edit_screen.dart';
 
 String _formatDate(HgSession s) {
@@ -103,21 +108,38 @@ class _SessionCardState extends State<_SessionCard> {
 
   Future<void> _generateConvocation() async {
     setState(() => _generating = true);
+    final messenger = ScaffoldMessenger.of(context);
     try {
-      final bytes = await buildIahMesConvocationPdf(widget.session);
+      final bytes = Uint8List.fromList(
+        await buildIahMesConvocationPdf(widget.session),
+      );
       await Printing.layoutPdf(
-        onLayout: (_) async => Uint8List.fromList(bytes),
+        onLayout: (_) async => bytes,
         name: 'Convocation ${widget.body.label}.pdf',
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Erreur PDF : $e')));
+      final chrono = await HgBodyService.instance.allocateConvocationChrono(
+        widget.body,
+      );
+      final dateStr = DateFormat('dd MM yy').format(DateTime.now());
+      final fileName = 'Convocation $chrono ${widget.body.label} $dateStr.pdf';
+      try {
+        await DriveService.instance.archiveGenericDocument(
+          folderName: 'Convocations ${widget.body.label}',
+          fileName: fileName,
+          bytes: bytes,
+        );
+      } catch (e) {
+        messenger.showSnackBar(SnackBar(content: Text('Archivage Drive : $e')));
       }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur PDF : $e')));
     } finally {
       if (mounted) setState(() => _generating = false);
     }
+  }
+
+  void _open(Widget Function() builder) {
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => builder()));
   }
 
   @override
@@ -132,12 +154,10 @@ class _SessionCardState extends State<_SessionCard> {
           children: [
             InkWell(
               onTap: widget.canEdit
-                  ? () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => GrandeLogeHgSessionEditScreen(
-                          body: widget.body,
-                          session: s,
-                        ),
+                  ? () => _open(
+                      () => GrandeLogeHgSessionEditScreen(
+                        body: widget.body,
+                        session: s,
                       ),
                     )
                   : null,
@@ -174,19 +194,56 @@ class _SessionCardState extends State<_SessionCard> {
               ),
             ),
             const SizedBox(height: 10),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton.icon(
-                onPressed: _generating ? null : _generateConvocation,
-                icon: _generating
-                    ? const SizedBox(
-                        height: 16,
-                        width: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                label: const Text('Convocation'),
-              ),
+            Wrap(
+              alignment: WrapAlignment.end,
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (widget.canEdit)
+                  OutlinedButton.icon(
+                    onPressed: () => _open(
+                      () => GrandeLogeHgPresenceScreen(
+                        body: widget.body,
+                        session: s,
+                      ),
+                    ),
+                    icon: const Icon(Icons.people_outline, size: 18),
+                    label: const Text('Présences'),
+                  ),
+                if (widget.canEdit)
+                  OutlinedButton.icon(
+                    onPressed: () => _open(
+                      () => GrandeLogeHgEmargementScreen(
+                        body: widget.body,
+                        session: s,
+                      ),
+                    ),
+                    icon: const Icon(Icons.draw_outlined, size: 18),
+                    label: const Text('Émargement'),
+                  ),
+                if (widget.canEdit)
+                  OutlinedButton.icon(
+                    onPressed: () => _open(
+                      () => GrandeLogeHgPlancheScreen(
+                        body: widget.body,
+                        session: s,
+                      ),
+                    ),
+                    icon: const Icon(Icons.edit_note_outlined, size: 18),
+                    label: const Text('Planche'),
+                  ),
+                OutlinedButton.icon(
+                  onPressed: _generating ? null : _generateConvocation,
+                  icon: _generating
+                      ? const SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                  label: const Text('Convocation'),
+                ),
+              ],
             ),
           ],
         ),

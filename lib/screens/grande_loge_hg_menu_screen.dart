@@ -12,8 +12,10 @@ import '../models/hg_body.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
+import 'grande_loge_hg_dignitaries_screen.dart';
 import 'grande_loge_hg_members_screen.dart';
 import 'grande_loge_hg_sessions_screen.dart';
+import 'grande_loge_hg_visitors_screen.dart';
 
 class _HgMenuItem {
   final String title;
@@ -93,18 +95,25 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 14),
               child: BrMenuTile(
                 title: item.title,
-                subtitle: item.title == 'Membres'
-                    ? 'Effectif'
-                    : _hasSessionsScreen(item.title, body)
-                    ? 'Convocations'
-                    : 'À venir',
+                subtitle: switch (item.title) {
+                  'Membres' => 'Effectif',
+                  'Visiteurs' => 'Répertoire',
+                  'Dignitaires' => 'Répertoire',
+                  _ when _hasSessionsScreen(item.title, body) => 'Convocations',
+                  _ => 'À venir',
+                },
                 icon: item.icon,
                 color: item.color,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) {
-                      if (item.title == 'Membres') {
-                        return GrandeLogeHgMembersScreen(body: body);
+                      switch (item.title) {
+                        case 'Membres':
+                          return GrandeLogeHgMembersScreen(body: body);
+                        case 'Visiteurs':
+                          return GrandeLogeHgVisitorsScreen(body: body);
+                        case 'Dignitaires':
+                          return GrandeLogeHgDignitariesScreen(body: body);
                       }
                       if (_hasSessionsScreen(item.title, body)) {
                         return GrandeLogeHgSessionsScreen(body: body);

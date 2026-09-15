@@ -5,9 +5,11 @@
 // Firebase secondaire ni de compte technique.
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../models/dignitary.dart';
 import '../models/hg_body.dart';
 import '../models/hg_session.dart';
 import '../models/member.dart';
+import '../models/visitor.dart';
 
 class HgBodyService {
   HgBodyService._();
@@ -18,6 +20,12 @@ class HgBodyService {
 
   CollectionReference<Map<String, dynamic>> _sessions(HgBody body) =>
       FirebaseFirestore.instance.collection(body.sessionsCollection);
+
+  CollectionReference<Map<String, dynamic>> _visitors(HgBody body) =>
+      FirebaseFirestore.instance.collection(body.visitorsCollection);
+
+  CollectionReference<Map<String, dynamic>> _dignitaries(HgBody body) =>
+      FirebaseFirestore.instance.collection(body.dignitariesCollection);
 
   Stream<List<Member>> membersStream(HgBody body) {
     return _members(body).snapshots().map((snap) {
@@ -42,6 +50,58 @@ class HgBodyService {
 
   Future<void> deleteMember(HgBody body, String memberId) {
     return _members(body).doc(memberId).delete();
+  }
+
+  Stream<List<Visitor>> visitorsStream(HgBody body) {
+    return _visitors(body).snapshots().map((snap) {
+      final visitors = [
+        for (final doc in snap.docs) Visitor.fromMap(doc.id, doc.data()),
+      ];
+      visitors.sort(
+        (a, b) => a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase()),
+      );
+      return visitors;
+    });
+  }
+
+  Future<void> saveVisitor(HgBody body, Visitor visitor) async {
+    final data = visitor.toMap()..remove('id');
+    if (visitor.id.isEmpty) {
+      await _visitors(body).add(data);
+    } else {
+      await _visitors(body).doc(visitor.id).set(data, SetOptions(merge: true));
+    }
+  }
+
+  Future<void> deleteVisitor(HgBody body, String visitorId) {
+    return _visitors(body).doc(visitorId).delete();
+  }
+
+  Stream<List<Dignitary>> dignitariesStream(HgBody body) {
+    return _dignitaries(body).snapshots().map((snap) {
+      final dignitaries = [
+        for (final doc in snap.docs) Dignitary.fromMap(doc.id, doc.data()),
+      ];
+      dignitaries.sort(
+        (a, b) => a.lastName.toLowerCase().compareTo(b.lastName.toLowerCase()),
+      );
+      return dignitaries;
+    });
+  }
+
+  Future<void> saveDignitary(HgBody body, Dignitary dignitary) async {
+    final data = dignitary.toMap()..remove('id');
+    if (dignitary.id.isEmpty) {
+      await _dignitaries(body).add(data);
+    } else {
+      await _dignitaries(
+        body,
+      ).doc(dignitary.id).set(data, SetOptions(merge: true));
+    }
+  }
+
+  Future<void> deleteDignitary(HgBody body, String dignitaryId) {
+    return _dignitaries(body).doc(dignitaryId).delete();
   }
 
   Stream<List<HgSession>> sessionsStream(HgBody body) {
@@ -72,5 +132,22 @@ class HgBodyService {
 
   Future<void> deleteSession(HgBody body, String sessionId) {
     return _sessions(body).doc(sessionId).delete();
+  }
+
+  /// Numéro de convocation de [body], incrémenté à chaque génération — même
+  /// mécanique que allocateRequestChrono (firestore_repository.dart),
+  /// stocké dans config/settings sous une clé propre au corps.
+  Future<int> allocateConvocationChrono(HgBody body) {
+    final db = FirebaseFirestore.instance;
+    final ref = db.collection('config').doc('settings');
+    final field = '${body.key}ConvocationChrono';
+    return db.runTransaction<int>((tx) async {
+      final snap = await tx.get(ref);
+      final current = snap.exists
+          ? ((snap.data()?[field] ?? 1) as num).toInt()
+          : 1;
+      tx.set(ref, {field: current + 1}, SetOptions(merge: true));
+      return current;
+    });
   }
 }

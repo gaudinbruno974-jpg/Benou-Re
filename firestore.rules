@@ -212,12 +212,32 @@ service cloud.firestore {
       allow write: if canEditIahMes();
     }
 
+    match /iahmesVisitors/{visitorId} {
+      allow read: if signedIn();
+      allow write: if canEditIahMes();
+    }
+
+    match /iahmesDignitaries/{dignitaryId} {
+      allow read: if signedIn();
+      allow write: if canEditIahMes();
+    }
+
     match /maakherouMembers/{memberId} {
       allow read: if signedIn();
       allow write: if canEditMaaKherou();
     }
 
     match /maakherouSessions/{sessionId} {
+      allow read: if signedIn();
+      allow write: if canEditMaaKherou();
+    }
+
+    match /maakherouVisitors/{visitorId} {
+      allow read: if signedIn();
+      allow write: if canEditMaaKherou();
+    }
+
+    match /maakherouDignitaries/{dignitaryId} {
       allow read: if signedIn();
       allow write: if canEditMaaKherou();
     }

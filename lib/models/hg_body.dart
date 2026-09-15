@@ -10,11 +10,15 @@ class HgBody {
   final String label;
   final String membersCollection;
   final String sessionsCollection;
+  final String visitorsCollection;
+  final String dignitariesCollection;
   const HgBody({
     required this.key,
     required this.label,
     required this.membersCollection,
     required this.sessionsCollection,
+    required this.visitorsCollection,
+    required this.dignitariesCollection,
   });
 }
 
@@ -23,6 +27,8 @@ const HgBody kIahMes = HgBody(
   label: 'IAH-MES',
   membersCollection: 'iahmesMembers',
   sessionsCollection: 'iahmesSessions',
+  visitorsCollection: 'iahmesVisitors',
+  dignitariesCollection: 'iahmesDignitaries',
 );
 
 const HgBody kMaaKherou = HgBody(
@@ -30,6 +36,8 @@ const HgBody kMaaKherou = HgBody(
   label: 'MAA-Kherou',
   membersCollection: 'maakherouMembers',
   sessionsCollection: 'maakherouSessions',
+  visitorsCollection: 'maakherouVisitors',
+  dignitariesCollection: 'maakherouDignitaries',
 );
 
 /// Droit d'édition (membres, tenues...) d'un corps de Hauts Grades — décidé

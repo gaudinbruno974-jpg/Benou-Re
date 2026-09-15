@@ -480,7 +480,13 @@ class DriveService {
       );
     }
     try {
-      return await _archiveTreasuryDocument(parentId, type, year, fileName, bytes);
+      return await _archiveTreasuryDocument(
+        parentId,
+        type,
+        year,
+        fileName,
+        bytes,
+      );
     } on DriveException catch (e) {
       if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
       _webToken = null;
@@ -496,7 +502,11 @@ class DriveService {
     Uint8List bytes,
   ) async {
     final headers = await _authHeaders();
-    final folderId = await _findOrCreateFolder(headers, '$type $year', parentId);
+    final folderId = await _findOrCreateFolder(
+      headers,
+      '$type $year',
+      parentId,
+    );
     await _uploadFile(headers, folderId, fileName, bytes);
     return currentEmail ?? 'compte Google';
   }
@@ -531,6 +541,49 @@ class DriveService {
     Uint8List bytes,
   ) async {
     final headers = await _authHeaders();
+    await _uploadFile(headers, folderId, fileName, bytes);
+    return currentEmail ?? 'compte Google';
+  }
+
+  /// Archive un document dans un sous-dossier [folderName] créé au besoin
+  /// sous [LodgeConfig.driveParentFolderId] — même mécanique que les tenues
+  /// de loge bleue (voir [_archive]), réutilisée telle quelle pour les corps
+  /// de Hauts Grades gérés depuis la Grande Loge (IAH-MES, MAA-Kherou —
+  /// voir hg_pdf_service.dart), qui n'ont pas leurs propres champs
+  /// dédiés dans [LodgeConfig].
+  Future<String> archiveGenericDocument({
+    required String folderName,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final parentId = LodgeConfig.current.driveParentFolderId.trim();
+    if (parentId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive racine configuré (driveParentFolderId).',
+      );
+    }
+    try {
+      return await _archiveGenericDocument(
+        parentId,
+        folderName,
+        fileName,
+        bytes,
+      );
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _archiveGenericDocument(parentId, folderName, fileName, bytes);
+    }
+  }
+
+  Future<String> _archiveGenericDocument(
+    String parentId,
+    String folderName,
+    String fileName,
+    Uint8List bytes,
+  ) async {
+    final headers = await _authHeaders();
+    final folderId = await _findOrCreateFolder(headers, folderName, parentId);
     await _uploadFile(headers, folderId, fileName, bytes);
     return currentEmail ?? 'compte Google';
   }
@@ -632,7 +685,10 @@ class DriveService {
       bytes,
       contentType: contentType,
     );
-    return (fileId: fileId, url: 'https://drive.google.com/file/d/$fileId/view');
+    return (
+      fileId: fileId,
+      url: 'https://drive.google.com/file/d/$fileId/view',
+    );
   }
 
   /// Retélécharge le contenu d'un fichier Drive (le carton d'une Tenue
@@ -799,11 +855,7 @@ class DriveService {
         '?supportsAllDrives=true&sendNotificationEmail=false',
       ),
       headers: {...headers, 'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'role': role,
-        'type': 'user',
-        'emailAddress': email,
-      }),
+      body: jsonEncode({'role': role, 'type': 'user', 'emailAddress': email}),
     );
     if (res.statusCode != 200) {
       throw DriveException('Erreur de partage Drive ($email) : ${res.body}');
@@ -826,10 +878,7 @@ class DriveService {
     }
   }
 
-  Future<void> _revokeFolderAccess(
-    String folderId,
-    String permissionId,
-  ) async {
+  Future<void> _revokeFolderAccess(String folderId, String permissionId) async {
     final headers = await _authHeaders();
     final res = await http.delete(
       Uri.parse(
@@ -892,7 +941,9 @@ class DriveService {
   }) {
     const boundary = 'benoure_gmail_boundary';
     final hasAttachment =
-        attachmentName != null && attachmentBytes != null && attachmentBytes.isNotEmpty;
+        attachmentName != null &&
+        attachmentBytes != null &&
+        attachmentBytes.isNotEmpty;
     return 'To: $to\r\n'
         'Subject: ${_encodedSubject(subject)}\r\n'
         'MIME-Version: 1.0\r\n'
@@ -904,11 +955,11 @@ class DriveService {
         '\r\n'
         '${_wrapBase64(base64.encode(utf8.encode(body)))}'
         '${!hasAttachment ? '' : '--$boundary\r\n'
-            'Content-Type: $attachmentContentType; name="$attachmentName"\r\n'
-            'Content-Disposition: attachment; filename="$attachmentName"\r\n'
-            'Content-Transfer-Encoding: base64\r\n'
-            '\r\n'
-            '${_wrapBase64(base64.encode(attachmentBytes))}'}'
+                  'Content-Type: $attachmentContentType; name="$attachmentName"\r\n'
+                  'Content-Disposition: attachment; filename="$attachmentName"\r\n'
+                  'Content-Transfer-Encoding: base64\r\n'
+                  '\r\n'
+                  '${_wrapBase64(base64.encode(attachmentBytes))}'}'
         '--$boundary--';
   }
 
@@ -933,7 +984,13 @@ class DriveService {
     } on DriveException catch (e) {
       if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
       _webToken = null;
-      return _createGmailDraft(to, subject, body, attachmentName, attachmentBytes);
+      return _createGmailDraft(
+        to,
+        subject,
+        body,
+        attachmentName,
+        attachmentBytes,
+      );
     }
   }
 
