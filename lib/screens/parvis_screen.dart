@@ -124,7 +124,8 @@ class _ParvisScreenState extends State<ParvisScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => _ParvisScreenBody(appVersion: _appVersion);
+  Widget build(BuildContext context) =>
+      _ParvisScreenBody(appVersion: _appVersion);
 }
 
 class _ParvisScreenBody extends StatelessWidget {
@@ -139,6 +140,13 @@ class _ParvisScreenBody extends StatelessWidget {
     final isTreasury = canEditTreasury(user) || canEditSessions(user);
     final isVisitors = canEditSessions(user);
     final isVM = isVenerableMaitre(user);
+    // Comptes techniques (lecture croisée Grande Loge, support) : de vraies
+    // fiches Firestore existent pour fermer une faille de sécurité (voir
+    // members_screen.dart), mais ce ne sont pas des membres de la Loge —
+    // exclus des effectifs affichés ici comme de la liste elle-même.
+    final visibleMembers = state.members
+        .where((m) => !kHiddenTechnicalRoles.contains(m.role))
+        .toList();
 
     final items = <_MenuItem>[
       _MenuItem(
@@ -167,7 +175,7 @@ class _ParvisScreenBody extends StatelessWidget {
       ),
       _MenuItem(
         'Membres',
-        '${state.members.length} membre(s)',
+        '${visibleMembers.length} membre(s)',
         Icons.people_outline,
         BrColors.gold,
         true,
@@ -264,7 +272,7 @@ class _ParvisScreenBody extends StatelessWidget {
     ];
     final visibleItems = items.where((i) => i.visible).toList();
 
-    final activeMembers = state.members
+    final activeMembers = visibleMembers
         .where((m) => m.status == 'Actif')
         .length;
 
@@ -322,41 +330,41 @@ class _ParvisScreenBody extends StatelessWidget {
             BrCard(
               padding: const EdgeInsets.all(20),
               child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    BrAvatar(
-                      firstName: user.firstName,
-                      lastName: user.lastName,
-                      size: 52,
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Salutations Fraternelles, mon T. C. F. ${user.firstName}',
-                            style: const TextStyle(
-                              color: BrColors.text,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              height: 1.25,
-                            ),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  BrAvatar(
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    size: 52,
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Salutations Fraternelles, mon T. C. F. ${user.firstName}',
+                          style: const TextStyle(
+                            color: BrColors.text,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            height: 1.25,
                           ),
-                          const SizedBox(height: 10),
-                          const Text(
-                            "Bienvenue sur le Parvis numérique de la Loge. Retrouvez ici les fiches de vos Frères, le calendrier des travaux, les planches d'architecture et les outils de trésorerie.",
-                            style: TextStyle(
-                              color: BrColors.muted,
-                              fontSize: 13,
-                              height: 1.4,
-                            ),
+                        ),
+                        const SizedBox(height: 10),
+                        const Text(
+                          "Bienvenue sur le Parvis numérique de la Loge. Retrouvez ici les fiches de vos Frères, le calendrier des travaux, les planches d'architecture et les outils de trésorerie.",
+                          style: TextStyle(
+                            color: BrColors.muted,
+                            fontSize: 13,
+                            height: 1.4,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 20),
             Row(
@@ -447,43 +455,43 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: BrCard(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
-          child: Column(
-            children: [
-              Container(
-                height: 38,
-                width: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: BrColors.gold.withValues(alpha: 0.14),
-                  border: Border.all(
-                    color: BrColors.gold.withValues(alpha: 0.35),
-                  ),
-                ),
-                child: Icon(icon, color: BrColors.goldBright, size: 20),
-              ),
-              const SizedBox(height: 10),
-              Text(
-                value,
-                style: const TextStyle(
-                  color: BrColors.text,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
+        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+        child: Column(
+          children: [
+            Container(
+              height: 38,
+              width: 38,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: BrColors.gold.withValues(alpha: 0.14),
+                border: Border.all(
+                  color: BrColors.gold.withValues(alpha: 0.35),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: BrColors.muted,
-                  fontSize: 11,
-                  letterSpacing: 0.5,
-                ),
+              child: Icon(icon, color: BrColors.goldBright, size: 20),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              value,
+              style: const TextStyle(
+                color: BrColors.text,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: BrColors.muted,
+                fontSize: 11,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -500,63 +508,60 @@ class _MenuCard extends StatelessWidget {
       onTap: onTap,
       accent: item.color,
       padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                height: 50,
-                width: 50,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(BrColors.radiusS),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      item.color.withValues(alpha: 0.28),
-                      item.color.withValues(alpha: 0.08),
-                    ],
-                  ),
-                  border: Border.all(color: item.color.withValues(alpha: 0.45)),
-                ),
-                child: Icon(item.icon, color: item.color, size: 24),
+      child: Row(
+        children: [
+          Container(
+            height: 50,
+            width: 50,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(BrColors.radiusS),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  item.color.withValues(alpha: 0.28),
+                  item.color.withValues(alpha: 0.08),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      item.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: BrColors.text,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      item.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: BrColors.muted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Icon(
-                Icons.arrow_forward_ios,
-                color: BrColors.gold.withValues(alpha: 0.8),
-                size: 15,
-              ),
-            ],
+              border: Border.all(color: item.color.withValues(alpha: 0.45)),
+            ),
+            child: Icon(item.icon, color: item.color, size: 24),
           ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  item.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: BrColors.text,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  item.subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: BrColors.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            Icons.arrow_forward_ios,
+            color: BrColors.gold.withValues(alpha: 0.8),
+            size: 15,
+          ),
+        ],
+      ),
     );
   }
 }
