@@ -138,9 +138,6 @@ class _GrandeLogeHgSessionEditScreenState
     } else {
       _chronoController = TextEditingController(text: '');
       _autoChronoValue = null;
-      if (widget.session == null) {
-        _loadAutoChrono();
-      }
     }
     _t1 = TextEditingController(text: s?.travail1 ?? '');
     _t2 = TextEditingController(text: s?.travail2 ?? '');
@@ -194,23 +191,6 @@ class _GrandeLogeHgSessionEditScreenState
     final m = int.tryParse(parts[1]);
     if (h == null || m == null) return null;
     return TimeOfDay(hour: h, minute: m);
-  }
-
-  Future<void> _loadAutoChrono() async {
-    try {
-      final chrono = await HgBodyService.instance.allocateSessionChrono(
-        widget.body,
-      );
-      if (!mounted) return;
-      if (_chronoController.text.isEmpty) {
-        setState(() {
-          _chronoController.text = '$chrono';
-          _autoChronoValue = chrono;
-        });
-      }
-    } catch (_) {
-      // Ignoré : le numéro sera généré à l'enregistrement si nécessaire.
-    }
   }
 
   @override
@@ -542,7 +522,9 @@ class _GrandeLogeHgSessionEditScreenState
             ),
             _field(
               _chronoController,
-              'Chrono réservé',
+              _autoChronoValue != null
+                  ? 'Chrono réservé'
+                  : 'Chrono (attribué à l\'enregistrement)',
               enabled: false,
               keyboard: TextInputType.number,
             ),

@@ -4,7 +4,9 @@
 // heure de suspension, lieu, ordre du jour (4 travaux fixes auto-générés mais
 // modifiables), ordres du jour complémentaires dynamiques, ligne de clôture
 // numérotée automatiquement, et section Agapes (heure, type de repas, médaille).
-// Le chrono est réservé auprès de config/settings à la création (comme React).
+// Le chrono est réservé auprès de config/settings au moment de l'enregistrement
+// (pas à l'ouverture de l'écran, pour ne pas consommer un numéro si la
+// création est finalement annulée).
 //
 // À la création d'une tenue, on crée le dossier Google Drive, on y dépose la
 // convocation PDF et on mémorise l'ID/URL du dossier dans la session. Cet
@@ -141,9 +143,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     } else {
       _chronoController = TextEditingController(text: '');
       _autoChronoValue = null;
-      if (widget.session == null) {
-        _loadAutoChrono();
-      }
     }
     _t1 = TextEditingController(text: s?.travail1 ?? '');
     _t2 = TextEditingController(text: s?.travail2 ?? '');
@@ -196,22 +195,6 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     final m = int.tryParse(parts[1]);
     if (h == null || m == null) return null;
     return TimeOfDay(hour: h, minute: m);
-  }
-
-  Future<void> _loadAutoChrono() async {
-    try {
-      final state = context.read<AppState>();
-      final chrono = await state.allocateSessionChrono();
-      if (!mounted) return;
-      if (_chronoController.text.isEmpty) {
-        setState(() {
-          _chronoController.text = '$chrono';
-          _autoChronoValue = chrono;
-        });
-      }
-    } catch (_) {
-      // Ignore: le numéro sera généré à l'enregistrement si nécessaire.
-    }
   }
 
   @override
@@ -607,7 +590,11 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             ),
             _field(
               _chronoController,
-              widget.forceUnlock ? 'Chrono (déverrouillé)' : 'Chrono réservé',
+              widget.forceUnlock
+                  ? 'Chrono (déverrouillé)'
+                  : (_autoChronoValue != null
+                        ? 'Chrono réservé'
+                        : 'Chrono (attribué à l\'enregistrement)'),
               enabled: widget.forceUnlock,
               keyboard: TextInputType.number,
             ),
