@@ -10,7 +10,8 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../models/hg_body.dart';
-import '../models/hg_session.dart';
+import '../models/hg_session.dart' show kIahMesDegreeNames;
+import '../models/session.dart';
 import '../services/drive_service.dart';
 import '../services/hg_body_service.dart';
 import '../services/hg_pdf_service.dart';
@@ -22,11 +23,13 @@ import 'grande_loge_hg_planche_screen.dart';
 import 'grande_loge_hg_presence_screen.dart';
 import 'grande_loge_hg_session_edit_screen.dart';
 
-String _formatDate(HgSession s) {
+String _formatDate(Session s) {
   final dt = s.dateTime;
   if (dt == null) return 'Date non définie';
   return DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
 }
+
+int _degreeOf(Session s) => int.tryParse(s.degreTravail ?? s.degree) ?? 4;
 
 class GrandeLogeHgSessionsScreen extends StatelessWidget {
   final HgBody body;
@@ -49,7 +52,7 @@ class GrandeLogeHgSessionsScreen extends StatelessWidget {
               ),
             )
           : null,
-      body: StreamBuilder<List<HgSession>>(
+      body: StreamBuilder<List<Session>>(
         stream: HgBodyService.instance.sessionsStream(body),
         builder: (context, snap) {
           if (snap.hasError) {
@@ -91,7 +94,7 @@ class GrandeLogeHgSessionsScreen extends StatelessWidget {
 
 class _SessionCard extends StatefulWidget {
   final HgBody body;
-  final HgSession session;
+  final Session session;
   final bool canEdit;
   const _SessionCard({
     required this.body,
@@ -117,9 +120,9 @@ class _SessionCardState extends State<_SessionCard> {
         onLayout: (_) async => bytes,
         name: 'Convocation ${widget.body.label}.pdf',
       );
-      final chrono = await HgBodyService.instance.allocateConvocationChrono(
-        widget.body,
-      );
+      final chrono =
+          widget.session.chrono?.toInt() ??
+          await HgBodyService.instance.allocateSessionChrono(widget.body);
       final dateStr = DateFormat('dd MM yy').format(DateTime.now());
       final fileName = 'Convocation $chrono ${widget.body.label} $dateStr.pdf';
       try {
@@ -145,7 +148,8 @@ class _SessionCardState extends State<_SessionCard> {
   @override
   Widget build(BuildContext context) {
     final s = widget.session;
-    final degreeName = kIahMesDegreeNames[s.degree] ?? '';
+    final degree = _degreeOf(s);
+    final degreeName = kIahMesDegreeNames[degree] ?? '';
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: BrCard(
@@ -174,16 +178,16 @@ class _SessionCardState extends State<_SessionCard> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${s.degree}e degré — $degreeName',
+                    '${degree}e degré — $degreeName',
                     style: const TextStyle(
                       color: BrColors.muted,
                       fontSize: 12.5,
                     ),
                   ),
-                  if (s.themeTitle.trim().isNotEmpty) ...[
+                  if (s.typeLabel.isNotEmpty && s.typeLabel != 'Ordinaire') ...[
                     const SizedBox(height: 6),
                     Text(
-                      s.themeTitle.trim(),
+                      s.typeLabel,
                       style: const TextStyle(
                         color: BrColors.goldBright,
                         fontSize: 13,

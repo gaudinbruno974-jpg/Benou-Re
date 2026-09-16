@@ -6,13 +6,15 @@ import 'package:flutter/material.dart';
 
 import '../models/dignitary.dart';
 import '../models/hg_body.dart';
-import '../models/hg_session.dart';
 import '../models/member.dart';
+import '../models/session.dart';
 import '../models/visitor.dart';
 import '../services/hg_body_service.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import '../widgets/signature_dialog.dart';
+
+const String _tfpmSignatureKey = 'plancheTfpmSignature';
 
 class _Signer {
   final String id;
@@ -24,7 +26,7 @@ class _Signer {
 
 class GrandeLogeHgEmargementScreen extends StatefulWidget {
   final HgBody body;
-  final HgSession session;
+  final Session session;
   const GrandeLogeHgEmargementScreen({
     super.key,
     required this.body,
@@ -38,7 +40,7 @@ class GrandeLogeHgEmargementScreen extends StatefulWidget {
 
 class _GrandeLogeHgEmargementScreenState
     extends State<GrandeLogeHgEmargementScreen> {
-  late HgSession _session;
+  late Session _session;
   List<Member> _members = [];
   List<Visitor> _visitors = [];
   List<Dignitary> _dignitaries = [];
@@ -61,12 +63,14 @@ class _GrandeLogeHgEmargementScreenState
   Future<void> _sign(_Signer signer, {required bool isPlanche}) async {
     final dataUrl = await captureSignature(context, signer.name);
     if (dataUrl == null) return;
-    final updated = isPlanche
-        ? _session.copyWith(signerSignature: dataUrl)
-        : _session.copyWith(
-            signatures: {..._session.signatures, signer.id: dataUrl},
-          );
-    await HgBodyService.instance.saveSession(widget.body, updated);
+    final map = Map<String, dynamic>.from(_session.toMap());
+    if (isPlanche) {
+      map[_tfpmSignatureKey] = dataUrl;
+    } else {
+      map['signatures'] = {..._session.signatures, signer.id: dataUrl};
+    }
+    final updated = Session.fromMap(_session.id, map);
+    await HgBodyService.instance.updateSession(widget.body, updated);
     setState(() => _session = updated);
   }
 
@@ -108,10 +112,10 @@ class _GrandeLogeHgEmargementScreenState
         ),
     ];
     final signerTfpm = _Signer(
-      'signerSignature',
-      _session.signerName.isNotEmpty ? _session.signerName : 'Signataire',
+      _tfpmSignatureKey,
+      (_session.vmName ?? '').isNotEmpty ? _session.vmName! : 'Signataire',
       'Trois Fois Puissant Maître',
-      _session.signerSignature,
+      _session.extra[_tfpmSignatureKey] as String?,
     );
     final total =
         memberSigners.length +

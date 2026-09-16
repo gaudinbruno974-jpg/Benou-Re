@@ -1,12 +1,13 @@
 // Génération PDF pour les corps de Hauts Grades (IAH-MES pour l'instant) —
 // fichier séparé de pdf_service.dart (dédié aux 4 loges bleues) : le
-// gabarit de convocation d'un Collège de Perfection n'a presque rien de
-// commun avec celui d'une tenue de loge bleue (voir les PDF fournis par
-// l'utilisateur en référence — ordre du jour figé, pas de planche d'un
-// membre nommé mais un « thème de la tenue », signataire « Trois Fois
-// Puissant Maître »...). Recopie volontairement quelques utilitaires de
-// pdf_service.dart (polices, pied de page) plutôt que de les exposer
-// publiquement depuis ce fichier partagé par les 4 loges bleues.
+// gabarit visuel d'une convocation de Collège de Perfection reste propre à
+// IAH-MES (logo, en-tête, signataire « Trois Fois Puissant Maître »...),
+// même si le contenu de l'ordre du jour est maintenant, comme pour les
+// loges bleues, entièrement piloté par la tenue elle-même (Session —
+// demande explicite de l'utilisateur, « copie l'intégralité »). Recopie
+// volontairement quelques utilitaires de pdf_service.dart (polices, pied de
+// page) plutôt que de les exposer publiquement depuis ce fichier partagé
+// par les 4 loges bleues.
 import 'dart:typed_data';
 
 import 'package:flutter/services.dart' show rootBundle;
@@ -15,7 +16,8 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart' show imageFromAssetBundle;
 
-import '../models/hg_session.dart';
+import '../models/hg_session.dart' show kIahMesDegreeNames;
+import '../models/session.dart';
 
 const double _mm = PdfPageFormat.mm;
 const _navy = PdfColor.fromInt(0xFF0C235C);
@@ -60,19 +62,48 @@ String _formatDateLong(String? dateStr) {
   return formatted[0].toUpperCase() + formatted.substring(1);
 }
 
-/// Convocation d'une tenue du Collège de Perfection IAH-MES — voir
-/// hg_session.dart pour les champs variables, le reste du gabarit est fixe
-/// (confirmé sur les exemples fournis par l'utilisateur).
-Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
+int _sessionDegree(Session session) {
+  final raw = session.degreTravail ?? session.degree;
+  return int.tryParse(raw) ?? 4;
+}
+
+String _sessionHeure(Session session) {
+  final dt = session.dateTime;
+  if (dt == null || (dt.hour == 0 && dt.minute == 0)) return '19h30';
+  return '${dt.hour.toString().padLeft(2, '0')}h'
+      '${dt.minute.toString().padLeft(2, '0')}';
+}
+
+/// Convocation d'une tenue du Collège de Perfection IAH-MES — gabarit visuel
+/// fixe (voir hg_session.dart pour la nomenclature des degrés), contenu de
+/// l'ordre du jour piloté par la tenue (travaux fixes + ordres du jour
+/// complémentaires, à la manière des loges bleues).
+Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
   final fonts = await _loadFonts();
   final logoIahMes = await _loadImage('assets/Iah-Mes.jfif');
   final logoSouverainSanctuaire = await _loadImage(
     'assets/Souverain-Sanctuaire.jfif',
   );
-  final degreeName = kIahMesDegreeNames[session.degree] ?? '';
-  final lieu = session.lieu.trim().isEmpty
+  final degree = _sessionDegree(session);
+  final degreeName = kIahMesDegreeNames[degree] ?? '';
+  final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
       ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
-      : session.lieu.trim();
+      : session.lieuReunionExtra!.trim();
+  final signerName = (session.vmName ?? '').trim().isEmpty
+      ? 'Trois Fois Puissant Maître'
+      : session.vmName!.trim();
+
+  final fixedWorks = [
+    session.travail1,
+    session.travail2,
+    session.travail3,
+    session.travail4,
+  ].whereType<String>().where((t) => t.trim().isNotEmpty).toList();
+  final complementary = session.agendaItems
+      .where((a) => a.text.trim().isNotEmpty)
+      .map((a) => a.text.trim())
+      .toList();
+  final cloture = (session.ligneCloture ?? '').trim();
 
   final doc = pw.Document(
     author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
@@ -84,12 +115,18 @@ Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
     child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
   );
 
-  pw.Widget bullet(String text) => pw.Padding(
-    padding: pw.EdgeInsets.only(bottom: 1.5 * _mm, left: 4 * _mm),
+  pw.Widget numberedLine(int n, String text) => pw.Padding(
+    padding: pw.EdgeInsets.only(bottom: 2 * _mm),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text('•  ', style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+        pw.SizedBox(
+          width: 7 * _mm,
+          child: pw.Text(
+            '$n.',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: _navy),
+          ),
+        ),
         pw.Expanded(
           child: pw.Text(
             text,
@@ -97,14 +134,6 @@ Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
           ),
         ),
       ],
-    ),
-  );
-
-  pw.Widget agendaTitle(String text) => pw.Padding(
-    padding: pw.EdgeInsets.only(top: 3 * _mm, bottom: 1.5 * _mm),
-    child: pw.Text(
-      text,
-      style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
     ),
   );
 
@@ -188,7 +217,7 @@ Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
         ),
         pw.SizedBox(height: 1.5 * _mm),
         pw.Text(
-          'Correspondance : Trois Fois Puissant Maître ${session.signerName}\n'
+          'Correspondance : Trois Fois Puissant Maître $signerName\n'
           'iahmes.sstr@gmail.com',
           style: pw.TextStyle(
             font: fonts.base,
@@ -211,12 +240,12 @@ Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
         pw.Text(
           'J\'ai le plaisir de vous faire savoir que vous êtes fraternellement '
           'convoqués à la prochaine rencontre de notre Collège de Perfection '
-          'IAH-MES, au ${session.degree}e degré, qui se tiendra :',
+          'IAH-MES, au ${degree}e degré, qui se tiendra :',
           style: pw.TextStyle(font: fonts.base, fontSize: 10.5, height: 1.4),
         ),
         pw.SizedBox(height: 4 * _mm),
         pw.Text(
-          '${_formatDateLong(session.date)} à ${session.heure}',
+          '${_formatDateLong(session.date)} à ${_sessionHeure(session)}',
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
         ),
@@ -232,81 +261,49 @@ Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
           style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
         ),
         pw.Divider(color: PdfColors.grey400),
-        agendaTitle('1. Ouverture des Travaux'),
-        pw.Text(
-          'Ouverture de la rencontre au ${session.degree}e degré, au Grade '
-          'de $degreeName, selon les usages et traditions de notre Ordre.',
-          style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
-        ),
-        agendaTitle('2. Lecture de l\'Ordre du Jour'),
-        agendaTitle('3. Appel des FF∴ et SS∴ du Collège'),
-        agendaTitle('4. Travail collectif'),
-        if (session.themeTitle.trim().isNotEmpty) ...[
+        for (int i = 0; i < fixedWorks.length; i++)
+          numberedLine(i + 1, fixedWorks[i]),
+        for (int i = 0; i < complementary.length; i++)
+          numberedLine(fixedWorks.length + i + 1, complementary[i]),
+        if (cloture.isNotEmpty) ...[
+          pw.SizedBox(height: 2 * _mm),
           pw.Text(
-            'Thème de la Tenue',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+            cloture,
+            style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
           ),
-          pw.SizedBox(height: 1 * _mm),
+        ],
+        if (session.degreeLabel.isNotEmpty) ...[
+          pw.SizedBox(height: 4 * _mm),
           pw.Text(
-            session.themeTitle.trim(),
-            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
+            'Grade de travail : $degreeName',
+            style: pw.TextStyle(
+              font: fonts.base,
+              fontSize: 9,
+              color: PdfColors.grey700,
+            ),
           ),
-          if (session.themeText.trim().isNotEmpty) ...[
+        ],
+        if (session.suitAgapes) ...[
+          pw.SizedBox(height: 5 * _mm),
+          pw.Divider(color: PdfColors.grey400),
+          pw.Text(
+            'AGAPES FRATERNELLES',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
+          ),
+          pw.SizedBox(height: 2 * _mm),
+          pw.Text(
+            'À l\'issue de nos travaux, des agapes fraternelles nous '
+            'réuniront dans la convivialité et le partage.',
+            style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
+          ),
+          if ((session.montantMedaille ?? 0) > 0) ...[
             pw.SizedBox(height: 1.5 * _mm),
             pw.Text(
-              session.themeText.trim(),
-              style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.4),
+              'Participation aux agapes : ${session.montantMedaille} €',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 10),
             ),
           ],
-          pw.SizedBox(height: 3 * _mm),
         ],
-        pw.Text(
-          'Rappel concernant le travail collectif',
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10),
-        ),
-        pw.SizedBox(height: 1.5 * _mm),
-        pw.Text(
-          'La parole circule et chacun est invité à prendre part aux '
-          'échanges :',
-          style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
-        ),
-        pw.SizedBox(height: 1.5 * _mm),
-        pw.Text(
-          'Quisque debet loqui « Que chacun puisse parler. »',
-          style: pw.TextStyle(
-            font: fonts.base,
-            fontStyle: pw.FontStyle.italic,
-            fontSize: 9.5,
-            color: PdfColors.grey700,
-          ),
-        ),
-        pw.SizedBox(height: 2 * _mm),
-        bullet('Le temps de parole sera adapté au nombre de participants ;'),
-        bullet('Chaque S∴ ou F∴ pourra intervenir librement ;'),
-        bullet('Les interventions pourront être orales ou écrites ;'),
-        bullet(
-          'L\'écoute fraternelle et le respect de la parole de chacun '
-          'seront privilégiés.',
-        ),
-        agendaTitle('5. Questions diverses'),
-        agendaTitle('6. Fermeture des Travaux'),
-        pw.SizedBox(height: 5 * _mm),
-        pw.Divider(color: PdfColors.grey400),
-        pw.Text(
-          'AGAPES FRATERNELLES',
-          style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
-        ),
-        pw.SizedBox(height: 2 * _mm),
-        pw.Text(
-          'À l\'issue de nos travaux, des agapes fraternelles nous '
-          'réuniront dans la convivialité et le partage.',
-          style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
-        ),
-        pw.SizedBox(height: 1.5 * _mm),
-        pw.Text(
-          'Participation aux agapes : ${session.agapePrice} €',
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10),
-        ),
         pw.SizedBox(height: 10 * _mm),
         pw.Align(
           alignment: pw.Alignment.centerRight,
@@ -318,7 +315,7 @@ Future<Uint8List> buildIahMesConvocationPdf(HgSession session) async {
                 style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
               ),
               pw.Text(
-                session.signerName,
+                signerName,
                 style: pw.TextStyle(font: fonts.bold, fontSize: 11),
               ),
             ],

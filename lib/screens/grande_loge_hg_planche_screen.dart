@@ -6,14 +6,14 @@
 import 'package:flutter/material.dart';
 
 import '../models/hg_body.dart';
-import '../models/hg_session.dart';
+import '../models/session.dart';
 import '../services/hg_body_service.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 
 class GrandeLogeHgPlancheScreen extends StatefulWidget {
   final HgBody body;
-  final HgSession session;
+  final Session session;
   const GrandeLogeHgPlancheScreen({
     super.key,
     required this.body,
@@ -33,7 +33,9 @@ class _GrandeLogeHgPlancheScreenState extends State<GrandeLogeHgPlancheScreen> {
   @override
   void initState() {
     super.initState();
-    _textCtrl = TextEditingController(text: widget.session.plancheText);
+    _textCtrl = TextEditingController(
+      text: widget.session.plancheDraftText ?? '',
+    );
     _validated = widget.session.plancheValidated;
   }
 
@@ -46,11 +48,11 @@ class _GrandeLogeHgPlancheScreenState extends State<GrandeLogeHgPlancheScreen> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      final updated = widget.session.copyWith(
-        plancheText: _textCtrl.text.trim(),
-        plancheValidated: _validated,
-      );
-      await HgBodyService.instance.saveSession(widget.body, updated);
+      final map = Map<String, dynamic>.from(widget.session.toMap());
+      map['plancheDraftText'] = _textCtrl.text.trim();
+      map['plancheValidated'] = _validated;
+      final updated = Session.fromMap(widget.session.id, map);
+      await HgBodyService.instance.updateSession(widget.body, updated);
       if (mounted) Navigator.of(context).pop();
     } finally {
       if (mounted) setState(() => _saving = false);

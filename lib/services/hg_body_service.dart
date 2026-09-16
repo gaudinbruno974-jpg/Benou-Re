@@ -3,12 +3,18 @@
 // projet Firebase), ceci lit/écrit dans le projet grande-loge-bourbon lui
 // même : l'officier Grande Loge est déjà connecté dessus, pas besoin d'app
 // Firebase secondaire ni de compte technique.
+//
+// Les tenues réutilisent le modèle Session des loges bleues tel quel (même
+// mécanique complète : ordre du jour libre, agapes, présences, émargement,
+// planche tracée — demande explicite de l'utilisateur, « copie
+// l'intégralité »), simplement stockées dans les collections dédiées du
+// corps plutôt que dans `sessions`.
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/dignitary.dart';
 import '../models/hg_body.dart';
-import '../models/hg_session.dart';
 import '../models/member.dart';
+import '../models/session.dart';
 import '../models/visitor.dart';
 
 class HgBodyService {
@@ -38,6 +44,8 @@ class HgBodyService {
       return members;
     });
   }
+
+  Future<List<Member>> membersOnce(HgBody body) => membersStream(body).first;
 
   Future<void> saveMember(HgBody body, Member member) async {
     final data = member.toMap()..remove('id');
@@ -104,10 +112,10 @@ class HgBodyService {
     return _dignitaries(body).doc(dignitaryId).delete();
   }
 
-  Stream<List<HgSession>> sessionsStream(HgBody body) {
+  Stream<List<Session>> sessionsStream(HgBody body) {
     return _sessions(body).snapshots().map((snap) {
       final sessions = [
-        for (final doc in snap.docs) HgSession.fromMap(doc.id, doc.data()),
+        for (final doc in snap.docs) Session.fromMap(doc.id, doc.data()),
       ];
       sessions.sort((a, b) {
         final da = a.dateTime;
@@ -121,26 +129,27 @@ class HgBodyService {
     });
   }
 
-  Future<void> saveSession(HgBody body, HgSession session) async {
-    final data = session.toMap();
-    if (session.id.isEmpty) {
-      await _sessions(body).add(data);
-    } else {
-      await _sessions(body).doc(session.id).set(data, SetOptions(merge: true));
-    }
+  Future<void> addSession(HgBody body, Session session) {
+    return _sessions(body).doc(session.id).set(session.toMap());
+  }
+
+  Future<void> updateSession(HgBody body, Session session) {
+    return _sessions(body).doc(session.id).set(session.toMap());
   }
 
   Future<void> deleteSession(HgBody body, String sessionId) {
     return _sessions(body).doc(sessionId).delete();
   }
 
-  /// Numéro de convocation de [body], incrémenté à chaque génération — même
-  /// mécanique que allocateRequestChrono (firestore_repository.dart),
-  /// stocké dans config/settings sous une clé propre au corps.
-  Future<int> allocateConvocationChrono(HgBody body) {
+  /// Numéro de tenue de [body], incrémenté à chaque création — même
+  /// mécanique que allocateSessionChrono (firestore_repository.dart),
+  /// stocké dans config/settings sous une clé propre au corps pour ne pas
+  /// entrer en collision avec les autres compteurs (ni celui des loges
+  /// bleues, ni celui d'un autre corps).
+  Future<int> allocateSessionChrono(HgBody body) {
     final db = FirebaseFirestore.instance;
     final ref = db.collection('config').doc('settings');
-    final field = '${body.key}ConvocationChrono';
+    final field = '${body.key}SessionChrono';
     return db.runTransaction<int>((tx) async {
       final snap = await tx.get(ref);
       final current = snap.exists

@@ -8,8 +8,8 @@ import 'package:flutter/material.dart';
 
 import '../models/dignitary.dart';
 import '../models/hg_body.dart';
-import '../models/hg_session.dart';
 import '../models/member.dart';
+import '../models/session.dart';
 import '../models/visitor.dart';
 import '../services/hg_body_service.dart';
 import '../theme.dart';
@@ -17,7 +17,7 @@ import '../widgets/br_decor.dart';
 
 class GrandeLogeHgPresenceScreen extends StatefulWidget {
   final HgBody body;
-  final HgSession session;
+  final Session session;
   const GrandeLogeHgPresenceScreen({
     super.key,
     required this.body,
@@ -132,16 +132,16 @@ class _GrandeLogeHgPresenceScreenState
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      final updated = widget.session.copyWith(
-        presentIds: _presentIds,
-        excusedIds: _excusedIds,
-        agapeIds: _agapeIds,
-        visitorIds: _visitorIds,
-        visitorAgapeIds: _visitorAgapeIds,
-        dignitaryIds: _dignitaryIds,
-        dignitaryAgapeIds: _dignitaryAgapeIds,
-      );
-      await HgBodyService.instance.saveSession(widget.body, updated);
+      final map = Map<String, dynamic>.from(widget.session.toMap());
+      map['presentIds'] = _presentIds;
+      map['excusedIds'] = _excusedIds;
+      map['agapeIds'] = _agapeIds;
+      map['visitorIds'] = _visitorIds;
+      map['visitorAgapeIds'] = _visitorAgapeIds;
+      map['dignitaryIds'] = _dignitaryIds;
+      map['dignitaryAgapeIds'] = _dignitaryAgapeIds;
+      final updated = Session.fromMap(widget.session.id, map);
+      await HgBodyService.instance.updateSession(widget.body, updated);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
