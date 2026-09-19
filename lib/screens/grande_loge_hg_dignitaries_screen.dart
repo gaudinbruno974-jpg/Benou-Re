@@ -1,6 +1,8 @@
 // Répertoire des dignitaires d'un corps de Hauts Grades (IAH-MES,
 // MAA-Kherou) — CRUD complet, même modèle que les loges bleues (Dignitary)
 // mais dans les collections dédiées du corps (voir hg_body_service.dart).
+// Recherche + regroupement Tous / Par Loge / Par Obédience alignés sur
+// dignitaries_screen.dart (loges bleues), demande explicite de l'utilisateur.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -11,16 +13,42 @@ import '../services/hg_body_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 
-class GrandeLogeHgDignitariesScreen extends StatelessWidget {
+class GrandeLogeHgDignitariesScreen extends StatefulWidget {
   final HgBody body;
   const GrandeLogeHgDignitariesScreen({super.key, required this.body});
 
   @override
+  State<GrandeLogeHgDignitariesScreen> createState() =>
+      _GrandeLogeHgDignitariesScreenState();
+}
+
+class _GrandeLogeHgDignitariesScreenState
+    extends State<GrandeLogeHgDignitariesScreen> {
+  final _search = TextEditingController();
+  DirectoryGroupMode _mode = DirectoryGroupMode.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final canEdit = canEditHgBody(context.watch<AppState>().currentUser, body);
+    final canEdit = canEditHgBody(
+      context.watch<AppState>().currentUser,
+      widget.body,
+    );
     return Scaffold(
-      appBar: AppBar(title: Text('Dignitaires — ${body.label}')),
+      appBar: AppBar(title: Text('Dignitaires — ${widget.body.label}')),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               backgroundColor: BrColors.teal,
@@ -28,13 +56,14 @@ class GrandeLogeHgDignitariesScreen extends StatelessWidget {
               label: const Text('Ajouter'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => GrandeLogeHgDignitaryEditScreen(body: body),
+                  builder: (_) =>
+                      GrandeLogeHgDignitaryEditScreen(body: widget.body),
                 ),
               ),
             )
           : null,
       body: StreamBuilder<List<Dignitary>>(
-        stream: HgBodyService.instance.dignitariesStream(body),
+        stream: HgBodyService.instance.dignitariesStream(widget.body),
         builder: (context, snap) {
           if (snap.hasError) {
             return Center(
@@ -50,85 +79,137 @@ class GrandeLogeHgDignitariesScreen extends StatelessWidget {
               child: CircularProgressIndicator(color: BrColors.gold),
             );
           }
-          if (dignitaries.isEmpty) {
-            return const Center(
-              child: Text(
-                'Aucun dignitaire.',
-                style: TextStyle(color: BrColors.muted),
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
-            itemCount: dignitaries.length,
-            separatorBuilder: (context, i) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final d = dignitaries[i];
-              return InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: canEdit
-                    ? () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => GrandeLogeHgDignitaryEditScreen(
-                            body: body,
-                            dignitary: d,
-                          ),
-                        ),
-                      )
-                    : null,
-                child: BrCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      BrAvatar(
-                        firstName: d.firstName,
-                        lastName: d.lastName,
-                        size: 44,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              d.fullName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              [
-                                d.title,
-                                d.lodge,
-                              ].where((e) => e.isNotEmpty).join(' — '),
-                              style: const TextStyle(
-                                color: BrColors.muted,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (canEdit)
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Color(0xFFFB7185),
-                            size: 20,
-                          ),
-                          onPressed: () => HgBodyService.instance
-                              .deleteDignitary(body, d.id),
-                        ),
-                    ],
-                  ),
+          final filtered =
+              dignitaries
+                  .where(
+                    (d) => directoryMatches(_search.text, [
+                      d.firstName,
+                      d.lastName,
+                      d.lodge,
+                      d.obedience,
+                    ]),
+                  )
+                  .toList()
+                ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
+            child: Column(
+              children: [
+                DirectoryFilterBar(
+                  controller: _search,
+                  mode: _mode,
+                  onModeChanged: (m) => setState(() => _mode = m),
                 ),
-              );
-            },
+                const SizedBox(height: 12),
+                Expanded(
+                  child: dignitaries.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Aucun dignitaire.',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                        )
+                      : filtered.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Aucun résultat.',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                        )
+                      : _buildList(filtered, canEdit),
+                ),
+              ],
+            ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildList(List<Dignitary> filtered, bool canEdit) {
+    if (_mode == DirectoryGroupMode.all) {
+      return ListView.separated(
+        padding: const EdgeInsets.only(top: 4, bottom: 90),
+        itemCount: filtered.length,
+        separatorBuilder: (context, i) => const SizedBox(height: 12),
+        itemBuilder: (context, i) => _dignitaryCard(filtered[i], canEdit),
+      );
+    }
+    final groups = groupDirectory(
+      filtered,
+      (d) => _mode == DirectoryGroupMode.byLodge ? d.lodge : d.obedience,
+    );
+    return ListView(
+      padding: const EdgeInsets.only(top: 4, bottom: 90),
+      children: [
+        for (final g in groups)
+          DirectoryGroupSection(
+            title: g.key,
+            count: g.value.length,
+            initiallyExpanded: groups.length == 1,
+            children: [
+              for (final d in g.value)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _dignitaryCard(d, canEdit),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _dignitaryCard(Dignitary d, bool canEdit) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: canEdit
+          ? () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => GrandeLogeHgDignitaryEditScreen(
+                  body: widget.body,
+                  dignitary: d,
+                ),
+              ),
+            )
+          : null,
+      child: BrCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            BrAvatar(firstName: d.firstName, lastName: d.lastName, size: 44),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    d.fullName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    [d.title, d.lodge].where((e) => e.isNotEmpty).join(' — '),
+                    style: const TextStyle(color: BrColors.muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            if (canEdit)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFFB7185),
+                  size: 20,
+                ),
+                onPressed: () =>
+                    HgBodyService.instance.deleteDignitary(widget.body, d.id),
+              ),
+          ],
+        ),
       ),
     );
   }

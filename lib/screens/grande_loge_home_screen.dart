@@ -14,7 +14,6 @@ import 'package:provider/provider.dart';
 
 import '../models/hg_body.dart';
 import '../state/app_state.dart';
-import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_hg_menu_screen.dart';
 import 'grande_loge_lodges_list_screen.dart';
@@ -100,8 +99,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
           BrImageMenuTile(
             title: 'Suggestions',
             subtitle: 'Dysfonctionnements',
-            icon: Icons.support_agent_outlined,
-            color: BrColors.gold,
+            imageAsset: 'assets/Sav.png',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const SupportRequestScreen()),
             ),

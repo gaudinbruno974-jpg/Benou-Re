@@ -1,6 +1,8 @@
 // Répertoire des visiteurs d'un corps de Hauts Grades (IAH-MES,
 // MAA-Kherou) — CRUD complet, même modèle que les loges bleues (Visitor)
 // mais dans les collections dédiées du corps (voir hg_body_service.dart).
+// Recherche + regroupement Tous / Par Loge / Par Obédience alignés sur
+// visitors_screen.dart (loges bleues), demande explicite de l'utilisateur.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,16 +14,42 @@ import '../services/hg_body_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 
-class GrandeLogeHgVisitorsScreen extends StatelessWidget {
+class GrandeLogeHgVisitorsScreen extends StatefulWidget {
   final HgBody body;
   const GrandeLogeHgVisitorsScreen({super.key, required this.body});
 
   @override
+  State<GrandeLogeHgVisitorsScreen> createState() =>
+      _GrandeLogeHgVisitorsScreenState();
+}
+
+class _GrandeLogeHgVisitorsScreenState
+    extends State<GrandeLogeHgVisitorsScreen> {
+  final _search = TextEditingController();
+  DirectoryGroupMode _mode = DirectoryGroupMode.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final canEdit = canEditHgBody(context.watch<AppState>().currentUser, body);
+    final canEdit = canEditHgBody(
+      context.watch<AppState>().currentUser,
+      widget.body,
+    );
     return Scaffold(
-      appBar: AppBar(title: Text('Visiteurs — ${body.label}')),
+      appBar: AppBar(title: Text('Visiteurs — ${widget.body.label}')),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               backgroundColor: BrColors.teal,
@@ -29,13 +57,14 @@ class GrandeLogeHgVisitorsScreen extends StatelessWidget {
               label: const Text('Ajouter'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => GrandeLogeHgVisitorEditScreen(body: body),
+                  builder: (_) =>
+                      GrandeLogeHgVisitorEditScreen(body: widget.body),
                 ),
               ),
             )
           : null,
       body: StreamBuilder<List<Visitor>>(
-        stream: HgBodyService.instance.visitorsStream(body),
+        stream: HgBodyService.instance.visitorsStream(widget.body),
         builder: (context, snap) {
           if (snap.hasError) {
             return Center(
@@ -51,85 +80,137 @@ class GrandeLogeHgVisitorsScreen extends StatelessWidget {
               child: CircularProgressIndicator(color: BrColors.gold),
             );
           }
-          if (visitors.isEmpty) {
-            return const Center(
-              child: Text(
-                'Aucun visiteur.',
-                style: TextStyle(color: BrColors.muted),
-              ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
-            itemCount: visitors.length,
-            separatorBuilder: (context, i) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final v = visitors[i];
-              return InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: canEdit
-                    ? () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => GrandeLogeHgVisitorEditScreen(
-                            body: body,
-                            visitor: v,
-                          ),
-                        ),
-                      )
-                    : null,
-                child: BrCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      BrAvatar(
-                        firstName: v.firstName,
-                        lastName: v.lastName,
-                        size: 44,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              v.fullName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              [
-                                v.lodge,
-                                v.orient,
-                              ].where((e) => e.isNotEmpty).join(' — '),
-                              style: const TextStyle(
-                                color: BrColors.muted,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      if (canEdit)
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Color(0xFFFB7185),
-                            size: 20,
-                          ),
-                          onPressed: () =>
-                              HgBodyService.instance.deleteVisitor(body, v.id),
-                        ),
-                    ],
-                  ),
+          final filtered =
+              visitors
+                  .where(
+                    (v) => directoryMatches(_search.text, [
+                      v.firstName,
+                      v.lastName,
+                      v.lodge,
+                      v.obedience,
+                    ]),
+                  )
+                  .toList()
+                ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
+            child: Column(
+              children: [
+                DirectoryFilterBar(
+                  controller: _search,
+                  mode: _mode,
+                  onModeChanged: (m) => setState(() => _mode = m),
                 ),
-              );
-            },
+                const SizedBox(height: 12),
+                Expanded(
+                  child: visitors.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Aucun visiteur.',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                        )
+                      : filtered.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Aucun résultat.',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                        )
+                      : _buildList(filtered, canEdit),
+                ),
+              ],
+            ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildList(List<Visitor> filtered, bool canEdit) {
+    if (_mode == DirectoryGroupMode.all) {
+      return ListView.separated(
+        padding: const EdgeInsets.only(top: 4, bottom: 90),
+        itemCount: filtered.length,
+        separatorBuilder: (context, i) => const SizedBox(height: 12),
+        itemBuilder: (context, i) => _visitorCard(filtered[i], canEdit),
+      );
+    }
+    final groups = groupDirectory(
+      filtered,
+      (v) => _mode == DirectoryGroupMode.byLodge ? v.lodge : v.obedience,
+    );
+    return ListView(
+      padding: const EdgeInsets.only(top: 4, bottom: 90),
+      children: [
+        for (final g in groups)
+          DirectoryGroupSection(
+            title: g.key,
+            count: g.value.length,
+            initiallyExpanded: groups.length == 1,
+            children: [
+              for (final v in g.value)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _visitorCard(v, canEdit),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _visitorCard(Visitor v, bool canEdit) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: canEdit
+          ? () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => GrandeLogeHgVisitorEditScreen(
+                  body: widget.body,
+                  visitor: v,
+                ),
+              ),
+            )
+          : null,
+      child: BrCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            BrAvatar(firstName: v.firstName, lastName: v.lastName, size: 44),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    v.fullName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    [v.lodge, v.orient].where((e) => e.isNotEmpty).join(' — '),
+                    style: const TextStyle(color: BrColors.muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            if (canEdit)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFFB7185),
+                  size: 20,
+                ),
+                onPressed: () =>
+                    HgBodyService.instance.deleteVisitor(widget.body, v.id),
+              ),
+          ],
+        ),
       ),
     );
   }
