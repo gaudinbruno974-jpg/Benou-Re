@@ -116,6 +116,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _loading = false;
   String? _error;
   bool _rememberMe = false; // <-- NOUVEAU
+  bool _showPassword = false;
 
   @override
   void initState() {
@@ -362,14 +363,28 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 16),
         TextField(
           controller: _passwordCtrl,
-          obscureText: true,
+          obscureText: !_showPassword,
           style: const TextStyle(color: BrColors.text),
           decoration: const InputDecoration(
             labelText: 'Mot de passe',
             prefixIcon: Icon(Icons.lock_outline, color: BrColors.gold),
           ),
         ),
-        const SizedBox(height: 12),
+        Row(
+          children: [
+            Checkbox(
+              value: _showPassword,
+              onChanged: (value) =>
+                  setState(() => _showPassword = value ?? false),
+              activeColor: BrColors.teal,
+              checkColor: BrColors.text,
+            ),
+            const Text(
+              'Afficher le mot de passe',
+              style: TextStyle(color: BrColors.muted),
+            ),
+          ],
+        ),
         Row(
           children: [
             Checkbox(
@@ -520,7 +535,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 16),
                       TextField(
                         controller: _passwordCtrl,
-                        obscureText: true,
+                        obscureText: !_showPassword,
                         style: const TextStyle(color: BrColors.text),
                         decoration: const InputDecoration(
                           labelText: 'Mot de passe',
@@ -530,7 +545,22 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                       ),
-                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _showPassword,
+                            onChanged: (value) =>
+                                setState(() => _showPassword = value ?? false),
+                            activeColor: BrColors.teal,
+                            checkColor: BrColors.text,
+                          ),
+                          const Text(
+                            'Afficher le mot de passe',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
                       // ============= LA CASE À COCHER =============
                       Row(
                         children: [
