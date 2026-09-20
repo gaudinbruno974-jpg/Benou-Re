@@ -370,6 +370,9 @@ class SessionDetailScreen extends StatelessWidget {
     final visitors = state.visitors
         .where((v) => session.visitorIds.contains(v.id))
         .toList();
+    final dignitaries = state.dignitaries
+        .where((d) => session.dignitaryIds.contains(d.id))
+        .toList();
     final canEdit = canEditSessions(state.currentUser);
     final canAnnounceDignitaries = canViewDignitaryAnnounce(state.currentUser);
     final isSuspended = session.isSuspended;
@@ -436,6 +439,20 @@ class SessionDetailScreen extends StatelessWidget {
                 _section(
                   'Visiteurs (${visitors.length})',
                   visitors.map((v) => '${v.fullName} — ${v.lodge}').toList(),
+                ),
+                _section(
+                  'Dignitaires (${dignitaries.length})',
+                  dignitaries
+                      .map(
+                        (d) => [
+                          d.fullName,
+                          [
+                            d.title,
+                            d.lodge,
+                          ].where((e) => e.isNotEmpty).join(' — '),
+                        ].where((e) => e.isNotEmpty).join(' — '),
+                      )
+                      .toList(),
                 ),
               ],
             ),
