@@ -18,6 +18,7 @@ import 'package:printing/printing.dart' show imageFromAssetBundle;
 
 import '../models/hg_session.dart' show kIahMesDegreeNames;
 import '../models/session.dart';
+import 'pdf_service.dart' show getMasonicDate, getSothiacDate;
 
 const double _mm = PdfPageFormat.mm;
 const _navy = PdfColor.fromInt(0xFF0C235C);
@@ -92,6 +93,8 @@ Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
   final signerName = (session.vmName ?? '').trim().isEmpty
       ? 'Trois Fois Puissant Maître'
       : session.vmName!.trim();
+  final masonicDate = getMasonicDate(session.dateTime);
+  final sothiacDate = getSothiacDate(session.dateTime);
 
   final fixedWorks = [
     session.travail1,
@@ -248,6 +251,18 @@ Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
           '${_formatDateLong(session.date)} à ${_sessionHeure(session)}',
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
+        ),
+        pw.SizedBox(height: 1.5 * _mm),
+        pw.Text(
+          masonicDate,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
+        ),
+        pw.SizedBox(height: 1 * _mm),
+        pw.Text(
+          sothiacDate,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
         ),
         pw.SizedBox(height: 1.5 * _mm),
         pw.Text(
