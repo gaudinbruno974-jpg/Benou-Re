@@ -173,16 +173,24 @@ const _egEpagomenes = [
   'Naissance de Nephthys',
 ];
 
+String _ordinalEg(int n) => n == 1 ? '1er' : '$nème';
+
+// Élision française devant un nom de mois commençant par une voyelle
+// (Athyr, Epiphi) : « d’Athyr » plutôt que « de Athyr ».
+String _egMonthArticle(String month) {
+  final first = month.isEmpty ? '' : month[0].toUpperCase();
+  return 'AEIOU'.contains(first) ? 'd’' : 'de ';
+}
+
 String getMasonicDate(DateTime? date) {
   if (date == null) return 'Date inconnue';
   final d = DateTime(date.year, date.month, date.day, 12);
-  const suffixe = 'A.E.';
-  String ordinal(int n) => n == 1 ? '1er' : '$nème';
+  const suffixe = 'A∴E∴';
 
   if (d.month == 8 && d.day >= 24 && d.day <= 28) {
     final idx = d.day - 24;
     final egYear = d.year + 1291;
-    return 'Le ${ordinal(idx + 1)} jour Épagomène (${_egEpagomenes[idx]}) '
+    return 'Le ${_ordinalEg(idx + 1)} jour Épagomène (${_egEpagomenes[idx]}) '
         'de l’An $egYear $suffixe';
   }
 
@@ -194,8 +202,57 @@ String getMasonicDate(DateTime? date) {
   final offset = d.difference(thotStart).inDays;
   final monthIndex = (offset ~/ 30).clamp(0, _egMonths.length - 1);
   final dayInMonth = (offset % 30) + 1;
-  return 'Le ${ordinal(dayInMonth)} jour du mois de ${_egMonths[monthIndex]} '
-      'de l’An $egYear $suffixe';
+  final month = _egMonths[monthIndex];
+  return 'Le ${_ordinalEg(dayInMonth)} jour du mois ${_egMonthArticle(month)}'
+      '$month de l’An $egYear $suffixe';
+}
+
+// Calendrier sothiaque (nilotique) du R∴A∴P∴M∴M∴ : Nouvel An (1er Thot) le
+// 19 juillet julien — lever héliaque de Sirius —, précédé des 5 jours
+// Épagomènes (14-18 juillet), puis 12 mois de 30 jours exacts chaînés
+// depuis Thot (même mécanique que [getMasonicDate], simplement décalée de
+// 41 jours). Orthographe des mois et bornes vérifiées sur
+// calendrier-egyptien-du-rapmm.pdf (fourni par l'utilisateur) : 4 des 12
+// mois diffèrent de la graphie civile d'Ambelain (Pakhous/Psyrie/
+// Khaoiak/Mekhein, et non Pakhons/Payni/Khoiak/Mekhir).
+const _egMonthsSothiaque = [
+  'Thot',
+  'Paophi',
+  'Athyr',
+  'Khaoiak',
+  'Tybi',
+  'Mekhein',
+  'Phamenoth',
+  'Pharmouthi',
+  'Pakhous',
+  'Psyrie',
+  'Epiphi',
+  'Mesori',
+];
+
+String getSothiacDate(DateTime? date) {
+  if (date == null) return 'Date inconnue';
+  final d = DateTime(date.year, date.month, date.day, 12);
+  const suffixe = 'E∴S∴';
+
+  if (d.month == 7 && d.day >= 14 && d.day <= 18) {
+    final idx = d.day - 14;
+    final egYear = d.year + 1291;
+    return 'Le ${_ordinalEg(idx + 1)} jour Épagomène (${_egEpagomenes[idx]}) '
+        'de l’An $egYear $suffixe';
+  }
+
+  final beforeNewYear = d.month < 7 || (d.month == 7 && d.day < 14);
+  final egYear = d.year + (beforeNewYear ? 1291 : 1292);
+  final thotStart = beforeNewYear
+      ? DateTime(d.year - 1, 7, 19, 12)
+      : DateTime(d.year, 7, 19, 12);
+  final offset = d.difference(thotStart).inDays;
+  final monthIndex = (offset ~/ 30).clamp(0, _egMonthsSothiaque.length - 1);
+  final dayInMonth = (offset % 30) + 1;
+  final month = _egMonthsSothiaque[monthIndex];
+  return 'Le ${_ordinalEg(dayInMonth)} jour du mois ${_egMonthArticle(month)}'
+      '$month de l’An $egYear $suffixe';
 }
 
 String _degreToOrdinalLong(String? degre) {
@@ -433,6 +490,7 @@ List<pw.Widget> _convocationContent({
   required String lieu,
   required int chrono,
   required String masonicDate,
+  required String sothiacDate,
   required List<String> items,
   required String medaille,
   required String agapeDetails,
@@ -486,6 +544,12 @@ List<pw.Widget> _convocationContent({
       masonicDate,
       textAlign: pw.TextAlign.center,
       style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale, color: _navy),
+    ),
+    pw.SizedBox(height: 1.5 * _mm * scale),
+    pw.Text(
+      sothiacDate,
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: fonts.base, fontSize: 9.5 * scale, color: _navy),
     ),
     pw.SizedBox(height: 12 * _mm * scale),
     pw.Text(
@@ -596,6 +660,7 @@ Future<Uint8List> buildConvocationPdf(
           ? session.location
           : LodgeConfig.current.defaultMeetingPlace);
   final masonicDate = getMasonicDate(DateTime.tryParse(dateSource));
+  final sothiacDate = getSothiacDate(DateTime.tryParse(dateSource));
   final items = _collectOrdreDuJour(session);
   final medaille = (session.montantMedaille ?? 0) > 0
       ? ' La médaille est de ${session.montantMedaille} euros.'
@@ -658,6 +723,7 @@ Future<Uint8List> buildConvocationPdf(
           lieu: lieu,
           chrono: chrono,
           masonicDate: masonicDate,
+          sothiacDate: sothiacDate,
           items: items,
           medaille: medaille,
           agapeDetails: agapeDetails,
