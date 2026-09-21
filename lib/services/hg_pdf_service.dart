@@ -119,7 +119,7 @@ Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
   );
 
   pw.Widget numberedLine(int n, String text) => pw.Padding(
-    padding: pw.EdgeInsets.only(bottom: 2 * _mm),
+    padding: pw.EdgeInsets.only(bottom: 3.5 * _mm),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -133,7 +133,7 @@ Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
         pw.Expanded(
           child: pw.Text(
             text,
-            style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
+            style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.5),
           ),
         ),
       ],
@@ -299,13 +299,14 @@ Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
           ),
         ],
         if (session.suitAgapes) ...[
-          pw.SizedBox(height: 5 * _mm),
+          pw.SizedBox(height: 8 * _mm),
           pw.Divider(color: PdfColors.grey400),
+          pw.SizedBox(height: 2 * _mm),
           pw.Text(
             'AGAPES FRATERNELLES',
             style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
           ),
-          pw.SizedBox(height: 2 * _mm),
+          pw.SizedBox(height: 3 * _mm),
           pw.Text(
             'À l\'issue de nos travaux, des agapes fraternelles nous '
             'réuniront dans la convivialité et le partage.',
@@ -319,7 +320,7 @@ Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
             ),
           ],
         ],
-        pw.SizedBox(height: 10 * _mm),
+        pw.SizedBox(height: 14 * _mm),
         pw.Align(
           alignment: pw.Alignment.centerRight,
           child: pw.Column(

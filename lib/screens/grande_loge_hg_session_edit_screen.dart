@@ -87,10 +87,10 @@ String _travailCollectifText(String theme) {
       'Quisque debet loqui\n'
       '« Que chacun puisse parler. »\n'
       '\n'
-      '• Le temps de parole sera adapté au nombre de participants ;\n'
-      '• Chaque S∴ ou F∴ pourra intervenir librement ;\n'
-      '• Les interventions pourront être orales ou écrites ;\n'
-      '• L\'écoute fraternelle et le respect de la parole de chacun seront '
+      '- Le temps de parole sera adapté au nombre de participants ;\n'
+      '- Chaque S∴ ou F∴ pourra intervenir librement ;\n'
+      '- Les interventions pourront être orales ou écrites ;\n'
+      '- L\'écoute fraternelle et le respect de la parole de chacun seront '
       'privilégiés.';
 }
 
