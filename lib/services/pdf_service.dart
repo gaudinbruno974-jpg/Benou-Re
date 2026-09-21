@@ -185,7 +185,7 @@ String _egMonthArticle(String month) {
 String getMasonicDate(DateTime? date) {
   if (date == null) return 'Date inconnue';
   final d = DateTime(date.year, date.month, date.day, 12);
-  const suffixe = 'A∴E∴';
+  const suffixe = 'L∴E∴';
 
   if (d.month == 8 && d.day >= 24 && d.day <= 28) {
     final idx = d.day - 24;

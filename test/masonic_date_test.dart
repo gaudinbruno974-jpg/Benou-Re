@@ -6,50 +6,50 @@ void main() {
     test('1er Thot : le Nouvel An a lieu le 29 août', () {
       expect(
         getMasonicDate(DateTime(2026, 8, 29)),
-        'Le 1er jour du mois de Thot de l’An 3318 A∴E∴',
+        'Le 1er jour du mois de Thot de l’An 3318 L∴E∴',
       );
     });
 
     test('dernier jour de Thot (30 jours exacts)', () {
       expect(
         getMasonicDate(DateTime(2026, 9, 27)),
-        'Le 30ème jour du mois de Thot de l’An 3318 A∴E∴',
+        'Le 30ème jour du mois de Thot de l’An 3318 L∴E∴',
       );
     });
 
     test('premier jour de Paophi, juste après Thot', () {
       expect(
         getMasonicDate(DateTime(2026, 9, 28)),
-        'Le 1er jour du mois de Paophi de l’An 3318 A∴E∴',
+        'Le 1er jour du mois de Paophi de l’An 3318 L∴E∴',
       );
     });
 
     test('les 5 jours Épagomènes (24-28 août) précèdent le Nouvel An', () {
       expect(
         getMasonicDate(DateTime(2026, 8, 24)),
-        'Le 1er jour Épagomène (Naissance d’Osiris) de l’An 3317 A∴E∴',
+        'Le 1er jour Épagomène (Naissance d’Osiris) de l’An 3317 L∴E∴',
       );
       expect(
         getMasonicDate(DateTime(2026, 8, 26)),
-        'Le 3ème jour Épagomène (Naissance de Seth) de l’An 3317 A∴E∴',
+        'Le 3ème jour Épagomène (Naissance de Seth) de l’An 3317 L∴E∴',
       );
       expect(
         getMasonicDate(DateTime(2026, 8, 28)),
-        'Le 5ème jour Épagomène (Naissance de Nephthys) de l’An 3317 A∴E∴',
+        'Le 5ème jour Épagomène (Naissance de Nephthys) de l’An 3317 L∴E∴',
       );
     });
 
     test('avant le 24 août : toujours dans l’année égyptienne précédente', () {
       expect(
         getMasonicDate(DateTime(2026, 1, 1)),
-        'Le 6ème jour du mois de Tybi de l’An 3317 A∴E∴',
+        'Le 6ème jour du mois de Tybi de l’An 3317 L∴E∴',
       );
     });
 
     test('dernier jour de Mesori, juste avant les Épagomènes suivants', () {
       expect(
         getMasonicDate(DateTime(2027, 8, 23)),
-        'Le 30ème jour du mois de Mesori de l’An 3318 A∴E∴',
+        'Le 30ème jour du mois de Mesori de l’An 3318 L∴E∴',
       );
     });
 
@@ -64,11 +64,11 @@ void main() {
         // jours exacts depuis le seul point fixe (29 août).
         expect(
           getMasonicDate(DateTime(2028, 3, 26)),
-          'Le 1er jour du mois de Pharmouthi de l’An 3319 A∴E∴',
+          'Le 1er jour du mois de Pharmouthi de l’An 3319 L∴E∴',
         );
         expect(
           getMasonicDate(DateTime(2028, 3, 27)),
-          'Le 2ème jour du mois de Pharmouthi de l’An 3319 A∴E∴',
+          'Le 2ème jour du mois de Pharmouthi de l’An 3319 L∴E∴',
         );
       },
     );
