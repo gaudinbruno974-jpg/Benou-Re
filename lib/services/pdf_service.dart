@@ -1155,7 +1155,7 @@ String? plancheOrateurName(
       .where(
         (v) =>
             session.visitorIds.contains(v.id) &&
-            (session.visitorRoles[v.id] ?? v.function).trim() == 'Orateur',
+            (session.visitorRoles[v.id] ?? '').trim() == 'Orateur',
       )
       .firstOrNull;
   if (visitor != null) return maskPersonName(_visitorFullName(visitor));
@@ -1191,7 +1191,7 @@ String _orateurCivilite(
       .where(
         (v) =>
             session.visitorIds.contains(v.id) &&
-            (session.visitorRoles[v.id] ?? v.function).trim() == 'Orateur',
+            (session.visitorRoles[v.id] ?? '').trim() == 'Orateur',
       )
       .firstOrNull;
   if (visitor != null) return visitor.civilite;
@@ -1277,11 +1277,13 @@ String buildPlancheTraceeText(
       .whereType<Dignitary>()
       .toList();
 
+  // `v.function` est la fonction du visiteur dans SA loge d'origine (ex. il
+  // est Secrétaire au Temple d'Horus) : elle ne dit rien du poste qu'il
+  // occupe (ou non) pendant cette tenue-ci, seul `session.visitorRoles`
+  // fait foi ici.
   String? roleOf(Visitor v) {
     final r = (session.visitorRoles[v.id] ?? '').trim();
     if (r.isNotEmpty && r != 'Simple Visiteur' && r != 'Visiteur') return r;
-    final f = v.function.trim();
-    if (f.isNotEmpty && f != 'Simple Visiteur' && f != 'Visiteur') return f;
     return null;
   }
 
