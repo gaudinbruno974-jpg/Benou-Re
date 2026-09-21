@@ -1381,18 +1381,16 @@ String buildPlancheTraceeText(
         : 'Le poste d’Orateur est resté vide.',
   );
 
+  // Sans poste/emplacement attribué ce jour, un visiteur n'est pas cité
+  // individuellement dans la planche tracée (même règle que les
+  // dignitaires ci-dessus) : pas de phrase de repli générique.
   for (final v in presentVisitors) {
     final role = roleOf(v);
     final placement = placementOf(v);
     if (role == 'Orateur') continue;
+    if (placement == null) continue;
     if (placement == 'Orient' && isOffice(role ?? '')) continue;
-    if (placement != null) {
-      paras.add(placementSentence(v, placement, role as String));
-    } else {
-      paras.add(
-        '${civiliteArticleAbbrev(v.civilite, capitalize: true)} ${maskPersonName(_visitorFullName(v))} (${v.lodge} – Orient de ${v.orient}) a pris place sur les Colonnes, selon la feuille de présence.',
-      );
-    }
+    paras.add(placementSentence(v, placement, role as String));
   }
 
   // Dignitaires ayant pris un office hors Orient (ceux à l'Orient sont déjà
