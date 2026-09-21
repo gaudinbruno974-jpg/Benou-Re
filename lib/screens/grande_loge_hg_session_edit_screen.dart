@@ -211,6 +211,14 @@ class _GrandeLogeHgSessionEditScreenState
     HgBodyService.instance.membersOnce(widget.body).then((members) {
       if (mounted) setState(() => _members = members);
     });
+
+    // Nouvelle tenue : pré-remplit les travaux fixes (1-4) et la ligne de
+    // clôture dès l'ouverture, plutôt que d'attendre que l'utilisateur
+    // touche au degré/à l'heure — jusqu'ici ils restaient vides tant que
+    // rien ne déclenchait _regenerateTravaux().
+    if (widget.session == null) {
+      _regenerateTravaux();
+    }
   }
 
   String _ensure(String? value, String fallback) {
