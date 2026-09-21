@@ -68,9 +68,27 @@ Map<String, String> _travauxFixes(
         'le Trois Fois Puissant Maître $signer.',
     't2': 'Lecture de l\'Ordre du Jour',
     't3': 'Appel des FF∴ et SS∴ du Collège',
-    't4': 'Travail collectif',
+    't4': _travailCollectifDefault,
   };
 }
+
+/// Texte fixe du point « Travail collectif » — rappel du protocole
+/// (permanent, toujours présent), demande explicite de l'utilisateur.
+const String _travailCollectifDefault =
+    'Travail collectif\n'
+    '\n'
+    'Rappel concernant le travail collectif\n'
+    '\n'
+    'La parole circule et chacun est invité à prendre part aux échanges :\n'
+    '\n'
+    'Quisque debet loqui\n'
+    '« Que chacun puisse parler. »\n'
+    '\n'
+    '• Le temps de parole sera adapté au nombre de participants ;\n'
+    '• Chaque S∴ ou F∴ pourra intervenir librement ;\n'
+    '• Les interventions pourront être orales ou écrites ;\n'
+    '• L\'écoute fraternelle et le respect de la parole de chacun seront '
+    'privilégiés.';
 
 String _ligneCloture(int degree, int ordresCount, String signerName) {
   final n = 4 + ordresCount + 1;
@@ -159,7 +177,14 @@ class _GrandeLogeHgSessionEditScreenState
           authorId: i.authorId,
           title: i.title,
         ),
-      if (items.isEmpty) _OrdreRow(controller: TextEditingController()),
+      // Nouvelle tenue (aucun ordre du jour enregistré) : « Questions
+      // diverses » pré-rempli par défaut, toujours présent — demande
+      // explicite de l'utilisateur. Reste modifiable/supprimable comme
+      // n'importe quelle autre ligne.
+      if (items.isEmpty)
+        _OrdreRow(
+          controller: TextEditingController(text: 'Questions diverses'),
+        ),
     ];
 
     _type = _ensure(s?.typeTenue ?? s?.type, 'Ordinaire');
