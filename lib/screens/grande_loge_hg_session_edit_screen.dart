@@ -68,27 +68,31 @@ Map<String, String> _travauxFixes(
         'le Trois Fois Puissant Maître $signer.',
     't2': 'Lecture de l\'Ordre du Jour',
     't3': 'Appel des FF∴ et SS∴ du Collège',
-    't4': _travailCollectifDefault,
   };
 }
 
-/// Texte fixe du point « Travail collectif » — rappel du protocole
-/// (permanent, toujours présent), demande explicite de l'utilisateur.
-const String _travailCollectifDefault =
-    'Travail collectif\n'
-    '\n'
-    'Rappel concernant le travail collectif\n'
-    '\n'
-    'La parole circule et chacun est invité à prendre part aux échanges :\n'
-    '\n'
-    'Quisque debet loqui\n'
-    '« Que chacun puisse parler. »\n'
-    '\n'
-    '• Le temps de parole sera adapté au nombre de participants ;\n'
-    '• Chaque S∴ ou F∴ pourra intervenir librement ;\n'
-    '• Les interventions pourront être orales ou écrites ;\n'
-    '• L\'écoute fraternelle et le respect de la parole de chacun seront '
-    'privilégiés.';
+/// Point 4 « Travail collectif » — 3 blocs concaténés, demande explicite de
+/// l'utilisateur : un titre fixe, le thème de la tenue (libre, propre à
+/// chaque tenue, saisi dans un champ dédié), puis le rappel du protocole
+/// (fixe, permanent, toujours identique).
+String _travailCollectifText(String theme) {
+  final t = theme.trim();
+  return 'Travail collectif\n'
+      '\n'
+      '${t.isEmpty ? '' : '$t\n\n'}'
+      'Rappel concernant le travail collectif\n'
+      '\n'
+      'La parole circule et chacun est invité à prendre part aux échanges :\n'
+      '\n'
+      'Quisque debet loqui\n'
+      '« Que chacun puisse parler. »\n'
+      '\n'
+      '• Le temps de parole sera adapté au nombre de participants ;\n'
+      '• Chaque S∴ ou F∴ pourra intervenir librement ;\n'
+      '• Les interventions pourront être orales ou écrites ;\n'
+      '• L\'écoute fraternelle et le respect de la parole de chacun seront '
+      'privilégiés.';
+}
 
 String _ligneCloture(int degree, int ordresCount, String signerName) {
   final n = 4 + ordresCount + 1;
@@ -123,6 +127,7 @@ class _GrandeLogeHgSessionEditScreenState
   late final TextEditingController _t2;
   late final TextEditingController _t3;
   late final TextEditingController _t4;
+  late final TextEditingController _theme;
   late final TextEditingController _cloture;
   late final TextEditingController _medaille;
   late final List<_OrdreRow> _ordres;
@@ -160,7 +165,12 @@ class _GrandeLogeHgSessionEditScreenState
     _t1 = TextEditingController(text: s?.travail1 ?? '');
     _t2 = TextEditingController(text: s?.travail2 ?? '');
     _t3 = TextEditingController(text: s?.travail3 ?? '');
-    _t4 = TextEditingController(text: s?.travail4 ?? '');
+    _theme = TextEditingController(
+      text: (s?.extra['travail4Theme'] as String?) ?? '',
+    );
+    _t4 = TextEditingController(
+      text: s?.travail4 ?? _travailCollectifText(_theme.text),
+    );
     _cloture = TextEditingController(text: s?.ligneCloture ?? '');
     _medaille = TextEditingController(
       text: (s?.montantMedaille ?? 0) > 0 ? '${s!.montantMedaille}' : '',
@@ -228,6 +238,7 @@ class _GrandeLogeHgSessionEditScreenState
       _t2,
       _t3,
       _t4,
+      _theme,
       _cloture,
       _medaille,
     ]) {
@@ -253,7 +264,7 @@ class _GrandeLogeHgSessionEditScreenState
     _t1.text = fixes['t1']!;
     _t2.text = fixes['t2']!;
     _t3.text = fixes['t3']!;
-    _t4.text = fixes['t4']!;
+    _t4.text = _travailCollectifText(_theme.text);
     _regenerateCloture();
   }
 
@@ -448,6 +459,7 @@ class _GrandeLogeHgSessionEditScreenState
       'travail2': _t2.text.trim(),
       'travail3': _t3.text.trim(),
       'travail4': _t4.text.trim(),
+      'travail4Theme': _theme.text.trim(),
       'ordresJour': ordres,
       'agendaItems': agendaItems,
       'ligneCloture': _cloture.text.trim(),
@@ -587,6 +599,24 @@ class _GrandeLogeHgSessionEditScreenState
             _numberedField('1', _t1, enabled: !readOnly),
             _numberedField('2', _t2, enabled: !readOnly),
             _numberedField('3', _t3, enabled: !readOnly),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: TextField(
+                controller: _theme,
+                enabled: !readOnly,
+                maxLines: null,
+                minLines: 3,
+                style: const TextStyle(color: BrColors.text),
+                decoration: const InputDecoration(
+                  labelText: 'Thème du travail collectif (point 4)',
+                  hintText:
+                      '« Titre du thème »\n\nQuestion ou texte introductif…',
+                  alignLabelWithHint: true,
+                ),
+                onChanged: (v) =>
+                    setState(() => _t4.text = _travailCollectifText(v)),
+              ),
+            ),
             _numberedField('4', _t4, enabled: !readOnly),
             const SizedBox(height: 12),
             Row(
