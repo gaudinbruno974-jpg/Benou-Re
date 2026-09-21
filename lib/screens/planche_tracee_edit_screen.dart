@@ -9,6 +9,11 @@
 // Sur une Tenue suspendue, le texte est figé : il s'affiche ligne par ligne et
 // seul un commentaire peut être ajouté sous chacune (`plancheLineComments`) ;
 // les notes de travaux, le tronc et le sac aux propositions restent éditables.
+// Le V∴M∴ peut lever ce verrou ponctuellement (`forceUnlock`, même mécanique
+// que SessionEditScreen/SessionPresenceScreen) — utile par exemple pour
+// régénérer le texte après avoir corrigé les postes des présents dans
+// « Présents en tenue (déverrouillé) », ce que la tenue suspendue ne
+// permettait pas de répercuter jusqu'ici.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -21,7 +26,16 @@ import '../theme.dart';
 
 class PlancheTraceeEditScreen extends StatefulWidget {
   final String sessionId;
-  const PlancheTraceeEditScreen({super.key, required this.sessionId});
+
+  /// Déverrouillage ponctuel (V∴M∴) d'une tenue suspendue — voir
+  /// SessionDetailScreen et SessionEditScreen.forceUnlock.
+  final bool forceUnlock;
+
+  const PlancheTraceeEditScreen({
+    super.key,
+    required this.sessionId,
+    this.forceUnlock = false,
+  });
 
   @override
   State<PlancheTraceeEditScreen> createState() =>
@@ -101,7 +115,8 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
     final map = Map<String, dynamic>.from(session.toMap());
-    if (session.isSuspended) {
+    final locked = session.isSuspended && !widget.forceUnlock;
+    if (locked) {
       final comments = <String, String>{};
       for (var i = 0; i < _comments.length; i++) {
         final v = _comments[i].text.trim();
@@ -150,7 +165,7 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
     );
     if (!_initialized) _initFrom(session, state);
     final canEdit = canEditSessions(state.currentUser);
-    final isSuspended = session.isSuspended;
+    final locked = session.isSuspended && !widget.forceUnlock;
 
     return Scaffold(
       appBar: AppBar(
@@ -188,7 +203,7 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Expanded(child: _Heading('TEXTE DE LA PLANCHE')),
-              if (canEdit && !isSuspended)
+              if (canEdit && !locked)
                 TextButton.icon(
                   onPressed: () => setState(
                     () => _text.text = _generatedText(session, state),
@@ -205,7 +220,7 @@ class _PlancheTraceeEditScreenState extends State<PlancheTraceeEditScreen> {
                 ),
             ],
           ),
-          if (isSuspended) ...[
+          if (locked) ...[
             const Padding(
               padding: EdgeInsets.only(bottom: 10),
               child: Text(

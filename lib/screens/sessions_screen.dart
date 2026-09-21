@@ -528,6 +528,23 @@ class SessionDetailScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 10),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BrColors.gold,
+                  side: const BorderSide(color: BrColors.gold),
+                ),
+                icon: const Icon(Icons.lock_open_outlined, size: 18),
+                label: const Text('Planche tracée (déverrouillée)'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => PlancheTraceeEditScreen(
+                      sessionId: session.id,
+                      forceUnlock: true,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
             ],
             OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
