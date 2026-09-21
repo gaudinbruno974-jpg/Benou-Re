@@ -549,7 +549,7 @@ List<pw.Widget> _convocationContent({
     pw.Text(
       sothiacDate,
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(font: fonts.base, fontSize: 9.5 * scale, color: _navy),
+      style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale, color: _navy),
     ),
     pw.SizedBox(height: 12 * _mm * scale),
     pw.Text(
