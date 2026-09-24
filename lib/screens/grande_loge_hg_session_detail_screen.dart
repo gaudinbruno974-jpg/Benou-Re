@@ -1,11 +1,8 @@
 // Fiche détail d'une tenue d'un corps de Hauts Grades — même principe que
 // SessionDetailScreen (sessions_screen.dart, loges bleues) : infos de la
 // tenue, présents/excusés/visiteurs/dignitaires, section Documents avec
-// tous les boutons (présences, émargement, planche, PDF, archivage Drive,
-// annuler, supprimer). Sciemment sans « Invitations » ni « Annonce des
-// Dignitaires » : ces fonctionnalités s'appuient sur des liens de réponse
-// par e-mail propres aux loges bleues (invitation_service.dart), pas
-// encore portées ici.
+// tous les boutons (présences, invitations, annonce des dignitaires,
+// émargement, planche, PDF, archivage Drive, annuler, supprimer).
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -25,10 +22,12 @@ import '../services/hg_pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'grande_loge_hg_dignitaires_announce_screen.dart';
 import 'grande_loge_hg_emargement_screen.dart';
 import 'grande_loge_hg_planche_screen.dart';
 import 'grande_loge_hg_presence_screen.dart';
 import 'grande_loge_hg_session_edit_screen.dart';
+import 'grande_loge_hg_session_invitations_screen.dart';
 
 const _navyBtn = Color(0xFF0C235C);
 
@@ -240,6 +239,40 @@ class _DetailBodyState extends State<_DetailBody> {
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => GrandeLogeHgPresenceScreen(
+                      body: widget.body,
+                      session: session,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BrColors.violet,
+                  side: const BorderSide(color: BrColors.violet),
+                ),
+                icon: const Icon(Icons.link, size: 18),
+                label: const Text('Invitations'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => GrandeLogeHgSessionInvitationsScreen(
+                      body: widget.body,
+                      session: session,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: BrColors.violet,
+                  side: const BorderSide(color: BrColors.violet),
+                ),
+                icon: const Icon(Icons.campaign_outlined, size: 18),
+                label: const Text('Annonce des Dignitaires'),
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => GrandeLogeHgDignitairesAnnounceScreen(
                       body: widget.body,
                       session: session,
                     ),

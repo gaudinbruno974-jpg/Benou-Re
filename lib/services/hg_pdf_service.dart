@@ -1,13 +1,14 @@
 // Génération PDF pour les corps de Hauts Grades (IAH-MES, MAA-Kherou) —
 // fichier séparé de pdf_service.dart (dédié aux 4 loges bleues). Gabarit
 // visuel commun (logo, en-tête, signataire « Trois Fois Puissant Maître »),
-// habillé différemment par corps (voir _logoAsset/_institutionHeader/
-// _degreeOrdinalPhrase/_degreeNamePhrase ci-dessous) : IAH-MES suit le
-// ladder 4°-14° du Collège de Perfection, MAA-Kherou travaille uniquement
-// au grade de Maître, sans ladder ni numéro de degré — confirmé par
-// l'utilisateur. Le contenu de l'ordre du jour est, comme pour les loges
-// bleues, entièrement piloté par la tenue elle-même (Session — demande
-// explicite de l'utilisateur, « copie l'intégralité »). Recopie
+// habillé différemment par corps (voir _logoAsset/hgInstitutionHeader/
+// hgDegreeOrdinalPhrase/hgDegreeNamePhrase ci-dessous, ces trois derniers
+// publics pour être réutilisés par hg_invitation_service.dart) : IAH-MES
+// suit le ladder 4°-14° du Collège de Perfection, MAA-Kherou travaille
+// uniquement au grade de Maître, sans ladder ni numéro de degré — confirmé
+// par l'utilisateur. Le contenu de l'ordre du jour est, comme pour les
+// loges bleues, entièrement piloté par la tenue elle-même (Session —
+// demande explicite de l'utilisateur, « copie l'intégralité »). Recopie
 // volontairement quelques utilitaires de pdf_service.dart (polices, pied de
 // page) plutôt que de les exposer publiquement depuis ce fichier partagé
 // par les 4 loges bleues.
@@ -92,11 +93,11 @@ String _logoAsset(HgBody body) => body.key == kMaaKherou.key
     ? 'assets/MAA-Kherou.jfif'
     : 'assets/Iah-Mes.jfif';
 
-String _institutionHeader(HgBody body) => body.key == kMaaKherou.key
+String hgInstitutionHeader(HgBody body) => body.key == kMaaKherou.key
     ? 'Atelier ${body.label}'
     : 'Collège de Perfection ${body.label}';
 
-String _institutionHeaderBlock(HgBody body) => body.key == kMaaKherou.key
+String hgInstitutionHeaderBlock(HgBody body) => body.key == kMaaKherou.key
     ? 'ATELIER ${body.label.toUpperCase()}\n'
           'Vallée de Saint-Pierre — Temple Thérèse Eliseman'
     : 'COLLÈGE DE PERFECTION ${body.label.toUpperCase()} N°1\n'
@@ -106,10 +107,10 @@ String _correspondenceEmail(HgBody body) => body.key == kMaaKherou.key
     ? 'maakherou.sstr@gmail.com'
     : 'iahmes.sstr@gmail.com';
 
-String _degreeOrdinalPhrase(HgBody body, int degree) =>
+String hgDegreeOrdinalPhrase(HgBody body, int degree) =>
     body.key == kMaaKherou.key ? 'grade de Maître' : '${degree}e degré';
 
-String _degreeNamePhrase(HgBody body, int degree) =>
+String hgDegreeNamePhrase(HgBody body, int degree) =>
     body.key == kMaaKherou.key ? 'Maître' : (kIahMesDegreeNames[degree] ?? '');
 
 String _degreeObjectPhrase(HgBody body, int degree, String degreeName) =>
@@ -141,7 +142,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
     'assets/Souverain-Sanctuaire.jfif',
   );
   final degree = _sessionDegree(session);
-  final degreeName = _degreeNamePhrase(body, degree);
+  final degreeName = hgDegreeNamePhrase(body, degree);
   final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
       ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
       : session.lieuReunionExtra!.trim();
@@ -269,7 +270,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
         ),
         pw.SizedBox(height: 5 * _mm),
         pw.Text(
-          _institutionHeaderBlock(body),
+          hgInstitutionHeaderBlock(body),
           style: pw.TextStyle(font: fonts.bold, fontSize: 9),
         ),
         pw.SizedBox(height: 1.5 * _mm),
@@ -297,7 +298,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
         pw.Text(
           'J\'ai le plaisir de vous faire savoir que vous êtes fraternellement '
           'convoqués à la prochaine rencontre de notre '
-          '${_institutionHeader(body)}, au ${_degreeOrdinalPhrase(body, degree)}, '
+          '${hgInstitutionHeader(body)}, au ${hgDegreeOrdinalPhrase(body, degree)}, '
           'qui se tiendra :',
           style: pw.TextStyle(font: fonts.base, fontSize: 10.5, height: 1.4),
         ),
@@ -476,7 +477,7 @@ Future<Uint8List> buildIahMesEmargementPdf(
 
   final signatures = session.signatures;
   final degree = _sessionDegree(session);
-  final degreeName = _degreeNamePhrase(body, degree);
+  final degreeName = hgDegreeNamePhrase(body, degree);
   final sessionNumber =
       session.chrono?.toInt().toString() ?? session.sessionNumber ?? '';
   final location = (session.lieuReunionExtra ?? '').trim().isEmpty
@@ -535,7 +536,7 @@ Future<Uint8List> buildIahMesEmargementPdf(
         ),
       pw.SizedBox(height: 4 * _mm),
       pw.Text(
-        _institutionHeader(body),
+        hgInstitutionHeader(body),
         style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: _violet),
       ),
       pw.SizedBox(height: 3 * _mm),
@@ -745,7 +746,7 @@ Future<Uint8List> buildIahMesPlancheTraceePdf(
         pw.SizedBox(height: 4 * _mm),
         pw.Center(
           child: pw.Text(
-            _institutionHeader(body),
+            hgInstitutionHeader(body),
             style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: _navy),
           ),
         ),
@@ -891,7 +892,7 @@ Future<Uint8List> buildIahMesAgapePaymentPdf(
         pw.SizedBox(height: 4 * _mm),
         pw.Center(
           child: pw.Text(
-            _institutionHeader(body),
+            hgInstitutionHeader(body),
             style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
           ),
         ),

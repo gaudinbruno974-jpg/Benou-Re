@@ -13,6 +13,7 @@ import 'widgets/br_decor.dart';
 import 'screens/grande_loge_home_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/parvis_screen.dart';
+import 'screens/grande_loge_hg_presence_response_screen.dart';
 import 'screens/passport_verify_screen.dart';
 import 'screens/presence_response_screen.dart';
 
@@ -62,6 +63,19 @@ String? _presenceResponseToken() {
   return null;
 }
 
+/// Jeton de lien de réponse pour une tenue de Hauts Grades
+/// (`#/reponse-hg/<jeton>`) — même principe que [_presenceResponseToken],
+/// route distincte car les liens vivent dans une collection Firestore à
+/// part (hgPresenceLinks — voir grande_loge_hg_presence_response_screen.dart).
+String? _hgPresenceResponseToken() {
+  final candidates = [Uri.base.fragment, Uri.base.path];
+  for (final candidate in candidates) {
+    final match = RegExp(r'reponse-hg/([A-Za-z0-9-]+)').firstMatch(candidate);
+    if (match != null) return match.group(1);
+  }
+  return null;
+}
+
 /// Jeton de vérification du Passeport Maçonnique (`#/passeport/<jeton>`),
 /// même principe que [_presenceResponseToken] — page publique, détectée
 /// avant la porte d'authentification.
@@ -82,6 +96,10 @@ class _Root extends StatelessWidget {
     final token = _presenceResponseToken();
     if (token != null) {
       return PresenceResponseScreen(token: token);
+    }
+    final hgToken = _hgPresenceResponseToken();
+    if (hgToken != null) {
+      return GrandeLogeHgPresenceResponseScreen(token: hgToken);
     }
     final passportToken = _passportVerifyToken();
     if (passportToken != null) {

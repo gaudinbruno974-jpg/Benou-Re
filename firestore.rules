@@ -242,6 +242,31 @@ service cloud.firestore {
       allow write: if canEditMaaKherou();
     }
 
+    function canEditHgLink(key) {
+      return key == 'iahmes' ? canEditIahMes() : canEditMaaKherou();
+    }
+
+    // Liens de réponse individuels pour une tenue de Hauts Grades — même
+    // principe que presenceLinks (loges bleues) ci-dessus, une seule
+    // collection partagée par IAH-MES et MAA-Kherou (voir
+    // models/hg_presence_link.dart pour le choix), le champ bodyKey de
+    // chaque document déterminant le périmètre d'édition applicable.
+    match /hgPresenceLinks/{token} {
+      allow get: if true;
+      allow list: if canEditIahMes() || canEditMaaKherou();
+      allow create: if canEditHgLink(request.resource.data.bodyKey);
+      allow delete: if canEditHgLink(resource.data.bodyKey);
+      allow update: if canEditHgLink(resource.data.bodyKey)
+        || (
+          resource.data.expiresAt > request.time
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly([
+                 'status', 'agapePresent', 'respondedAt', 'applied',
+                 'delegationCount', 'recipientAgapePresent',
+               ])
+        );
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

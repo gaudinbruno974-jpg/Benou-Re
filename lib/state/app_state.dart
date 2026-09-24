@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import '../config/lodge_config.dart';
 import '../models/dignitary.dart';
 import '../models/external_session.dart';
+import '../models/hg_body.dart';
+import '../models/hg_presence_link.dart';
 import '../models/inventory_check.dart';
 import '../models/inventory_item.dart';
 import '../models/member.dart';
@@ -17,14 +19,15 @@ import '../models/session.dart';
 import '../models/visitor.dart';
 import '../services/auth_service.dart';
 import '../services/firestore_repository.dart';
+import '../services/hg_body_service.dart';
 
 class AppState extends ChangeNotifier {
   final AuthService auth;
   final FirestoreRepository repo;
 
   AppState({AuthService? authService, FirestoreRepository? repository})
-      : auth = authService ?? AuthService(),
-        repo = repository ?? FirestoreRepository() {
+    : auth = authService ?? AuthService(),
+      repo = repository ?? FirestoreRepository() {
     _init();
   }
 
@@ -61,6 +64,7 @@ class AppState extends ChangeNotifier {
   StreamSubscription? _vmNameSub;
   StreamSubscription? _lodgeConfigSub;
   StreamSubscription? _presenceLinksSub;
+  StreamSubscription? _hgPresenceLinksSub;
   late final StreamSubscription _authSub;
 
   void _init() {
@@ -83,80 +87,50 @@ class AppState extends ChangeNotifier {
   /// définitivement interrompue.
   void _startDataStreams() {
     if (_membersSub != null) return;
-    _membersSub = repo.membersStream().listen(
-      (data) {
-        members = data;
-        _matchCurrentUser();
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
-    _sessionsSub = repo.sessionsStream().listen(
-      (data) {
-        sessions = data;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
-    _visitorsSub = repo.visitorsStream().listen(
-      (data) {
-        visitors = data;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
-    _dignitariesSub = repo.dignitariesStream().listen(
-      (data) {
-        dignitaries = data;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
-    _inventoryItemsSub = repo.inventoryItemsStream().listen(
-      (data) {
-        inventoryItems = data;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
-    _inventoryChecksSub = repo.inventoryChecksStream().listen(
-      (data) {
-        inventoryChecks = data;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
-    _externalSessionsSub = repo.externalSessionsStream().listen(
-      (data) {
-        externalSessions = data;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
-    _memberEventsSub = repo.memberEventsStream().listen(
-      (data) {
-        memberEvents = data;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
-    _vmNameSub = repo.lodgeVmNameStream().listen(
-      (name) {
-        lodgeVmName = name;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
+    _membersSub = repo.membersStream().listen((data) {
+      members = data;
+      _matchCurrentUser();
+      notifyListeners();
+    }, onError: _onStreamError);
+    _sessionsSub = repo.sessionsStream().listen((data) {
+      sessions = data;
+      notifyListeners();
+    }, onError: _onStreamError);
+    _visitorsSub = repo.visitorsStream().listen((data) {
+      visitors = data;
+      notifyListeners();
+    }, onError: _onStreamError);
+    _dignitariesSub = repo.dignitariesStream().listen((data) {
+      dignitaries = data;
+      notifyListeners();
+    }, onError: _onStreamError);
+    _inventoryItemsSub = repo.inventoryItemsStream().listen((data) {
+      inventoryItems = data;
+      notifyListeners();
+    }, onError: _onStreamError);
+    _inventoryChecksSub = repo.inventoryChecksStream().listen((data) {
+      inventoryChecks = data;
+      notifyListeners();
+    }, onError: _onStreamError);
+    _externalSessionsSub = repo.externalSessionsStream().listen((data) {
+      externalSessions = data;
+      notifyListeners();
+    }, onError: _onStreamError);
+    _memberEventsSub = repo.memberEventsStream().listen((data) {
+      memberEvents = data;
+      notifyListeners();
+    }, onError: _onStreamError);
+    _vmNameSub = repo.lodgeVmNameStream().listen((name) {
+      lodgeVmName = name;
+      notifyListeners();
+    }, onError: _onStreamError);
     // L'identité de la Loge sert aussi hors widgets (génération des PDF,
     // dossiers Drive) : elle est publiée dans LodgeConfig.current plutôt que
     // portée par l'état.
-    _lodgeConfigSub = repo.lodgeConfigStream().listen(
-      (config) {
-        LodgeConfig.current = config;
-        notifyListeners();
-      },
-      onError: _onStreamError,
-    );
+    _lodgeConfigSub = repo.lodgeConfigStream().listen((config) {
+      LodgeConfig.current = config;
+      notifyListeners();
+    }, onError: _onStreamError);
   }
 
   void _stopDataStreams() {
@@ -171,6 +145,7 @@ class AppState extends ChangeNotifier {
     _vmNameSub?.cancel();
     _lodgeConfigSub?.cancel();
     _presenceLinksSub?.cancel();
+    _hgPresenceLinksSub?.cancel();
     _membersSub = null;
     _sessionsSub = null;
     _visitorsSub = null;
@@ -182,6 +157,7 @@ class AppState extends ChangeNotifier {
     _vmNameSub = null;
     _lodgeConfigSub = null;
     _presenceLinksSub = null;
+    _hgPresenceLinksSub = null;
     members = [];
     sessions = [];
     visitors = [];
@@ -200,7 +176,6 @@ class AppState extends ChangeNotifier {
     dataError = error.toString();
     notifyListeners();
   }
-
 
   /// Retrouve la fiche du compte connecté : par l'identifiant Firebase
   /// (stable), sinon par l'adresse de connexion pour les fiches pas encore
@@ -250,6 +225,88 @@ class AppState extends ChangeNotifier {
     } else if (!allowed && _presenceLinksSub != null) {
       _presenceLinksSub?.cancel();
       _presenceLinksSub = null;
+    }
+    _syncHgPresenceLinksIfNeeded();
+  }
+
+  /// Même mécanique que [_syncPresenceLinksIfNeeded], pour les corps de
+  /// Hauts Grades (IAH-MES, MAA-Kherou — flavor Grande Loge uniquement).
+  /// Sans effet sur les 4 loges bleues : `currentUser.role` y est toujours
+  /// vide, donc canEditHgBody renvoie systématiquement faux (voir
+  /// firestore.rules, myRole()).
+  void _syncHgPresenceLinksIfNeeded() {
+    final allowed =
+        canEditHgBody(currentUser, kIahMes) ||
+        canEditHgBody(currentUser, kMaaKherou);
+    if (allowed && _hgPresenceLinksSub == null) {
+      _hgPresenceLinksSub = HgBodyService.instance
+          .unappliedHgPresenceLinksStream()
+          .listen(_applyHgPresenceLinks, onError: (_) {});
+    } else if (!allowed && _hgPresenceLinksSub != null) {
+      _hgPresenceLinksSub?.cancel();
+      _hgPresenceLinksSub = null;
+    }
+  }
+
+  /// Répercute chaque réponse reçue pour une tenue de Hauts Grades — même
+  /// principe que [_applyPresenceLinks] (loges bleues), sans le Flux C
+  /// (Tenues extérieures, sans équivalent ici) ni la répartition par grade
+  /// du Flux B (delegationCount n'est qu'un décompte global, jamais
+  /// appliqué à des fiches nommées — même principe que les compteurs par
+  /// grade des loges bleues).
+  Future<void> _applyHgPresenceLinks(List<HgPresenceLink> links) async {
+    for (final link in links) {
+      try {
+        final body = link.bodyKey == kMaaKherou.key ? kMaaKherou : kIahMes;
+        final session = await HgBodyService.instance.getSession(
+          body,
+          link.sessionId,
+        );
+        if (session == null) {
+          await HgBodyService.instance.markHgPresenceLinkApplied(link.id);
+          continue;
+        }
+        final map = Map<String, dynamic>.from(session.toMap());
+        if (link.kind == kHgPresenceLinkKindMember) {
+          final present = List<String>.from(session.presentIds)
+            ..remove(link.memberId);
+          final excused = List<String>.from(session.excusedIds)
+            ..remove(link.memberId);
+          final agape = List<String>.from(session.agapeIds)
+            ..remove(link.memberId);
+          if (link.status == kHgPresenceStatusPresent) {
+            present.add(link.memberId);
+            if (link.agapePresent == true) agape.add(link.memberId);
+          } else if (link.status == kHgPresenceStatusAbsent) {
+            excused.add(link.memberId);
+          }
+          map['presentIds'] = present;
+          map['excusedIds'] = excused;
+          map['agapeIds'] = agape;
+        } else {
+          final present = List<String>.from(session.dignitaryIds)
+            ..remove(link.recipientId);
+          final agape = List<String>.from(session.dignitaryAgapeIds)
+            ..remove(link.recipientId);
+          if (link.status == kHgPresenceStatusPresent) {
+            present.add(link.recipientId);
+            final ownAgape = link.recipientAlone
+                ? link.agapePresent
+                : link.recipientAgapePresent;
+            if (ownAgape == true) agape.add(link.recipientId);
+          }
+          map['dignitaryIds'] = present;
+          map['dignitaryAgapeIds'] = agape;
+        }
+        await HgBodyService.instance.updateSession(
+          body,
+          Session.fromMap(session.id, map),
+        );
+        await HgBodyService.instance.markHgPresenceLinkApplied(link.id);
+      } catch (_) {
+        // Le jeton reste `applied = false` : une prochaine mise à jour du
+        // flux retentera automatiquement l'application.
+      }
     }
   }
 
@@ -314,8 +371,9 @@ class AppState extends ChangeNotifier {
             ..remove(link.recipientId);
           if (link.status == kPresenceStatusPresent) {
             present.add(link.recipientId);
-            final ownAgape =
-                link.recipientAlone ? link.agapePresent : link.recipientAgapePresent;
+            final ownAgape = link.recipientAlone
+                ? link.agapePresent
+                : link.recipientAgapePresent;
             if (ownAgape == true) agape.add(link.recipientId);
           }
           map['dignitaryIds'] = present;
