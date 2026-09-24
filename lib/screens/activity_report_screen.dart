@@ -9,6 +9,7 @@ import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
+import '../models/member.dart' show kHiddenTechnicalRoles;
 import '../services/drive_service.dart';
 import '../services/pdf_service.dart';
 import '../state/app_state.dart';
@@ -52,10 +53,13 @@ class _ActivityReportScreenState extends State<ActivityReportScreen> {
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _generating = true);
     try {
+      final members = state.members
+          .where((m) => !kHiddenTechnicalRoles.contains(m.role))
+          .toList();
       final Uint8List bytes = await buildActivityReportPdf(
         start: _start!,
         end: _end!,
-        members: state.members,
+        members: members,
         sessions: state.sessions,
         externalSessions: state.externalSessions,
         visitors: state.visitors,
