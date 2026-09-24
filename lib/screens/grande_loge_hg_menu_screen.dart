@@ -2,16 +2,17 @@
 // chaque corps (voir _kIahMesMenuItems/_kMaaKherouMenuItems), confirmé par
 // l'utilisateur : IAH-MES calque le Parvis d'une loge bleue moins Tenues
 // extérieures/Trésorerie/Suggestions ; MAA-Kherou en garde un sous-ensemble
-// plus restreint. Seule « Membres » a un vrai écran pour l'instant (CRUD
-// complet dans le projet grande-loge-bourbon, voir hg_body_service.dart) ;
-// le reste ouvre un écran « à venir » en attendant sa construction (prochaine
-// étape : Tenues).
+// plus restreint. Tenues, Paiement des Agapes, Membres, Visiteurs et
+// Dignitaires ont un vrai écran, alignés sur les loges bleues (demande
+// explicite de l'utilisateur) ; le reste ouvre un écran « à venir » en
+// attendant sa construction.
 import 'package:flutter/material.dart';
 
 import '../models/hg_body.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
+import 'grande_loge_hg_agape_payment_screen.dart';
 import 'grande_loge_hg_dignitaries_screen.dart';
 import 'grande_loge_hg_members_screen.dart';
 import 'grande_loge_hg_sessions_screen.dart';
@@ -53,6 +54,11 @@ const List<_HgMenuItem> _kIahMesMenuItems = [
 
 const List<_HgMenuItem> _kMaaKherouMenuItems = [
   _HgMenuItem('Tenues', Icons.event_outlined, BrColors.teal),
+  _HgMenuItem(
+    'Paiement des Agapes',
+    Icons.restaurant_outlined,
+    BrColors.menuTresorerie,
+  ),
   _HgMenuItem('Membres', Icons.people_outline, BrColors.gold),
   _HgMenuItem('Visiteurs', Icons.shield_outlined, BrColors.menuVisiteurs),
   _HgMenuItem(
@@ -96,6 +102,7 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                   'Membres' => 'Effectif',
                   'Visiteurs' => 'Répertoire',
                   'Dignitaires' => 'Répertoire',
+                  'Paiement des Agapes' => 'Médailles & signatures',
                   _ when _hasSessionsScreen(item.title, body) => 'Convocations',
                   _ => 'À venir',
                 },
@@ -111,6 +118,10 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                           return GrandeLogeHgVisitorsScreen(body: body);
                         case 'Dignitaires':
                           return GrandeLogeHgDignitariesScreen(body: body);
+                        case 'Paiement des Agapes':
+                          return GrandeLogeHgAgapePaymentSessionsScreen(
+                            body: body,
+                          );
                       }
                       if (_hasSessionsScreen(item.title, body)) {
                         return GrandeLogeHgSessionsScreen(body: body);

@@ -44,12 +44,21 @@ num agapeMedailleAmount(Session session) =>
     session.montantMedaille ?? session.agapePrice;
 
 /// Personnes annoncées aux agapes : membres, puis invités, puis dignitaires.
+///
+/// [memberObedience]/[memberLodge] permettent de reprendre cette même
+/// logique pour un corps de Hauts Grades (IAH-MES, MAA-Kherou), qui n'a pas
+/// de LodgeConfig — repli sur la Loge courante sinon (loges bleues,
+/// comportement inchangé).
 List<AgapePayer> agapePayers(
   Session session,
   List<Member> members,
   List<Visitor> visitors,
-  List<Dignitary> dignitaries,
-) {
+  List<Dignitary> dignitaries, {
+  String? memberObedience,
+  String? memberLodge,
+}) {
+  final obedience = memberObedience ?? LodgeConfig.current.obedienceAcronym;
+  final lodge = memberLodge ?? LodgeConfig.current.name;
   return [
     for (final m in members)
       if (session.agapeIds.contains(m.id))
@@ -59,8 +68,8 @@ List<AgapePayer> agapePayers(
           firstName: m.firstName,
           // Sigle de l'obédience : les noms complets sont trop longs pour la
           // colonne « Loge » du PDF.
-          obedience: LodgeConfig.current.obedienceAcronym,
-          lodge: LodgeConfig.current.name,
+          obedience: obedience,
+          lodge: lodge,
         ),
     for (final v in visitors)
       if (session.visitorAgapeIds.contains(v.id))
@@ -91,8 +100,11 @@ num agapeCollectedTotal(
   List<Dignitary> dignitaries,
 ) {
   final signatures = session.agapePaymentSignatures;
-  final signed = agapePayers(session, members, visitors, dignitaries)
-      .where((p) => (signatures[p.id] ?? '').isNotEmpty)
-      .length;
+  final signed = agapePayers(
+    session,
+    members,
+    visitors,
+    dignitaries,
+  ).where((p) => (signatures[p.id] ?? '').isNotEmpty).length;
   return signed * agapeMedailleAmount(session);
 }

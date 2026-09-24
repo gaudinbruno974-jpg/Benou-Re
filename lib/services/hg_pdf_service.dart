@@ -24,6 +24,7 @@ import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
 import '../utils/name_mask.dart';
+import 'agape_payment_service.dart';
 import 'pdf_service.dart' show getMasonicDate, getSothiacDate;
 
 const double _mm = PdfPageFormat.mm;
@@ -763,6 +764,155 @@ Future<Uint8List> buildIahMesPlancheTraceePdf(
                 ),
               ],
             ],
+          ),
+        ),
+      ],
+    ),
+  );
+
+  return doc.save();
+}
+
+// ══════════════════════════════════════════════════════════════════
+// PAIEMENT DES AGAPES — même principe que buildAgapePaymentPdf
+// (pdf_service.dart, loges bleues), gabarit visuel propre à IAH-MES.
+// ══════════════════════════════════════════════════════════════════
+
+String _formatHgAmount(num value) {
+  final s = value % 1 == 0
+      ? value.toInt().toString()
+      : value.toStringAsFixed(2).replaceAll('.', ',');
+  return '$s €';
+}
+
+/// Feuille de paiement des agapes d'une tenue de Hauts Grades : chaque
+/// payeur signe le règlement de sa médaille, le total encaissé figure en
+/// bas du tableau — réutilise agape_payment_service.dart tel quel (pur,
+/// indépendant de LodgeConfig une fois memberObedience/memberLodge fournis).
+Future<Uint8List> buildIahMesAgapePaymentPdf(
+  HgBody body,
+  Session session,
+  List<Member> members,
+  List<Visitor> visitors,
+  List<Dignitary> dignitaries,
+) async {
+  final fonts = await _loadFonts();
+  final logo = await _loadImage('assets/Iah-Mes.jfif');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
+
+  final payers = agapePayers(
+    session,
+    members,
+    visitors,
+    dignitaries,
+    memberObedience: 'GLDB',
+    memberLodge: body.label,
+  );
+  final signatures = session.agapePaymentSignatures;
+  final amount = agapeMedailleAmount(session);
+  final total = agapeCollectedTotal(session, members, visitors, dignitaries);
+  final sessionNumber =
+      session.chrono?.toInt().toString() ?? session.sessionNumber ?? '';
+
+  const headers = [
+    'Nom',
+    'Prénom',
+    'Obédience',
+    'Loge',
+    'Montant',
+    'Signature',
+  ];
+  final colWidths = {
+    0: const pw.FlexColumnWidth(26),
+    1: const pw.FlexColumnWidth(22),
+    2: const pw.FlexColumnWidth(18),
+    3: const pw.FlexColumnWidth(46),
+    4: const pw.FlexColumnWidth(16),
+    5: const pw.FlexColumnWidth(30),
+  };
+
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: pw.EdgeInsets.fromLTRB(18 * _mm, 12 * _mm, 18 * _mm, 18 * _mm),
+      footer: _footer,
+      theme: pw.ThemeData.withFont(base: fonts.base, bold: fonts.bold),
+      build: (context) => [
+        if (logo != null)
+          pw.Center(
+            child: pw.SizedBox(
+              height: 26 * _mm,
+              child: pw.Image(logo, fit: pw.BoxFit.contain),
+            ),
+          ),
+        pw.SizedBox(height: 4 * _mm),
+        pw.Center(
+          child: pw.Text(
+            'Collège de Perfection ${body.label}',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
+          ),
+        ),
+        pw.SizedBox(height: 8 * _mm),
+        pw.Center(
+          child: pw.Text(
+            'PAIEMENT DES AGAPES',
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 20,
+              color: _violet,
+              letterSpacing: 1,
+            ),
+          ),
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Text(
+          'Tenue N° $sessionNumber du ${_formatDateLong(session.date)}'
+          ' — médaille : ${_formatHgAmount(amount)}',
+          style: pw.TextStyle(font: fonts.base, fontSize: 12),
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Table(
+          columnWidths: colWidths,
+          border: pw.TableBorder.all(color: PdfColors.black, width: 0.5),
+          children: [
+            pw.TableRow(
+              decoration: const pw.BoxDecoration(color: _grey),
+              children: [
+                for (final h in headers)
+                  pw.Container(
+                    alignment: pw.Alignment.center,
+                    height: 9 * _mm,
+                    child: pw.Text(
+                      h,
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+                    ),
+                  ),
+              ],
+            ),
+            for (final p in payers)
+              pw.TableRow(
+                children: [
+                  _hgCell(fonts, maskPersonName(p.lastName), 10 * _mm),
+                  _hgCell(fonts, maskPersonName(p.firstName), 10 * _mm),
+                  _hgCell(fonts, p.obedience, 10 * _mm),
+                  _hgCell(fonts, p.lodge, 10 * _mm),
+                  _hgCell(fonts, _formatHgAmount(amount), 10 * _mm),
+                  _hgSignatureCell(
+                    _decodeHgSignature(signatures[p.id]),
+                    10 * _mm,
+                  ),
+                ],
+              ),
+          ],
+        ),
+        pw.SizedBox(height: 6 * _mm),
+        pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            'Total encaissé : ${_formatHgAmount(total)}',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 13),
           ),
         ),
       ],
