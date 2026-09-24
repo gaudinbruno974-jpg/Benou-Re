@@ -112,7 +112,10 @@ class _DetailBodyState extends State<_DetailBody> {
     final canEdit = widget.canEdit;
     final isSuspended = session.isSuspended;
     final degree = _degreeOf(session);
-    final degreeName = kIahMesDegreeNames[degree] ?? '';
+    final isMaaKherou = widget.body.key == kMaaKherou.key;
+    final degreeName = isMaaKherou
+        ? 'Maître'
+        : (kIahMesDegreeNames[degree] ?? '');
 
     final present = _members
         .where((m) => session.presentIds.contains(m.id))
@@ -168,8 +171,10 @@ class _DetailBodyState extends State<_DetailBody> {
                 _infoRow('Type', session.typeLabel),
                 _infoRow(
                   'Degré',
-                  '$degree'
-                      'e degré — $degreeName',
+                  isMaaKherou
+                      ? 'Grade de Maître'
+                      : '$degree'
+                            'e degré — $degreeName',
                 ),
                 _infoRow(
                   'Lieu',
@@ -341,7 +346,7 @@ class _DetailBodyState extends State<_DetailBody> {
             onPressed: () => _openPdf(
               context,
               'Convocation',
-              () => buildIahMesConvocationPdf(session),
+              () => buildIahMesConvocationPdf(widget.body, session),
             ),
           ),
           if (canEdit) ...[
@@ -406,7 +411,9 @@ class _DetailBodyState extends State<_DetailBody> {
       final folderName = 'Tenues ${widget.body.label}';
       final files = <String, Uint8List>{
         'Convocation $chrono ${widget.body.label} $dateStr.pdf':
-            Uint8List.fromList(await buildIahMesConvocationPdf(session)),
+            Uint8List.fromList(
+              await buildIahMesConvocationPdf(widget.body, session),
+            ),
         'Emargement $chrono ${widget.body.label} $dateStr.pdf':
             Uint8List.fromList(
               await buildIahMesEmargementPdf(

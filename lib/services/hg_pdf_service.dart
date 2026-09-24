@@ -1,10 +1,13 @@
-// Génération PDF pour les corps de Hauts Grades (IAH-MES pour l'instant) —
-// fichier séparé de pdf_service.dart (dédié aux 4 loges bleues) : le
-// gabarit visuel d'une convocation de Collège de Perfection reste propre à
-// IAH-MES (logo, en-tête, signataire « Trois Fois Puissant Maître »...),
-// même si le contenu de l'ordre du jour est maintenant, comme pour les
-// loges bleues, entièrement piloté par la tenue elle-même (Session —
-// demande explicite de l'utilisateur, « copie l'intégralité »). Recopie
+// Génération PDF pour les corps de Hauts Grades (IAH-MES, MAA-Kherou) —
+// fichier séparé de pdf_service.dart (dédié aux 4 loges bleues). Gabarit
+// visuel commun (logo, en-tête, signataire « Trois Fois Puissant Maître »),
+// habillé différemment par corps (voir _logoAsset/_institutionHeader/
+// _degreeOrdinalPhrase/_degreeNamePhrase ci-dessous) : IAH-MES suit le
+// ladder 4°-14° du Collège de Perfection, MAA-Kherou travaille uniquement
+// au grade de Maître, sans ladder ni numéro de degré — confirmé par
+// l'utilisateur. Le contenu de l'ordre du jour est, comme pour les loges
+// bleues, entièrement piloté par la tenue elle-même (Session — demande
+// explicite de l'utilisateur, « copie l'intégralité »). Recopie
 // volontairement quelques utilitaires de pdf_service.dart (polices, pied de
 // page) plutôt que de les exposer publiquement depuis ce fichier partagé
 // par les 4 loges bleues.
@@ -81,6 +84,42 @@ int _sessionDegree(Session session) {
   return int.tryParse(raw) ?? 4;
 }
 
+/// Habillage propre à chaque corps : logo, libellé institutionnel et
+/// libellé de degré — IAH-MES suit le ladder 4°-14° du Collège de
+/// Perfection, MAA-Kherou travaille uniquement au grade de Maître, sans
+/// ladder ni numéro de degré (confirmé par l'utilisateur).
+String _logoAsset(HgBody body) => body.key == kMaaKherou.key
+    ? 'assets/MAA-Kherou.jfif'
+    : 'assets/Iah-Mes.jfif';
+
+String _institutionHeader(HgBody body) => body.key == kMaaKherou.key
+    ? 'Atelier ${body.label}'
+    : 'Collège de Perfection ${body.label}';
+
+String _institutionHeaderBlock(HgBody body) => body.key == kMaaKherou.key
+    ? 'ATELIER ${body.label.toUpperCase()}\n'
+          'Vallée de Saint-Pierre — Temple Thérèse Eliseman'
+    : 'COLLÈGE DE PERFECTION ${body.label.toUpperCase()} N°1\n'
+          'Vallée de Saint-Pierre — Temple Thérèse Eliseman';
+
+String _correspondenceEmail(HgBody body) => body.key == kMaaKherou.key
+    ? 'maakherou.sstr@gmail.com'
+    : 'iahmes.sstr@gmail.com';
+
+String _degreeOrdinalPhrase(HgBody body, int degree) =>
+    body.key == kMaaKherou.key ? 'grade de Maître' : '${degree}e degré';
+
+String _degreeNamePhrase(HgBody body, int degree) =>
+    body.key == kMaaKherou.key ? 'Maître' : (kIahMesDegreeNames[degree] ?? '');
+
+String _degreeObjectPhrase(HgBody body, int degree, String degreeName) =>
+    body.key == kMaaKherou.key
+    ? 'au grade de Maître'
+    : 'au ${degree}e degré — $degreeName';
+
+String _membersSectionLabel(HgBody body) =>
+    body.key == kMaaKherou.key ? 'MEMBRES DE L\'ATELIER' : 'MEMBRES DU COLLÈGE';
+
 String _sessionHeure(Session session) {
   final dt = session.dateTime;
   if (dt == null || (dt.hour == 0 && dt.minute == 0)) return '19h30';
@@ -92,14 +131,17 @@ String _sessionHeure(Session session) {
 /// fixe (voir hg_session.dart pour la nomenclature des degrés), contenu de
 /// l'ordre du jour piloté par la tenue (travaux fixes + ordres du jour
 /// complémentaires, à la manière des loges bleues).
-Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
+Future<Uint8List> buildIahMesConvocationPdf(
+  HgBody body,
+  Session session,
+) async {
   final fonts = await _loadFonts();
-  final logoIahMes = await _loadImage('assets/Iah-Mes.jfif');
+  final logoIahMes = await _loadImage(_logoAsset(body));
   final logoSouverainSanctuaire = await _loadImage(
     'assets/Souverain-Sanctuaire.jfif',
   );
   final degree = _sessionDegree(session);
-  final degreeName = kIahMesDegreeNames[degree] ?? '';
+  final degreeName = _degreeNamePhrase(body, degree);
   final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
       ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
       : session.lieuReunionExtra!.trim();
@@ -227,14 +269,13 @@ Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
         ),
         pw.SizedBox(height: 5 * _mm),
         pw.Text(
-          'COLLÈGE DE PERFECTION IAH-MES N°1\n'
-          'Vallée de Saint-Pierre — Temple Thérèse Eliseman',
+          _institutionHeaderBlock(body),
           style: pw.TextStyle(font: fonts.bold, fontSize: 9),
         ),
         pw.SizedBox(height: 1.5 * _mm),
         pw.Text(
           'Correspondance : Trois Fois Puissant Maître $signerName\n'
-          'iahmes.sstr@gmail.com',
+          '${_correspondenceEmail(body)}',
           style: pw.TextStyle(
             font: fonts.base,
             fontSize: 8.5,
@@ -255,8 +296,9 @@ Future<Uint8List> buildIahMesConvocationPdf(Session session) async {
         pw.SizedBox(height: 2 * _mm),
         pw.Text(
           'J\'ai le plaisir de vous faire savoir que vous êtes fraternellement '
-          'convoqués à la prochaine rencontre de notre Collège de Perfection '
-          'IAH-MES, au ${degree}e degré, qui se tiendra :',
+          'convoqués à la prochaine rencontre de notre '
+          '${_institutionHeader(body)}, au ${_degreeOrdinalPhrase(body, degree)}, '
+          'qui se tiendra :',
           style: pw.TextStyle(font: fonts.base, fontSize: 10.5, height: 1.4),
         ),
         pw.SizedBox(height: 4 * _mm),
@@ -427,14 +469,14 @@ Future<Uint8List> buildIahMesEmargementPdf(
 ) async {
   final fonts = _serifFonts();
   final fallback = await _loadFonts();
-  final logo = await _loadImage('assets/Iah-Mes.jfif');
+  final logo = await _loadImage(_logoAsset(body));
   final doc = pw.Document(
     author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
   );
 
   final signatures = session.signatures;
   final degree = _sessionDegree(session);
-  final degreeName = kIahMesDegreeNames[degree] ?? '';
+  final degreeName = _degreeNamePhrase(body, degree);
   final sessionNumber =
       session.chrono?.toInt().toString() ?? session.sessionNumber ?? '';
   final location = (session.lieuReunionExtra ?? '').trim().isEmpty
@@ -493,7 +535,7 @@ Future<Uint8List> buildIahMesEmargementPdf(
         ),
       pw.SizedBox(height: 4 * _mm),
       pw.Text(
-        'Collège de Perfection ${body.label}',
+        _institutionHeader(body),
         style: pw.TextStyle(font: fonts.bold, fontSize: 18, color: _violet),
       ),
       pw.SizedBox(height: 3 * _mm),
@@ -633,14 +675,13 @@ Future<Uint8List> buildIahMesEmargementPdf(
         header(),
         metaLine(
           'Objet : ',
-          'Tenue au $degree'
-              'e degré — $degreeName',
+          'Tenue ${_degreeObjectPhrase(body, degree, degreeName)}',
         ),
         metaLine('Fiche N° : ', sessionNumber),
         metaLine('Date : ', _formatDateLong(session.date)),
         metaLine('Lieu : ', location),
         pw.SizedBox(height: 8 * _mm),
-        sectionTable('MEMBRES DU COLLÈGE'),
+        sectionTable(_membersSectionLabel(body)),
         dataTable(memberSlots, 8 * _mm),
         if (visitorRows.isNotEmpty) ...[
           pw.NewPage(),
@@ -670,7 +711,7 @@ Future<Uint8List> buildIahMesPlancheTraceePdf(
   int chrono,
 ) async {
   final fonts = await _loadFonts();
-  final logo = await _loadImage('assets/Iah-Mes.jfif');
+  final logo = await _loadImage(_logoAsset(body));
   final doc = pw.Document(
     author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
   );
@@ -704,7 +745,7 @@ Future<Uint8List> buildIahMesPlancheTraceePdf(
         pw.SizedBox(height: 4 * _mm),
         pw.Center(
           child: pw.Text(
-            'Collège de Perfection ${body.label}',
+            _institutionHeader(body),
             style: pw.TextStyle(font: fonts.bold, fontSize: 14, color: _navy),
           ),
         ),
@@ -797,7 +838,7 @@ Future<Uint8List> buildIahMesAgapePaymentPdf(
   List<Dignitary> dignitaries,
 ) async {
   final fonts = await _loadFonts();
-  final logo = await _loadImage('assets/Iah-Mes.jfif');
+  final logo = await _loadImage(_logoAsset(body));
   final doc = pw.Document(
     author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
   );
@@ -850,7 +891,7 @@ Future<Uint8List> buildIahMesAgapePaymentPdf(
         pw.SizedBox(height: 4 * _mm),
         pw.Center(
           child: pw.Text(
-            'Collège de Perfection ${body.label}',
+            _institutionHeader(body),
             style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
           ),
         ),

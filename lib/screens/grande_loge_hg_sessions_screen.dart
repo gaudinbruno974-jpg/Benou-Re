@@ -146,8 +146,11 @@ class _SessionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = session;
+    final isMaaKherou = body.key == kMaaKherou.key;
     final degree = _degreeOf(s);
-    final degreeName = kIahMesDegreeNames[degree] ?? '';
+    final degreeName = isMaaKherou
+        ? 'Maître'
+        : (kIahMesDegreeNames[degree] ?? '');
     final points = 4 + s.ordresJourCount + 1;
     final heure = _timeOf(s);
 
@@ -173,8 +176,10 @@ class _SessionCard extends StatelessWidget {
                 s.typeLabel == 'Banquet' ? BrColors.gold : BrColors.teal,
               ),
               _badge(
-                '$degree'
-                'e degré — $degreeName',
+                isMaaKherou
+                    ? 'Grade de Maître'
+                    : '$degree'
+                          'e degré — $degreeName',
                 BrColors.gold,
               ),
               _badge(s.statut, _statusColor(s.statut)),

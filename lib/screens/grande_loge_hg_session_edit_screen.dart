@@ -50,21 +50,29 @@ class _OrdreRow {
 /// _travauxFixes/_ligneCloture (session_edit_screen.dart), avec la
 /// terminologie du Collège de Perfection à la place de celle d'une loge
 /// bleue (pas de « V∴M∴ », pas de « Degré symbolique du R∴A∴P∴M∴M∴ »).
+/// « au 8e degré, au Grade de Maître Parfait » (IAH-MES) ou « au grade de
+/// Maître » (MAA-Kherou, sans ladder ni numéro — confirmé par l'utilisateur).
+String _degreePhraseForBody(HgBody body, int degree) {
+  if (body.key == kMaaKherou.key) return 'au grade de Maître';
+  final degreeName = kIahMesDegreeNames[degree] ?? '';
+  return 'au $degree'
+      'e degré, au Grade de $degreeName';
+}
+
 Map<String, String> _travauxFixes(
+  HgBody body,
   int degree,
   TimeOfDay? heure,
   String signerName,
 ) {
-  final degreeName = kIahMesDegreeNames[degree] ?? '';
   final h = heure != null
       ? '${heure.hour.toString().padLeft(2, '0')}h${heure.minute.toString().padLeft(2, '0')}'
       : 'xxhxx';
   final signer = signerName.isEmpty ? 'Trois Fois Puissant Maître' : signerName;
   return {
     't1':
-        '$h Ouverture des Travaux au $degree'
-        'e degré, au Grade de '
-        '$degreeName, selon les usages et traditions de notre Ordre, par '
+        '$h Ouverture des Travaux ${_degreePhraseForBody(body, degree)}, '
+        'selon les usages et traditions de notre Ordre, par '
         'le Trois Fois Puissant Maître $signer.',
     't2': 'Lecture de l\'Ordre du Jour',
     't3': 'Appel des FF∴ et SS∴ du Collège',
@@ -94,11 +102,19 @@ String _travailCollectifText(String theme) {
       'privilégiés.';
 }
 
-String _ligneCloture(int degree, int ordresCount, String signerName) {
+String _ligneCloture(
+  HgBody body,
+  int degree,
+  int ordresCount,
+  String signerName,
+) {
   final n = 4 + ordresCount + 1;
   final signer = signerName.isEmpty ? 'Trois Fois Puissant Maître' : signerName;
-  return '$n. Fermeture des Travaux au $degree'
-      'e degré par le Trois Fois '
+  final degreePhrase = body.key == kMaaKherou.key
+      ? 'au grade de Maître'
+      : 'au $degree'
+            'e degré';
+  return '$n. Fermeture des Travaux $degreePhrase par le Trois Fois '
       'Puissant Maître $signer.';
 }
 
@@ -204,7 +220,12 @@ class _GrandeLogeHgSessionEditScreenState
     ];
 
     _type = _ensure(s?.typeTenue ?? s?.type, 'Ordinaire');
-    _degree = int.tryParse(s?.degreTravail ?? s?.degree ?? '') ?? 4;
+    // MAA-Kherou travaille uniquement au grade de Maître (3, convention des
+    // loges bleues) — pas de ladder 4°-14°, pas de sélecteur de degré (voir
+    // build() ci-dessous), confirmé par l'utilisateur.
+    _degree = widget.body.key == kMaaKherou.key
+        ? 3
+        : (int.tryParse(s?.degreTravail ?? s?.degree ?? '') ?? 4);
     _date = s?.dateTime;
     _heureReprise = _date != null && (_date!.hour != 0 || _date!.minute != 0)
         ? TimeOfDay(hour: _date!.hour, minute: _date!.minute)
@@ -271,6 +292,7 @@ class _GrandeLogeHgSessionEditScreenState
 
   void _regenerateTravaux() {
     final fixes = _travauxFixes(
+      widget.body,
       _degree,
       _heureReprise,
       _signerCtrl.text.trim(),
@@ -284,6 +306,7 @@ class _GrandeLogeHgSessionEditScreenState
 
   void _regenerateCloture() {
     _cloture.text = _ligneCloture(
+      widget.body,
       _degree,
       _ordresCount,
       _signerCtrl.text.trim(),
@@ -399,7 +422,9 @@ class _GrandeLogeHgSessionEditScreenState
 
   Future<void> _archiveConvocation(Session session, int chrono) async {
     final messenger = ScaffoldMessenger.of(context);
-    final bytes = Uint8List.fromList(await buildIahMesConvocationPdf(session));
+    final bytes = Uint8List.fromList(
+      await buildIahMesConvocationPdf(widget.body, session),
+    );
     final dateStr = DateFormat('dd MM yy').format(DateTime.now());
     try {
       await DriveService.instance.archiveGenericDocument(
@@ -557,15 +582,18 @@ class _GrandeLogeHgSessionEditScreenState
               (v) => setState(() => _type = v),
               enabled: !readOnly,
             ),
-            _dropdownInt(
-              'Degré',
-              _degree,
-              (v) => setState(() {
-                _degree = v;
-                _regenerateTravaux();
-              }),
-              enabled: !readOnly,
-            ),
+            // MAA-Kherou : pas de sélecteur, la tenue se tient toujours au
+            // grade de Maître (_degree fixé à 3 dans initState).
+            if (widget.body.key != kMaaKherou.key)
+              _dropdownInt(
+                'Degré',
+                _degree,
+                (v) => setState(() {
+                  _degree = v;
+                  _regenerateTravaux();
+                }),
+                enabled: !readOnly,
+              ),
             _field(
               _signerCtrl,
               'Trois Fois Puissant Maître',
