@@ -9,10 +9,13 @@ import 'package:provider/provider.dart';
 import '../models/civilite.dart';
 import '../models/hg_body.dart';
 import '../models/member.dart';
+import '../services/directory_xlsx_service.dart';
 import '../services/hg_body_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'grande_loge_hg_directory_import_screen.dart';
+import 'hg_directory_export_actions.dart';
 
 class GrandeLogeHgMembersScreen extends StatelessWidget {
   final HgBody body;
@@ -22,7 +25,30 @@ class GrandeLogeHgMembersScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final canEdit = canEditHgBody(context.watch<AppState>().currentUser, body);
     return Scaffold(
-      appBar: AppBar(title: Text('Membres — ${body.label}')),
+      appBar: AppBar(
+        title: Text('Membres — ${body.label}'),
+        actions: canEdit
+            ? [
+                IconButton(
+                  tooltip: 'Exporter (Membres/Visiteurs/Dignitaires) en .xlsx',
+                  icon: const Icon(Icons.file_upload_outlined),
+                  onPressed: () => exportHgDirectories(context, body),
+                ),
+                IconButton(
+                  tooltip: 'Importer depuis un classeur .xlsx',
+                  icon: const Icon(Icons.file_download_outlined),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => GrandeLogeHgDirectoryImportScreen(
+                        body: body,
+                        category: DirectoryCategory.members,
+                      ),
+                    ),
+                  ),
+                ),
+              ]
+            : null,
+      ),
       floatingActionButton: canEdit
           ? FloatingActionButton.extended(
               backgroundColor: BrColors.teal,
