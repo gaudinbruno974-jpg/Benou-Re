@@ -14,10 +14,16 @@ import '../widgets/br_decor.dart';
 class GrandeLogeHgPlancheScreen extends StatefulWidget {
   final HgBody body;
   final Session session;
+
+  /// Déverrouillage ponctuel d'une tenue suspendue — même mécanique que
+  /// PlancheTraceeEditScreen.forceUnlock (loges bleues).
+  final bool forceUnlock;
+
   const GrandeLogeHgPlancheScreen({
     super.key,
     required this.body,
     required this.session,
+    this.forceUnlock = false,
   });
 
   @override
@@ -61,11 +67,20 @@ class _GrandeLogeHgPlancheScreenState extends State<GrandeLogeHgPlancheScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final allowEdit = !widget.session.isSuspended || widget.forceUnlock;
     return Scaffold(
       appBar: AppBar(title: const Text('Planche tracée')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (!allowEdit)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Tenue suspendue : la planche n\'est plus modifiable.',
+                style: TextStyle(color: BrColors.muted, fontSize: 12),
+              ),
+            ),
           BrCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -77,6 +92,7 @@ class _GrandeLogeHgPlancheScreenState extends State<GrandeLogeHgPlancheScreen> {
                 const SizedBox(height: 14),
                 TextField(
                   controller: _textCtrl,
+                  enabled: allowEdit,
                   minLines: 10,
                   maxLines: 24,
                   style: const TextStyle(color: BrColors.text),
@@ -93,26 +109,30 @@ class _GrandeLogeHgPlancheScreenState extends State<GrandeLogeHgPlancheScreen> {
                     style: TextStyle(color: BrColors.text),
                   ),
                   value: _validated,
-                  onChanged: (v) => setState(() => _validated = v),
+                  onChanged: allowEdit
+                      ? (v) => setState(() => _validated = v)
+                      : null,
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          ElevatedButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: BrColors.text,
-                    ),
-                  )
-                : const Icon(Icons.save_outlined),
-            label: const Text('Enregistrer'),
-          ),
+          if (allowEdit) ...[
+            const SizedBox(height: 20),
+            ElevatedButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: BrColors.text,
+                      ),
+                    )
+                  : const Icon(Icons.save_outlined),
+              label: const Text('Enregistrer'),
+            ),
+          ],
         ],
       ),
     );

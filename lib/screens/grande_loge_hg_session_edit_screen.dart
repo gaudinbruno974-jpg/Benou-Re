@@ -105,10 +105,16 @@ String _ligneCloture(int degree, int ordresCount, String signerName) {
 class GrandeLogeHgSessionEditScreen extends StatefulWidget {
   final HgBody body;
   final Session? session;
+
+  /// Déverrouillage ponctuel (Sérénissime/titulaire) d'une tenue suspendue —
+  /// même mécanique que SessionEditScreen.forceUnlock (loges bleues).
+  final bool forceUnlock;
+
   const GrandeLogeHgSessionEditScreen({
     super.key,
     required this.body,
     this.session,
+    this.forceUnlock = false,
   });
 
   @override
@@ -533,7 +539,7 @@ class _GrandeLogeHgSessionEditScreenState
   @override
   Widget build(BuildContext context) {
     final isNew = widget.session == null;
-    final readOnly = widget.session?.isSuspended == true;
+    final readOnly = widget.session?.isSuspended == true && !widget.forceUnlock;
 
     return Scaffold(
       appBar: AppBar(

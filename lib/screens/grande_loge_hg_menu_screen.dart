@@ -70,11 +70,8 @@ const List<_HgMenuItem> _kMaaKherouMenuItems = [
   _HgMenuItem('Accès Drive', Icons.sync, BrColors.violet),
 ];
 
-/// Une tenue avec un vrai écran n'est câblée que pour IAH-MES pour l'instant
-/// (gabarit de convocation MAA-Kherou pas encore défini, voir l'utilisateur :
-/// « MAA-Kherou on verra après »).
-bool _hasSessionsScreen(String title, HgBody body) =>
-    title == 'Tenues' && body.key == kIahMes.key;
+/// Tenues : même écran (générique par HgBody) pour IAH-MES et MAA-Kherou.
+bool _hasSessionsScreen(String title, HgBody body) => title == 'Tenues';
 
 class GrandeLogeHgMenuScreen extends StatelessWidget {
   final HgBody body;

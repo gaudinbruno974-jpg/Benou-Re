@@ -18,10 +18,16 @@ import '../widgets/br_decor.dart';
 class GrandeLogeHgPresenceScreen extends StatefulWidget {
   final HgBody body;
   final Session session;
+
+  /// Déverrouillage ponctuel d'une tenue suspendue — même mécanique que
+  /// SessionPresenceScreen.forceUnlock (loges bleues).
+  final bool forceUnlock;
+
   const GrandeLogeHgPresenceScreen({
     super.key,
     required this.body,
     required this.session,
+    this.forceUnlock = false,
   });
 
   @override
@@ -158,29 +164,39 @@ class _GrandeLogeHgPresenceScreenState
 
   @override
   Widget build(BuildContext context) {
+    final allowEdit = !widget.session.isSuspended || widget.forceUnlock;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Présence'),
         actions: [
-          IconButton(
-            tooltip: 'Enregistrer',
-            icon: _saving
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: BrColors.gold,
-                    ),
-                  )
-                : const Icon(Icons.check),
-            onPressed: _saving ? null : _save,
-          ),
+          if (allowEdit)
+            IconButton(
+              tooltip: 'Enregistrer',
+              icon: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: BrColors.gold,
+                      ),
+                    )
+                  : const Icon(Icons.check),
+              onPressed: _saving ? null : _save,
+            ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 18, 14, 28),
         children: [
+          if (!allowEdit)
+            const Padding(
+              padding: EdgeInsets.only(bottom: 12),
+              child: Text(
+                'Tenue suspendue : lecture seule.',
+                style: TextStyle(color: BrColors.muted, fontSize: 12),
+              ),
+            ),
           const BrSectionTitle(
             'MEMBRES — PRÉSENTS / EXCUSÉS / AGAPES',
             icon: Icons.people_outline,
@@ -209,9 +225,9 @@ class _GrandeLogeHgPresenceScreenState
                       isPresent: _presentIds.contains(m.id),
                       isExcused: _excusedIds.contains(m.id),
                       isAgape: _agapeIds.contains(m.id),
-                      onPresent: () => _togglePresent(m.id),
-                      onExcused: () => _toggleExcused(m.id),
-                      onAgape: () => _toggleAgape(m.id),
+                      onPresent: allowEdit ? () => _togglePresent(m.id) : null,
+                      onExcused: allowEdit ? () => _toggleExcused(m.id) : null,
+                      onAgape: allowEdit ? () => _toggleAgape(m.id) : null,
                     ),
                 ],
               );
@@ -247,9 +263,11 @@ class _GrandeLogeHgPresenceScreenState
                       isPresent: _visitorIds.contains(v.id),
                       isExcused: false,
                       isAgape: _visitorAgapeIds.contains(v.id),
-                      onPresent: () => _toggleVisitor(v.id),
+                      onPresent: allowEdit ? () => _toggleVisitor(v.id) : null,
                       onExcused: null,
-                      onAgape: () => _toggleVisitorAgape(v.id),
+                      onAgape: allowEdit
+                          ? () => _toggleVisitorAgape(v.id)
+                          : null,
                     ),
                 ],
               );
@@ -285,9 +303,13 @@ class _GrandeLogeHgPresenceScreenState
                       isPresent: _dignitaryIds.contains(d.id),
                       isExcused: false,
                       isAgape: _dignitaryAgapeIds.contains(d.id),
-                      onPresent: () => _toggleDignitary(d.id),
+                      onPresent: allowEdit
+                          ? () => _toggleDignitary(d.id)
+                          : null,
                       onExcused: null,
-                      onAgape: () => _toggleDignitaryAgape(d.id),
+                      onAgape: allowEdit
+                          ? () => _toggleDignitaryAgape(d.id)
+                          : null,
                     ),
                 ],
               );
