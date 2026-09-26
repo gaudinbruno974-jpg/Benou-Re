@@ -14,6 +14,7 @@ import '../services/lodge_reader_service.dart';
 import '../state/app_state.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_lodge_menu_screen.dart';
+import 'grande_loge_lodges_export_actions.dart';
 
 class GrandeLogeLodgesListScreen extends StatefulWidget {
   const GrandeLogeLodgesListScreen({super.key});
@@ -59,7 +60,18 @@ class _GrandeLogeLodgesListScreenState
     final user = context.watch<AppState>().currentUser;
     final denied = user?.role == 'atelier_4_14' && user?.isAdmin != true;
     return Scaffold(
-      appBar: AppBar(title: const Text('Grande Loge de Bourbon')),
+      appBar: AppBar(
+        title: const Text('Grande Loge de Bourbon'),
+        actions: denied
+            ? null
+            : [
+                IconButton(
+                  tooltip: 'Exporter les 4 loges (.xlsx)',
+                  icon: const Icon(Icons.file_upload_outlined),
+                  onPressed: () => exportAllLodgesDirectories(context),
+                ),
+              ],
+      ),
       body: GridView(
         padding: const EdgeInsets.all(20),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(

@@ -64,7 +64,8 @@ String _cell(List<String> row, int i) => i < row.length ? row[i].trim() : '';
 
 /// Nombre sans « ,0 » superflu pour un montant entier (ex. « 100 » plutôt
 /// que « 100.0 »), tel qu'on l'attend dans une colonne de tableur.
-String _formatNum(num v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : '$v';
+String _formatNum(num v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : '$v';
 
 num? _tryParseNum(String v) {
   if (v.trim().isEmpty) return null;
@@ -151,6 +152,81 @@ List<int> buildDirectoryWorkbook({
     kSheetMembers: _memberRows(members),
     kSheetVisitors: _visitorRows(visitors),
     kSheetDignitaries: _dignitaryRows(dignitaries),
+  });
+}
+
+/// Répertoires d'une loge, pour l'export groupé de la Grande Loge.
+class LodgeDirectory {
+  final String lodgeName;
+  final List<Member> members;
+  final List<Visitor> visitors;
+  final List<Dignitary> dignitaries;
+  const LodgeDirectory({
+    required this.lodgeName,
+    required this.members,
+    required this.visitors,
+    required this.dignitaries,
+  });
+}
+
+int _byName(String lastA, String firstA, String lastB, String firstB) {
+  final c = foldLabel(lastA).compareTo(foldLabel(lastB));
+  return c != 0 ? c : foldLabel(firstA).compareTo(foldLabel(firstB));
+}
+
+/// Classeur groupé des répertoires de plusieurs loges (export de la Grande
+/// Loge) : mêmes trois onglets que [buildDirectoryWorkbook], avec une colonne
+/// « Loge bleue » en tête (la loge dont le répertoire contient la fiche),
+/// triés par loge (dans l'ordre fourni) puis par nom. L'onglet Membres ajoute
+/// le degré aux Hauts Grades en dernière colonne. Sens unique : ce classeur
+/// n'est pas prévu pour être réimporté.
+List<int> buildMultiLodgeDirectoryWorkbook(List<LodgeDirectory> lodges) {
+  final members = <List<String>>[
+    ['Loge bleue', ...kMemberHeaders, 'Degré Hauts Grades'],
+  ];
+  final visitors = <List<String>>[
+    ['Loge bleue', ...kVisitorHeaders],
+  ];
+  final dignitaries = <List<String>>[
+    ['Loge bleue', ...kDignitaryHeaders],
+  ];
+  for (final lodge in lodges) {
+    final sortedMembers = [...lodge.members]
+      ..sort(
+        (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
+      );
+    for (final m in sortedMembers) {
+      members.add([
+        lodge.lodgeName,
+        ..._memberRows([m])[1],
+        m.hautsGradesDegree,
+      ]);
+    }
+    final sortedVisitors = [...lodge.visitors]
+      ..sort(
+        (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
+      );
+    for (final v in sortedVisitors) {
+      visitors.add([
+        lodge.lodgeName,
+        ..._visitorRows([v])[1],
+      ]);
+    }
+    final sortedDignitaries = [...lodge.dignitaries]
+      ..sort(
+        (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
+      );
+    for (final d in sortedDignitaries) {
+      dignitaries.add([
+        lodge.lodgeName,
+        ..._dignitaryRows([d])[1],
+      ]);
+    }
+  }
+  return buildXlsx({
+    kSheetMembers: members,
+    kSheetVisitors: visitors,
+    kSheetDignitaries: dignitaries,
   });
 }
 
