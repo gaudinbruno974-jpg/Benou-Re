@@ -7,9 +7,11 @@
 // explicite de l'utilisateur) ; le reste ouvre un écran « à venir » en
 // attendant sa construction.
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../models/hg_body.dart';
+import '../models/hg_session.dart' show kIahMesDegreeNames;
 import '../services/drive_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -153,21 +155,56 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
 }
 
 /// Crée (sans doublon, relançable) IAH-MES / Rituels 4-14 / un dossier par
-/// grade sous la racine SSTR, avec la connexion Google de l'utilisateur.
+/// grade sous la racine SSTR, avec la connexion Google de l'utilisateur, puis
+/// affiche les identifiants Drive des 11 dossiers à recopier dans
+/// kIahMesRituelsFolderIds (hg_session.dart).
 Future<void> _createDriveTree(BuildContext context) async {
   final messenger = ScaffoldMessenger.of(context);
   messenger.showSnackBar(
     const SnackBar(content: Text('Création des dossiers Drive...')),
   );
   try {
-    await DriveService.instance.ensureFolderTree(
+    final ids = await DriveService.instance.ensureFolderTree(
       kIahMesRituelsDrivePath,
       iahMesGradeFolderNames(),
     );
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Arborescence Drive prête (IAH-MES / Rituels 4-14).'),
-        backgroundColor: BrColors.teal,
+    final lines = [
+      for (final e in kIahMesDegreeNames.entries)
+        "${e.key}: '${ids['${e.key}° ${e.value}']}', // ${e.key}° ${e.value}",
+    ].join('\n');
+    if (!context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: const Text(
+          'Arborescence Drive prête',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: SingleChildScrollView(
+          child: SelectableText(
+            'Identifiants des 11 dossiers de grade :\n\n$lines',
+            style: const TextStyle(color: BrColors.muted, fontSize: 12),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: lines));
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text('Identifiants copiés.'),
+                  backgroundColor: BrColors.teal,
+                ),
+              );
+            },
+            child: const Text('Copier'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fermer'),
+          ),
+        ],
       ),
     );
   } catch (e) {

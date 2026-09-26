@@ -20,3 +20,9 @@ const Map<int, String> kIahMesDegreeNames = {
   13: 'Royale Arche',
   14: 'Grand Écossais de la Voûte Sacrée',
 };
+
+/// Identifiants des dossiers Drive des rituels d'IAH-MES, par degré (4-14) —
+/// même principe que LodgeConfig.libraryFolders des loges bleues : la tuile du
+/// grade ouvre directement le dossier. Un degré absent garde « À venir ». À
+/// remplir avec la liste affichée par « Créer l'arborescence Drive ».
+const Map<int, String> kIahMesRituelsFolderIds = {};

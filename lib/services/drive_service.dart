@@ -591,8 +591,9 @@ class DriveService {
   /// Crée au besoin, sans doublon (relançable sans risque), la chaîne de
   /// dossiers [path] sous [LodgeConfig.driveParentFolderId], puis chacun des
   /// [children] directement sous le dernier dossier de la chaîne — utilisé
-  /// pour l'arborescence Rituels des corps de Hauts Grades.
-  Future<void> ensureFolderTree(
+  /// pour l'arborescence Rituels des corps de Hauts Grades. Retourne
+  /// l'identifiant Drive de chaque enfant, par nom.
+  Future<Map<String, String>> ensureFolderTree(
     List<String> path,
     List<String> children,
   ) async {
@@ -611,7 +612,7 @@ class DriveService {
     }
   }
 
-  Future<void> _ensureFolderTree(
+  Future<Map<String, String>> _ensureFolderTree(
     String rootId,
     List<String> path,
     List<String> children,
@@ -621,9 +622,11 @@ class DriveService {
     for (final name in path) {
       parentId = await _findOrCreateFolder(headers, name, parentId);
     }
+    final ids = <String, String>{};
     for (final name in children) {
-      await _findOrCreateFolder(headers, name, parentId);
+      ids[name] = await _findOrCreateFolder(headers, name, parentId);
     }
+    return ids;
   }
 
   /// Archive le PDF d'une Demande (Suggestions / Dysfonctionnements), un
