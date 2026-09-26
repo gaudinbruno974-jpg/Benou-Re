@@ -37,11 +37,25 @@ class GrandeLogeHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Le Responsable de l'Atelier 4°-14° n'a accès qu'à IAH-MES : ni Loges
-    // Bleues, ni MAA-Kherou, ni Souverain Sanctuaire, ni Suggestions —
-    // demande explicite de l'utilisateur. Un administrateur garde tout.
+    // Le Responsable de l'Atelier 4°-14° voit toutes les tuiles mais n'entre
+    // que dans IAH-MES, Suggestions et la liste des Loges Bleues (dont les
+    // 4 loges sont elles-mêmes fermées, voir grande_loge_lodges_list_screen)
+    // — demande explicite de l'utilisateur. Un administrateur garde tout.
     final user = context.watch<AppState>().currentUser;
     final iahMesOnly = user?.role == 'atelier_4_14' && user?.isAdmin != true;
+
+    Widget lockable(Widget tile) =>
+        iahMesOnly ? Opacity(opacity: 0.4, child: tile) : tile;
+    VoidCallback openOrDeny(WidgetBuilder builder, {bool denied = false}) {
+      if (!denied) {
+        return () =>
+            Navigator.of(context).push(MaterialPageRoute(builder: builder));
+      }
+      return () => ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Accès réservé.')));
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('SSTDR'),
@@ -61,17 +75,16 @@ class GrandeLogeHomeScreen extends StatelessWidget {
           crossAxisSpacing: 16,
         ),
         children: [
-          if (!iahMesOnly)
-            BrImageMenuTile(
-              title: 'Loges Bleues',
-              subtitle: 'Consulter les 4 loges',
-              imageAsset: 'assets/GLDB.png',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const GrandeLogeLodgesListScreen(),
-                ),
+          BrImageMenuTile(
+            title: 'Loges Bleues',
+            subtitle: 'Consulter les 4 loges',
+            imageAsset: 'assets/GLDB.png',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const GrandeLogeLodgesListScreen(),
               ),
             ),
+          ),
           BrImageMenuTile(
             title: 'IAH-MES',
             subtitle: 'Atelier 4°-14°',
@@ -82,37 +95,36 @@ class GrandeLogeHomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          if (!iahMesOnly) ...[
+          lockable(
             BrImageMenuTile(
               title: 'MAA-Kherou',
               subtitle: 'Loge de recherche',
               imageAsset: 'assets/MAA-Kherou.jfif',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) =>
-                      const GrandeLogeHgMenuScreen(body: kMaaKherou),
-                ),
+              onTap: openOrDeny(
+                (_) => const GrandeLogeHgMenuScreen(body: kMaaKherou),
+                denied: iahMesOnly,
               ),
             ),
+          ),
+          lockable(
             BrImageMenuTile(
               title: 'Souverain Sanctuaire',
               subtitle: 'Traités, conventions...',
               imageAsset: 'assets/Souverain-Sanctuaire.jfif',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const GrandeLogeSstRepertoireScreen(),
-                ),
+              onTap: openOrDeny(
+                (_) => const GrandeLogeSstRepertoireScreen(),
+                denied: iahMesOnly,
               ),
             ),
-            BrImageMenuTile(
-              title: 'Suggestions',
-              subtitle: 'Dysfonctionnements',
-              imageAsset: 'assets/Sav.png',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SupportRequestScreen()),
-              ),
+          ),
+          BrImageMenuTile(
+            title: 'Suggestions',
+            subtitle: 'Dysfonctionnements',
+            imageAsset: 'assets/Sav.png',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SupportRequestScreen()),
             ),
-          ],
+          ),
         ],
       ),
     );

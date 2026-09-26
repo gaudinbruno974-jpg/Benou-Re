@@ -8,8 +8,10 @@
 // cette loge. MAA-Kherou n'en fait plus partie : c'est une tuile directe
 // de l'accueil, pas une loge bleue.
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../services/lodge_reader_service.dart';
+import '../state/app_state.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_lodge_menu_screen.dart';
 
@@ -52,6 +54,10 @@ class _GrandeLogeLodgesListScreenState
 
   @override
   Widget build(BuildContext context) {
+    // Le Responsable de l'Atelier 4°-14° voit la liste et les effectifs des
+    // 4 loges mais n'entre dans aucune — demande explicite de l'utilisateur.
+    final user = context.watch<AppState>().currentUser;
+    final denied = user?.role == 'atelier_4_14' && user?.isAdmin != true;
     return Scaffold(
       appBar: AppBar(title: const Text('Grande Loge de Bourbon')),
       body: GridView(
@@ -63,14 +69,22 @@ class _GrandeLogeLodgesListScreenState
         ),
         children: [
           for (final target in kLodgeReaderTargets)
-            BrImageMenuTile(
-              title: target.label,
-              subtitle: _subtitle(target),
-              imageAsset: target.logoAsset,
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => GrandeLogeLodgeMenuScreen(target: target),
-                ),
+            Opacity(
+              opacity: denied ? 0.4 : 1,
+              child: BrImageMenuTile(
+                title: target.label,
+                subtitle: _subtitle(target),
+                imageAsset: target.logoAsset,
+                onTap: denied
+                    ? () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Accès réservé.')),
+                      )
+                    : () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              GrandeLogeLodgeMenuScreen(target: target),
+                        ),
+                      ),
               ),
             ),
         ],
