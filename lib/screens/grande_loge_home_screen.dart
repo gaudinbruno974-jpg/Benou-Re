@@ -37,6 +37,11 @@ class GrandeLogeHomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Le Responsable de l'Atelier 4°-14° n'a accès qu'à IAH-MES : ni Loges
+    // Bleues, ni MAA-Kherou, ni Souverain Sanctuaire, ni Suggestions —
+    // demande explicite de l'utilisateur. Un administrateur garde tout.
+    final user = context.watch<AppState>().currentUser;
+    final iahMesOnly = user?.role == 'atelier_4_14' && user?.isAdmin != true;
     return Scaffold(
       appBar: AppBar(
         title: const Text('SSTDR'),
@@ -56,16 +61,17 @@ class GrandeLogeHomeScreen extends StatelessWidget {
           crossAxisSpacing: 16,
         ),
         children: [
-          BrImageMenuTile(
-            title: 'Loges Bleues',
-            subtitle: 'Consulter les 4 loges',
-            imageAsset: 'assets/GLDB.png',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GrandeLogeLodgesListScreen(),
+          if (!iahMesOnly)
+            BrImageMenuTile(
+              title: 'Loges Bleues',
+              subtitle: 'Consulter les 4 loges',
+              imageAsset: 'assets/GLDB.png',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const GrandeLogeLodgesListScreen(),
+                ),
               ),
             ),
-          ),
           BrImageMenuTile(
             title: 'IAH-MES',
             subtitle: 'Atelier 4°-14°',
@@ -76,34 +82,37 @@ class GrandeLogeHomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          BrImageMenuTile(
-            title: 'MAA-Kherou',
-            subtitle: 'Loge de recherche',
-            imageAsset: 'assets/MAA-Kherou.jfif',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GrandeLogeHgMenuScreen(body: kMaaKherou),
+          if (!iahMesOnly) ...[
+            BrImageMenuTile(
+              title: 'MAA-Kherou',
+              subtitle: 'Loge de recherche',
+              imageAsset: 'assets/MAA-Kherou.jfif',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      const GrandeLogeHgMenuScreen(body: kMaaKherou),
+                ),
               ),
             ),
-          ),
-          BrImageMenuTile(
-            title: 'Souverain Sanctuaire',
-            subtitle: 'Traités, conventions...',
-            imageAsset: 'assets/Souverain-Sanctuaire.jfif',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GrandeLogeSstRepertoireScreen(),
+            BrImageMenuTile(
+              title: 'Souverain Sanctuaire',
+              subtitle: 'Traités, conventions...',
+              imageAsset: 'assets/Souverain-Sanctuaire.jfif',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const GrandeLogeSstRepertoireScreen(),
+                ),
               ),
             ),
-          ),
-          BrImageMenuTile(
-            title: 'Suggestions',
-            subtitle: 'Dysfonctionnements',
-            imageAsset: 'assets/Sav.png',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SupportRequestScreen()),
+            BrImageMenuTile(
+              title: 'Suggestions',
+              subtitle: 'Dysfonctionnements',
+              imageAsset: 'assets/Sav.png',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SupportRequestScreen()),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
