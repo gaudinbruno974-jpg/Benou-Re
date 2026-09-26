@@ -35,15 +35,8 @@ const List<_HgMenuItem> _kIahMesMenuItems = [
   _HgMenuItem('Membres', Icons.people_outline, BrColors.gold),
   _HgMenuItem('Visiteurs', Icons.shield_outlined, BrColors.menuVisiteurs),
   _HgMenuItem('Dignitaires', Icons.workspace_premium_outlined, BrColors.violet),
-  _HgMenuItem(
-    "Morceaux d'architecture",
-    Icons.history_edu,
-    BrColors.menuArchitecture,
-  ),
-  _HgMenuItem('Instructions', Icons.school_outlined, BrColors.menuInstruction),
   _HgMenuItem('Rituels', Icons.menu_book_outlined, BrColors.menuRituels),
   _HgMenuItem('Matériel', Icons.inventory_2_outlined, BrColors.menuInventaire),
-  _HgMenuItem('Statistiques', Icons.query_stats_outlined, BrColors.violet),
   _HgMenuItem(
     'Rapport au Souverain Sanctuaire',
     Icons.summarize_outlined,
