@@ -479,7 +479,9 @@ class LodgeConfig {
     backgroundGradient: kGrandeLogeBackgroundGradient,
     cardGradient: kGrandeLogeCardGradient,
     webOrigin: 'https://grande-loge-bourbon.web.app',
-    driveParentFolderId: '',
+    // Dossier « SSTR » : racine des archives Drive des corps de Hauts Grades
+    // (IAH-MES, MAA-Kherou — voir DriveService.archiveGenericDocument).
+    driveParentFolderId: '1Cpotdy1fcWVECFdC5fwAAH4ufSBXLEJg',
     libraryFolders: {},
   );
 

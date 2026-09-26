@@ -588,6 +588,44 @@ class DriveService {
     return currentEmail ?? 'compte Google';
   }
 
+  /// Crée au besoin, sans doublon (relançable sans risque), la chaîne de
+  /// dossiers [path] sous [LodgeConfig.driveParentFolderId], puis chacun des
+  /// [children] directement sous le dernier dossier de la chaîne — utilisé
+  /// pour l'arborescence Rituels des corps de Hauts Grades.
+  Future<void> ensureFolderTree(
+    List<String> path,
+    List<String> children,
+  ) async {
+    final rootId = LodgeConfig.current.driveParentFolderId.trim();
+    if (rootId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive racine configuré (driveParentFolderId).',
+      );
+    }
+    try {
+      return await _ensureFolderTree(rootId, path, children);
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _ensureFolderTree(rootId, path, children);
+    }
+  }
+
+  Future<void> _ensureFolderTree(
+    String rootId,
+    List<String> path,
+    List<String> children,
+  ) async {
+    final headers = await _authHeaders();
+    var parentId = rootId;
+    for (final name in path) {
+      parentId = await _findOrCreateFolder(headers, name, parentId);
+    }
+    for (final name in children) {
+      await _findOrCreateFolder(headers, name, parentId);
+    }
+  }
+
   /// Archive le PDF d'une Demande (Suggestions / Dysfonctionnements), un
   /// fichier par demande, directement dans le dossier configuré — voir
   /// [LodgeConfig.requestsDriveFolderId].

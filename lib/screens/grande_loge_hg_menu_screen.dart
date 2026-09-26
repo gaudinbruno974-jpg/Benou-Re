@@ -7,13 +7,17 @@
 // explicite de l'utilisateur) ; le reste ouvre un écran « à venir » en
 // attendant sa construction.
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../models/hg_body.dart';
+import '../services/drive_service.dart';
+import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
 import 'grande_loge_hg_agape_payment_screen.dart';
 import 'grande_loge_hg_dignitaries_screen.dart';
+import 'grande_loge_hg_grade_menu_screen.dart';
 import 'grande_loge_hg_members_screen.dart';
 import 'grande_loge_hg_sessions_screen.dart';
 import 'grande_loge_hg_visitors_screen.dart';
@@ -96,6 +100,7 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                   'Visiteurs' => 'Répertoire',
                   'Dignitaires' => 'Répertoire',
                   'Paiement des Agapes' => 'Médailles & signatures',
+                  'Rituels' || 'Matériel' => 'Par grade',
                   _ when _hasSessionsScreen(item.title, body) => 'Convocations',
                   _ => 'À venir',
                 },
@@ -115,6 +120,11 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                           return GrandeLogeHgAgapePaymentSessionsScreen(
                             body: body,
                           );
+                        case 'Rituels' || 'Matériel':
+                          return GrandeLogeHgGradeMenuScreen(
+                            body: body,
+                            section: item.title,
+                          );
                       }
                       if (_hasSessionsScreen(item.title, body)) {
                         return GrandeLogeHgSessionsScreen(body: body);
@@ -127,8 +137,40 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                 ),
               ),
             ),
+          if (body.key == kIahMes.key &&
+              canEditHgBody(context.watch<AppState>().currentUser, body))
+            BrMenuTile(
+              title: "Créer l'arborescence Drive",
+              subtitle: 'Dossiers Rituels 4-14',
+              icon: Icons.create_new_folder_outlined,
+              color: BrColors.violet,
+              onTap: () => _createDriveTree(context),
+            ),
         ],
       ),
     );
+  }
+}
+
+/// Crée (sans doublon, relançable) IAH-MES / Rituels 4-14 / un dossier par
+/// grade sous la racine SSTR, avec la connexion Google de l'utilisateur.
+Future<void> _createDriveTree(BuildContext context) async {
+  final messenger = ScaffoldMessenger.of(context);
+  messenger.showSnackBar(
+    const SnackBar(content: Text('Création des dossiers Drive...')),
+  );
+  try {
+    await DriveService.instance.ensureFolderTree(
+      kIahMesRituelsDrivePath,
+      iahMesGradeFolderNames(),
+    );
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Arborescence Drive prête (IAH-MES / Rituels 4-14).'),
+        backgroundColor: BrColors.teal,
+      ),
+    );
+  } catch (e) {
+    messenger.showSnackBar(SnackBar(content: Text('Erreur Drive : $e')));
   }
 }
