@@ -11,6 +11,7 @@ import '../models/hg_body.dart';
 import '../services/directory_xlsx_service.dart';
 import '../services/drive_service.dart';
 import '../services/hg_body_service.dart';
+import '../services/hg_drive_folders.dart';
 import 'directory_export_actions.dart' show saveFileLocally;
 
 /// Exporte les trois répertoires (Membres, Visiteurs, Dignitaires) d'un
@@ -35,9 +36,11 @@ Future<void> exportHgDirectories(BuildContext context, HgBody body) async {
   final driveDate = DateFormat('dd MM yy').format(DateTime.now());
   try {
     await DriveService.instance.archiveGenericDocument(
-      folderName: 'Repertoires ${body.label}',
+      folderPath: hgRepertoiresDrivePath(body),
       fileName: 'Repertoires ${body.label} $driveDate.xlsx',
       bytes: Uint8List.fromList(bytes),
+      contentType:
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
   } catch (_) {
     // Best-effort : l'export local a déjà réussi.

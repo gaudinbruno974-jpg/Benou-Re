@@ -16,8 +16,8 @@ import '../models/hg_session.dart' show kIahMesDegreeNames;
 import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
-import '../services/drive_service.dart';
 import '../services/hg_body_service.dart';
+import '../services/hg_drive_folders.dart';
 import '../services/hg_pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
@@ -440,35 +440,26 @@ class _DetailBodyState extends State<_DetailBody> {
     );
     try {
       final chrono = _chronoOf(session);
-      final dateStr = DateFormat('dd MM yy').format(DateTime.now());
-      final folderName = 'Tenues ${widget.body.label}';
+      final label = widget.body.label;
+      final suffix = hgDriveFileSuffix(session);
       final files = <String, Uint8List>{
-        'Convocation $chrono ${widget.body.label} $dateStr.pdf':
-            Uint8List.fromList(
-              await buildIahMesConvocationPdf(widget.body, session),
-            ),
-        'Emargement $chrono ${widget.body.label} $dateStr.pdf':
-            Uint8List.fromList(
-              await buildIahMesEmargementPdf(
-                widget.body,
-                session,
-                _members,
-                _visitors,
-                _dignitaries,
-              ),
-            ),
-        'Planche Tracee $chrono ${widget.body.label} $dateStr.pdf':
-            Uint8List.fromList(
-              await buildIahMesPlancheTraceePdf(widget.body, session, chrono),
-            ),
+        'Convocation $label Tenue $chrono$suffix.pdf': Uint8List.fromList(
+          await buildIahMesConvocationPdf(widget.body, session),
+        ),
+        'Emargement $label Tenue $chrono$suffix.pdf': Uint8List.fromList(
+          await buildIahMesEmargementPdf(
+            widget.body,
+            session,
+            _members,
+            _visitors,
+            _dignitaries,
+          ),
+        ),
+        'Planche Tracee $label Tenue $chrono$suffix.pdf': Uint8List.fromList(
+          await buildIahMesPlancheTraceePdf(widget.body, session, chrono),
+        ),
       };
-      for (final entry in files.entries) {
-        await DriveService.instance.archiveGenericDocument(
-          folderName: folderName,
-          fileName: entry.key,
-          bytes: entry.value,
-        );
-      }
+      await archiveHgSessionFiles(widget.body, session, files);
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
         const SnackBar(content: Text('Archivé sur Google Drive.')),

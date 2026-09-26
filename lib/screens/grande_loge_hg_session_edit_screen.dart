@@ -20,6 +20,7 @@ import '../models/member.dart';
 import '../models/session.dart';
 import '../services/drive_service.dart';
 import '../services/hg_body_service.dart';
+import '../services/hg_drive_folders.dart';
 import '../services/hg_pdf_service.dart';
 import '../theme.dart';
 import '../utils/name_mask.dart';
@@ -420,29 +421,39 @@ class _GrandeLogeHgSessionEditScreenState
     titleController.dispose();
   }
 
-  Future<void> _archiveConvocation(Session session, int chrono) async {
+  /// Archivage Drive « best effort » à la création (comme les loges bleues,
+  /// SessionEditScreen._createDriveFolder) : crée le dossier de la tenue,
+  /// y dépose la Convocation et mémorise l'identifiant du dossier dans la
+  /// tenue — ne doit jamais bloquer la création.
+  Future<void> _createDriveFolder(Session session, int chrono) async {
     final messenger = ScaffoldMessenger.of(context);
-    final bytes = Uint8List.fromList(
-      await buildIahMesConvocationPdf(widget.body, session),
-    );
-    final dateStr = DateFormat('dd MM yy').format(DateTime.now());
     try {
-      await DriveService.instance.archiveGenericDocument(
-        folderName: 'Tenues ${widget.body.label}',
-        fileName: 'Convocation $chrono ${widget.body.label} $dateStr.pdf',
-        bytes: bytes,
+      await DriveService.instance.ensureDriveAuthorization();
+      final pdf = Uint8List.fromList(
+        await buildIahMesConvocationPdf(widget.body, session),
       );
+      final email = await archiveHgSessionFiles(widget.body, session, {
+        'Convocation ${widget.body.label} Tenue $chrono'
+                '${hgDriveFileSuffix(session)}.pdf':
+            pdf,
+      });
       if (mounted) {
         messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Convocation archivée sur Drive.'),
+          SnackBar(
+            content: Text('Dossier Drive créé par $email'),
             backgroundColor: BrColors.teal,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('Archivage Drive : $e')));
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('Dossier Drive non créé : $e'),
+            backgroundColor: BrColors.error,
+            duration: const Duration(seconds: 6),
+          ),
+        );
       }
     }
   }
@@ -542,7 +553,7 @@ class _GrandeLogeHgSessionEditScreenState
       if (existing == null) {
         await HgBodyService.instance.addSession(widget.body, session);
         if (chrono != null) {
-          await _archiveConvocation(session, chrono);
+          await _createDriveFolder(session, chrono);
         }
       } else {
         await HgBodyService.instance.updateSession(widget.body, session);

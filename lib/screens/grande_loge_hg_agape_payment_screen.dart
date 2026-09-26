@@ -14,8 +14,8 @@ import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
 import '../services/agape_payment_service.dart';
-import '../services/drive_service.dart';
 import '../services/hg_body_service.dart';
+import '../services/hg_drive_folders.dart';
 import '../services/hg_pdf_service.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -304,12 +304,12 @@ class _GrandeLogeHgAgapePaymentScreenState
             (session.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
           ) ??
           0;
-      final dateStr = DateFormat('dd MM yy').format(DateTime.now());
-      await DriveService.instance.archiveGenericDocument(
-        folderName: 'Tenues ${widget.body.label}',
-        fileName: 'Paiement Agapes $chrono ${widget.body.label} $dateStr.pdf',
-        bytes: await _buildPdf(session),
-      );
+      await archiveHgSessionFiles(widget.body, session, {
+        'Paiement Agapes ${widget.body.label} Tenue $chrono'
+            '${hgDriveFileSuffix(session)}.pdf': await _buildPdf(
+          session,
+        ),
+      });
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
         const SnackBar(content: Text('Archivé sur Google Drive.')),

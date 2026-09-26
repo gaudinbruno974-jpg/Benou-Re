@@ -545,47 +545,139 @@ class DriveService {
     return currentEmail ?? 'compte Google';
   }
 
-  /// Archive un document dans un sous-dossier [folderName] créé au besoin
-  /// sous [LodgeConfig.driveParentFolderId] — même mécanique que les tenues
-  /// de loge bleue (voir [_archive]), réutilisée telle quelle pour les corps
-  /// de Hauts Grades gérés depuis la Grande Loge (IAH-MES, MAA-Kherou —
-  /// voir hg_pdf_service.dart), qui n'ont pas leurs propres champs
-  /// dédiés dans [LodgeConfig].
+  /// Archive un document dans la chaîne de dossiers [folderPath], créée au
+  /// besoin sous [LodgeConfig.driveParentFolderId] — même mécanique que les
+  /// tenues de loge bleue (voir [_archive]), réutilisée pour les corps de
+  /// Hauts Grades gérés depuis la Grande Loge (voir hg_pdf_service.dart), qui
+  /// n'ont pas leurs propres champs dédiés dans [LodgeConfig].
   Future<String> archiveGenericDocument({
-    required String folderName,
+    required List<String> folderPath,
     required String fileName,
     required Uint8List bytes,
+    String contentType = 'application/pdf',
   }) async {
-    final parentId = LodgeConfig.current.driveParentFolderId.trim();
-    if (parentId.isEmpty) {
-      throw DriveException(
-        'Aucun dossier Drive racine configuré (driveParentFolderId).',
-      );
-    }
+    final parentId = _requireRootFolderId();
     try {
       return await _archiveGenericDocument(
         parentId,
-        folderName,
+        folderPath,
         fileName,
         bytes,
+        contentType,
       );
     } on DriveException catch (e) {
       if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
       _webToken = null;
-      return _archiveGenericDocument(parentId, folderName, fileName, bytes);
+      return _archiveGenericDocument(
+        parentId,
+        folderPath,
+        fileName,
+        bytes,
+        contentType,
+      );
     }
   }
 
   Future<String> _archiveGenericDocument(
     String parentId,
-    String folderName,
+    List<String> folderPath,
     String fileName,
     Uint8List bytes,
+    String contentType,
   ) async {
     final headers = await _authHeaders();
-    final folderId = await _findOrCreateFolder(headers, folderName, parentId);
-    await _uploadFile(headers, folderId, fileName, bytes);
+    final folderId = await _resolveFolderPath(headers, parentId, folderPath);
+    await _uploadFile(
+      headers,
+      folderId,
+      fileName,
+      bytes,
+      contentType: contentType,
+    );
     return currentEmail ?? 'compte Google';
+  }
+
+  String _requireRootFolderId() {
+    final rootId = LodgeConfig.current.driveParentFolderId.trim();
+    if (rootId.isEmpty) {
+      throw DriveException(
+        'Aucun dossier Drive racine configuré (driveParentFolderId).',
+      );
+    }
+    return rootId;
+  }
+
+  /// Retrouve ou crée, sans doublon, chaque dossier de [path] à la suite,
+  /// sous [rootId] ; renvoie l'identifiant du dernier.
+  Future<String> _resolveFolderPath(
+    Map<String, String> headers,
+    String rootId,
+    List<String> path,
+  ) async {
+    var parentId = rootId;
+    for (final name in path) {
+      parentId = await _findOrCreateFolder(headers, name, parentId);
+    }
+    return parentId;
+  }
+
+  /// Dossier d'une tenue de Hauts Grades, sur le modèle des loges bleues
+  /// ([ensureFolderAndUpload]) : utilise [knownFolderId] s'il est déjà
+  /// mémorisé dans la tenue, sinon retrouve ou crée [folderName] sous la
+  /// chaîne [parentPath] (elle-même sous la racine configurée), puis y dépose
+  /// [files]. Renvoie l'identifiant, l'URL du dossier et l'e-mail Google.
+  Future<({String folderId, String folderUrl, String email})>
+  ensureHgSessionFolderAndUpload({
+    required List<String> parentPath,
+    required String folderName,
+    String? knownFolderId,
+    required Map<String, Uint8List> files,
+  }) async {
+    final rootId = _requireRootFolderId();
+    try {
+      return await _hgSessionFolder(
+        rootId,
+        parentPath,
+        folderName,
+        knownFolderId,
+        files,
+      );
+    } on DriveException catch (e) {
+      if (!kIsWeb || _webToken == null || !e.message.contains('401')) rethrow;
+      _webToken = null;
+      return _hgSessionFolder(
+        rootId,
+        parentPath,
+        folderName,
+        knownFolderId,
+        files,
+      );
+    }
+  }
+
+  Future<({String folderId, String folderUrl, String email})> _hgSessionFolder(
+    String rootId,
+    List<String> parentPath,
+    String folderName,
+    String? knownFolderId,
+    Map<String, Uint8List> files,
+  ) async {
+    final headers = await _authHeaders();
+    final known = knownFolderId?.trim() ?? '';
+    final folderId = known.isNotEmpty
+        ? known
+        : await _resolveFolderPath(headers, rootId, [
+            ...parentPath,
+            folderName,
+          ]);
+    for (final entry in files.entries) {
+      await _uploadFile(headers, folderId, entry.key, entry.value);
+    }
+    return (
+      folderId: folderId,
+      folderUrl: 'https://drive.google.com/drive/folders/$folderId',
+      email: currentEmail ?? 'compte Google',
+    );
   }
 
   /// Crée au besoin, sans doublon (relançable sans risque), la chaîne de
