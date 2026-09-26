@@ -138,8 +138,13 @@ Future<Uint8List> buildIahMesConvocationPdf(
 ) async {
   final fonts = await _loadFonts();
   final logoIahMes = await _loadImage(_logoAsset(body));
+  // Logo de droite : aigle bicéphale du Souverain Sanctuaire pour IAH-MES
+  // (demande de l'utilisateur), logo Souverain Sanctuaire d'origine pour
+  // MAA-Kherou, inchangé.
   final logoSouverainSanctuaire = await _loadImage(
-    'assets/Souverain-Sanctuaire.jfif',
+    body.key == kIahMes.key
+        ? 'assets/Logo-SSTR-IAH-MES.png'
+        : 'assets/Souverain-Sanctuaire.jfif',
   );
   final degree = _sessionDegree(session);
   final degreeName = hgDegreeNamePhrase(body, degree);
