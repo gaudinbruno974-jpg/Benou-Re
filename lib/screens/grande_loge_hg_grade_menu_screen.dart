@@ -3,7 +3,7 @@
 // la tuile d'un grade ouvre son dossier Drive quand son identifiant est
 // renseigné (kIahMesRituelsFolderIds, même principe que les loges bleues —
 // library_screen.dart), sinon l'écran « à venir ». Matériel : « à venir ».
-// L'arborescence Drive se crée depuis le menu IAH-MES (voir
+// Les dossiers Drive d'IAH-MES se créent depuis le menu IAH-MES (voir
 // grande_loge_hg_menu_screen.dart et DriveService.ensureFolderTree).
 import 'package:flutter/material.dart';
 
@@ -14,14 +14,6 @@ import '../services/url_opener.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
-
-/// Chemin Drive (sous la racine SSTR) du dossier des rituels d'IAH-MES.
-const List<String> kIahMesRituelsDrivePath = ['IAH-MES', 'Rituels 4-14'];
-
-/// Noms des 11 sous-dossiers de grade (« 4° Maître Secret »...).
-List<String> iahMesGradeFolderNames() => [
-  for (final e in kIahMesDegreeNames.entries) '${e.key}° ${e.value}',
-];
 
 class GrandeLogeHgGradeMenuScreen extends StatelessWidget {
   final HgBody body;
