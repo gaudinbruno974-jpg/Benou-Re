@@ -13,6 +13,7 @@ import 'package:provider/provider.dart';
 import '../services/lodge_reader_service.dart';
 import '../state/app_state.dart';
 import '../widgets/br_decor.dart';
+import 'grande_loge_directory_sync_actions.dart';
 import 'grande_loge_lodge_menu_screen.dart';
 import 'grande_loge_lodges_export_actions.dart';
 
@@ -65,6 +66,13 @@ class _GrandeLogeLodgesListScreenState
         actions: denied
             ? null
             : [
+                IconButton(
+                  tooltip:
+                      'MAJ des Membres (Visiteurs/Dignitaires manquants, '
+                      'téléphones et noms à corriger)',
+                  icon: const Icon(Icons.sync),
+                  onPressed: () => runDirectorySync(context),
+                ),
                 IconButton(
                   tooltip: 'Exporter les 4 loges (.xlsx)',
                   icon: const Icon(Icons.file_upload_outlined),

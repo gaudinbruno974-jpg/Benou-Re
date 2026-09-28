@@ -80,17 +80,38 @@ service cloud.firestore {
         .affectedKeys().hasAny(['hautsGradesDegree']);
     }
 
+    // Compte technique de lecture croisée Grande Loge (voir
+    // lodge_reader_service.dart, un compte « lecture-grandeloge@... » par
+    // loge bleue, mot de passe partagé embarqué dans l'appli) — droit
+    // d'écriture volontairement étroit malgré son nom, confirmé
+    // explicitement par l'utilisateur : uniquement Visiteurs/Dignitaires
+    // (ajout des fiches manquantes, correction téléphone/nom des fiches
+    // existantes) et, sur Membres, uniquement la correction de
+    // téléphone/prénom/nom d'une fiche déjà existante — jamais de création,
+    // suppression, ni aucun autre champ (cotisations, rôle, statut
+    // administrateur...), même en cas de fuite de ce mot de passe partagé.
+    function isGrandeLogeSync() {
+      return hasMemberDoc() && myRole() == 'lecture_grandeloge';
+    }
+
+    function touchesOnly(fields) {
+      return request.resource.data.diff(resource.data)
+        .affectedKeys().hasOnly(fields);
+    }
+
     // Membres : lisibles par tous les membres connectés ; chacun peut mettre à
     // jour sa propre fiche, la création / suppression est réservée au bureau.
     match /members/{memberId} {
       allow read: if signedIn();
-      allow update: if (canEditSessions() || canEditTreasury()
+      allow update: if ((canEditSessions() || canEditTreasury()
         || request.auth.uid == memberId
         // Fiches dont l'identifiant n'est pas l'UID Auth : le rattachement
         // est porté par le champ authUid.
         || (signedIn()
-            && request.auth.uid == resource.data.get('authUid', '')))
-        && (!touchesHautsGrades() || isAdmin());
+            && request.auth.uid == resource.data.get('authUid', ''))
+        || (isGrandeLogeSync()
+            && touchesOnly(['phone', 'firstName', 'lastName'])))
+        && (!touchesHautsGrades() || isAdmin()));
       allow create, delete: if canEditSessions();
     }
 
@@ -112,7 +133,10 @@ service cloud.firestore {
 
     match /visitors/{visitorId} {
       allow read: if signedIn();
-      allow write: if canEditSessions();
+      allow create: if canEditSessions() || isGrandeLogeSync();
+      allow update: if canEditSessions()
+        || (isGrandeLogeSync() && touchesOnly(['phone', 'firstName', 'lastName']));
+      allow delete: if canEditSessions();
     }
 
     // Dignitaires : mêmes droits que les visiteurs. La vue d'annonce du
@@ -121,7 +145,10 @@ service cloud.firestore {
     // `signedIn()` — pas de règle Firestore distincte à ajouter pour ça.
     match /dignitaries/{dignitaryId} {
       allow read: if signedIn();
-      allow write: if canEditSessions();
+      allow create: if canEditSessions() || isGrandeLogeSync();
+      allow update: if canEditSessions()
+        || (isGrandeLogeSync() && touchesOnly(['phone', 'firstName', 'lastName']));
+      allow delete: if canEditSessions();
     }
 
     // Registre des Tenues extérieures reçues (Bureau) : mêmes droits que les

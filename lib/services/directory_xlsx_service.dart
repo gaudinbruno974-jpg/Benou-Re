@@ -174,30 +174,64 @@ int _byName(String lastA, String firstA, String lastB, String firstB) {
   return c != 0 ? c : foldLabel(firstA).compareTo(foldLabel(firstB));
 }
 
-// ─── Détection d'incohérences (export groupé Grande Loge) ─────────────
-// Relève, sans rien corriger, ce qui ne suit pas les conventions attendues
-// (voir la correction faite à la main en base le 2026-09-28) : téléphone au
-// format « +262 XXX XX XX XX », nom de famille en MAJUSCULES, prénom en
-// casse normale, doublon d'une même personne dans le répertoire d'une même
-// loge. La correction reste manuelle (dans l'appli, loge par loge) : cet
-// export ne modifie jamais les bases.
+// ─── Normalisation / détection d'incohérences (export + sync Grande Loge) ──
+// Conventions attendues sur les répertoires des 4 loges bleues (voir la
+// correction faite à la main en base le 2026-09-28) : téléphone au format
+// « +262 XXX XX XX XX », nom de famille en MAJUSCULES, prénom en casse
+// normale. [normalizePhoneNumber]/[normalizeTitleCase] calculent la valeur
+// corrigée (utilisées par grande_loge_directory_sync.dart pour écrire la
+// correction) ; les fonctions `_is...Ok` ci-dessous ne font que comparer à
+// cette même valeur, pour que détection et correction ne divergent jamais.
+// L'export lui-même ne modifie jamais les bases, il ne fait que lister.
 
-final RegExp _phonePattern = RegExp(r'^\+262 \d{3} \d{2} \d{2} \d{2}$');
+final RegExp _nonDigits = RegExp(r'\D');
 
-bool _isValidPhone(String phone) =>
-    phone.trim().isEmpty || _phonePattern.hasMatch(phone.trim());
+/// Normalise un numéro au format « +262 XXX XX XX XX » quand c'est possible
+/// (9 chiffres après retrait de l'indicatif éventuel et d'un 0 initial
+/// éventuel) ; renvoie [raw] inchangé sinon (format inattendu, à vérifier à
+/// la main plutôt que de deviner).
+String normalizePhoneNumber(String raw) {
+  final trimmed = raw.trim();
+  if (trimmed.isEmpty) return raw;
+  var digits = trimmed.replaceAll(_nonDigits, '');
+  if (digits.startsWith('262')) digits = digits.substring(3);
+  if (digits.startsWith('0')) digits = digits.substring(1);
+  if (digits.length != 9) return raw;
+  return '+262 ${digits.substring(0, 3)} ${digits.substring(3, 5)} '
+      '${digits.substring(5, 7)} ${digits.substring(7, 9)}';
+}
+
+/// Met en casse normale (chaque mot commence par une majuscule) en
+/// préservant espaces et traits d'union (« jean luc » -> « Jean Luc »,
+/// « marie-claude » -> « Marie-Claude »).
+String normalizeTitleCase(String raw) {
+  final t = raw.trim();
+  if (t.isEmpty) return raw;
+  final buffer = StringBuffer();
+  var atWordStart = true;
+  for (final rune in t.runes) {
+    final ch = String.fromCharCode(rune);
+    if (ch == ' ' || ch == '-') {
+      buffer.write(ch);
+      atWordStart = true;
+    } else {
+      buffer.write(atWordStart ? ch.toUpperCase() : ch.toLowerCase());
+      atWordStart = false;
+    }
+  }
+  return buffer.toString();
+}
+
+bool _isValidPhone(String phone) {
+  final t = phone.trim();
+  return t.isEmpty || t == normalizePhoneNumber(t);
+}
 
 bool _isUpperCaseOk(String s) => s.trim().isEmpty || s == s.toUpperCase();
 
 bool _isTitleCaseOk(String s) {
   final t = s.trim();
-  if (t.isEmpty) return true;
-  for (final w in t.split(RegExp(r'[ -]'))) {
-    if (w.isEmpty) continue;
-    final expected = w[0].toUpperCase() + w.substring(1).toLowerCase();
-    if (w != expected) return false;
-  }
-  return true;
+  return t.isEmpty || t == normalizeTitleCase(t);
 }
 
 const List<String> kInconsistencyHeaders = [

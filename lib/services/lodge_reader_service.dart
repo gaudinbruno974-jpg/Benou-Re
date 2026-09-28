@@ -218,6 +218,75 @@ class LodgeReaderService {
     return dignitaries;
   }
 
+  // ─── Écriture (« MAJ des Membres ») ─────────────────────────────────────
+  // Le compte technique lecture-grandeloge gagne, côté règles Firestore
+  // (voir firestore.rules, isGrandeLogeSync), un droit d'écriture
+  // volontairement étroit : création de Visiteurs/Dignitaires (fiches
+  // manquantes) et correction de téléphone/prénom/nom sur des fiches
+  // Membres/Visiteurs/Dignitaires déjà existantes — jamais de création ni
+  // suppression de Membres, jamais aucun autre champ. Voir
+  // grande_loge_directory_sync.dart pour le calcul de ce qu'il faut écrire.
+
+  Future<void> createVisitor(LodgeReaderTarget target, Visitor v) async {
+    final db = await _firestoreFor(target);
+    await db.collection('visitors').add(v.toMap()..remove('id'));
+  }
+
+  Future<void> createDignitary(LodgeReaderTarget target, Dignitary d) async {
+    final db = await _firestoreFor(target);
+    await db.collection('dignitaries').add(d.toMap()..remove('id'));
+  }
+
+  Future<void> updateMemberContact(
+    LodgeReaderTarget target,
+    String memberId, {
+    String? phone,
+    String? firstName,
+    String? lastName,
+  }) => _updateContact(target, 'members', memberId, phone, firstName, lastName);
+
+  Future<void> updateVisitorContact(
+    LodgeReaderTarget target,
+    String visitorId, {
+    String? phone,
+    String? firstName,
+    String? lastName,
+  }) =>
+      _updateContact(target, 'visitors', visitorId, phone, firstName, lastName);
+
+  Future<void> updateDignitaryContact(
+    LodgeReaderTarget target,
+    String dignitaryId, {
+    String? phone,
+    String? firstName,
+    String? lastName,
+  }) => _updateContact(
+    target,
+    'dignitaries',
+    dignitaryId,
+    phone,
+    firstName,
+    lastName,
+  );
+
+  Future<void> _updateContact(
+    LodgeReaderTarget target,
+    String collection,
+    String docId,
+    String? phone,
+    String? firstName,
+    String? lastName,
+  ) async {
+    final data = <String, dynamic>{
+      'phone': ?phone,
+      'firstName': ?firstName,
+      'lastName': ?lastName,
+    };
+    if (data.isEmpty) return;
+    final db = await _firestoreFor(target);
+    await db.collection(collection).doc(docId).update(data);
+  }
+
   /// Historique des membres (élévations, changements de statut) de [target] —
   /// nécessaire au rapport d'activité (voir buildActivityReportPdf), sans
   /// écran de consultation dédié.
