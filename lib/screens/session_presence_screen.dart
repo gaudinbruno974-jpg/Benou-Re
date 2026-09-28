@@ -230,9 +230,9 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur enregistrement : $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur enregistrement : $e')));
       }
     }
   }
@@ -250,13 +250,19 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     final allowEdit = canEdit && (!isSuspended || widget.forceUnlock);
 
     // Un membre ne peut assister qu'aux travaux de son grade ou en dessous.
-    // Les membres déjà pointés restent affichés pour ne rien masquer.
+    // Les membres déjà pointés restent affichés pour ne rien masquer. Les
+    // comptes techniques (lecture-grandeloge, support technique — voir
+    // kHiddenTechnicalRoles) n'apparaissent jamais ici, comme sur les
+    // écrans Membres et Rapport d'activité.
     final sessionRank = Session.degreeRank(session.degreeLabel);
     final eligibleMembers = state.members
-        .where((m) =>
-            Session.degreeRank(m.grade) >= sessionRank ||
-            _presentIds.contains(m.id) ||
-            _excusedIds.contains(m.id))
+        .where(
+          (m) =>
+              !kHiddenTechnicalRoles.contains(m.role) &&
+              (Session.degreeRank(m.grade) >= sessionRank ||
+                  _presentIds.contains(m.id) ||
+                  _excusedIds.contains(m.id)),
+        )
         .toList();
 
     return Scaffold(
@@ -312,8 +318,10 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
           if (eligibleMembers.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
-              child: Text('Aucun membre.',
-                  style: TextStyle(color: BrColors.muted)),
+              child: Text(
+                'Aucun membre.',
+                style: TextStyle(color: BrColors.muted),
+              ),
             ),
           for (final m in eligibleMembers)
             _MemberTile(
@@ -331,8 +339,10 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
           if (state.visitors.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
-              child: Text('Aucun visiteur.',
-                  style: TextStyle(color: BrColors.muted)),
+              child: Text(
+                'Aucun visiteur.',
+                style: TextStyle(color: BrColors.muted),
+              ),
             )
           else ...[
             DirectoryFilterBar(
@@ -348,8 +358,10 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
           if (state.dignitaries.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
-              child: Text('Aucun dignitaire.',
-                  style: TextStyle(color: BrColors.muted)),
+              child: Text(
+                'Aucun dignitaire.',
+                style: TextStyle(color: BrColors.muted),
+              ),
             )
           else ...[
             DirectoryFilterBar(
@@ -382,7 +394,10 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       return const [
         Padding(
           padding: EdgeInsets.all(12),
-          child: Text('Aucun résultat.', style: TextStyle(color: BrColors.muted)),
+          child: Text(
+            'Aucun résultat.',
+            style: TextStyle(color: BrColors.muted),
+          ),
         ),
       ];
     }
@@ -434,7 +449,10 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       return const [
         Padding(
           padding: EdgeInsets.all(12),
-          child: Text('Aucun résultat.', style: TextStyle(color: BrColors.muted)),
+          child: Text(
+            'Aucun résultat.',
+            style: TextStyle(color: BrColors.muted),
+          ),
         ),
       ];
     }
@@ -515,8 +533,8 @@ class _MemberTile extends StatelessWidget {
         accent: isPresent
             ? const Color(0xFF34D399)
             : isExcused
-                ? BrColors.gold
-                : BrColors.muted,
+            ? BrColors.gold
+            : BrColors.muted,
         padding: const EdgeInsets.all(14),
         child: Column(
           children: [
@@ -524,8 +542,9 @@ class _MemberTile extends StatelessWidget {
               children: [
                 BrAvatar(
                   firstName: name.split(' ').first,
-                  lastName:
-                      name.split(' ').length > 1 ? name.split(' ').last : '',
+                  lastName: name.split(' ').length > 1
+                      ? name.split(' ').last
+                      : '',
                   size: 40,
                 ),
                 const SizedBox(width: 12),
@@ -533,14 +552,21 @@ class _MemberTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text(role,
-                          style: const TextStyle(
-                              color: BrColors.muted, fontSize: 12)),
+                      Text(
+                        role,
+                        style: const TextStyle(
+                          color: BrColors.muted,
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -615,8 +641,9 @@ class _VisitorTile extends StatelessWidget {
               children: [
                 BrAvatar(
                   firstName: name.split(' ').first,
-                  lastName:
-                      name.split(' ').length > 1 ? name.split(' ').last : '',
+                  lastName: name.split(' ').length > 1
+                      ? name.split(' ').last
+                      : '',
                   size: 40,
                   color: const Color(0xFF34D399),
                 ),
@@ -625,15 +652,22 @@ class _VisitorTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold)),
+                      Text(
+                        name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       if (subtitle.isNotEmpty) ...[
                         const SizedBox(height: 4),
-                        Text(subtitle,
-                            style: const TextStyle(
-                                color: BrColors.muted, fontSize: 12)),
+                        Text(
+                          subtitle,
+                          style: const TextStyle(
+                            color: BrColors.muted,
+                            fontSize: 12,
+                          ),
+                        ),
                       ],
                     ],
                   ),
