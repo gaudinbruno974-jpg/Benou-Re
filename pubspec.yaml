@@ -79,6 +79,15 @@ flutter:
     - assets/Souverain-Sanctuaire.jfif
     - assets/Logo-SSTR-IAH-MES.png
     - assets/Sav.png
+    - assets/pdf/GLDB.jpg
+    - assets/pdf/Benou-Re.jpg
+    - assets/pdf/Petit-Prince.jpg
+    - assets/pdf/Temple-Horus.jpg
+    - assets/pdf/Al-Khemia.jpg
+    - assets/pdf/Iah-Mes.jpg
+    - assets/pdf/MAA-Kherou.jpg
+    - assets/pdf/Souverain-Sanctuaire.jpg
+    - assets/pdf/Logo-SSTR-IAH-MES.jpg
     - assets/icon/LogoApkBenou.png
     - assets/icon/LogoApkAlKhemia.png
     - assets/icon/LogoApkTempleHorus.png

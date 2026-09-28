@@ -90,8 +90,8 @@ int _sessionDegree(Session session) {
 /// Perfection, MAA-Kherou travaille uniquement au grade de Maître, sans
 /// ladder ni numéro de degré (confirmé par l'utilisateur).
 String _logoAsset(HgBody body) => body.key == kMaaKherou.key
-    ? 'assets/MAA-Kherou.jfif'
-    : 'assets/Iah-Mes.jfif';
+    ? 'assets/pdf/MAA-Kherou.jpg'
+    : 'assets/pdf/Iah-Mes.jpg';
 
 String hgInstitutionHeader(HgBody body) => body.key == kMaaKherou.key
     ? 'Atelier ${body.label}'
@@ -143,8 +143,8 @@ Future<Uint8List> buildIahMesConvocationPdf(
   // MAA-Kherou, inchangé.
   final logoSouverainSanctuaire = await _loadImage(
     body.key == kIahMes.key
-        ? 'assets/Logo-SSTR-IAH-MES.png'
-        : 'assets/Souverain-Sanctuaire.jfif',
+        ? 'assets/pdf/Logo-SSTR-IAH-MES.jpg'
+        : 'assets/pdf/Souverain-Sanctuaire.jpg',
   );
   final degree = _sessionDegree(session);
   final degreeName = hgDegreeNamePhrase(body, degree);
