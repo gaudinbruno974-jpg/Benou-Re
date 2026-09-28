@@ -5,6 +5,10 @@
 // Membres/Visiteurs/Dignitaires a besoin : plusieurs feuilles, des cellules
 // texte, une ligne d'en-tête — pas de mise en forme, pas de formules.
 //
+// Chaque feuille reçoit systématiquement un filtre automatique (ligne
+// d'en-tête) et une largeur de colonne ajustée au contenu — comportement par
+// défaut de `buildXlsx`, sans paramètre à passer par les appelants.
+//
 // L'écriture n'utilise que des gabarits de chaînes (le contenu variable est
 // échappé à la main) ; la lecture s'appuie sur `package:xml`, une dépendance
 // stable déjà tirée par `pdf`.
@@ -65,7 +69,9 @@ Map<String, List<List<String>>> readXlsx(
   if (workbookXml == null || relsXml == null) return result;
 
   final ridToTarget = <String, String>{};
-  for (final rel in XmlDocument.parse(relsXml).findAllElements('Relationship')) {
+  for (final rel in XmlDocument.parse(
+    relsXml,
+  ).findAllElements('Relationship')) {
     final id = rel.getAttribute('Id');
     final target = rel.getAttribute('Target');
     if (id != null && target != null) ridToTarget[id] = target;
@@ -73,7 +79,9 @@ Map<String, List<List<String>>> readXlsx(
 
   final sharedStrings = _readSharedStrings(contentOf('xl/sharedStrings.xml'));
 
-  for (final sheetEl in XmlDocument.parse(workbookXml).findAllElements('sheet')) {
+  for (final sheetEl in XmlDocument.parse(
+    workbookXml,
+  ).findAllElements('sheet')) {
     final name = (sheetEl.getAttribute('name') ?? '').trim();
     final matched = sheetNames.firstWhere(
       (n) => n.toLowerCase() == name.toLowerCase(),
@@ -146,13 +154,39 @@ int _colIndexFromRef(String ref) {
   return col - 1;
 }
 
+/// Largeur (en unités de colonne Excel, ~ nombre de caractères) ajustée au
+/// plus long contenu de chaque colonne — même formule que les exports
+/// produits hors appli pour la Grande Loge (largeur automatique), plafonnée
+/// pour éviter une colonne démesurée sur un champ inhabituellement long.
+List<double> _columnWidths(List<List<String>> rows) {
+  final colCount = rows.fold<int>(0, (m, r) => r.length > m ? r.length : m);
+  final widths = List<double>.filled(colCount, 10);
+  for (final row in rows) {
+    for (var c = 0; c < row.length; c++) {
+      final w = (row[c].length + 2).toDouble();
+      if (w > widths[c]) widths[c] = w;
+    }
+  }
+  return [for (final w in widths) w > 45 ? 45 : (w < 10 ? 10 : w)];
+}
+
 String _sheetXml(List<List<String>> rows) {
+  final widths = _columnWidths(rows);
   final buffer = StringBuffer()
     ..write('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>')
     ..write(
-      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-      '<sheetData>',
+      '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">',
     );
+  if (widths.isNotEmpty) {
+    buffer.write('<cols>');
+    for (var c = 0; c < widths.length; c++) {
+      buffer.write(
+        '<col min="${c + 1}" max="${c + 1}" width="${widths[c]}" customWidth="1"/>',
+      );
+    }
+    buffer.write('</cols>');
+  }
+  buffer.write('<sheetData>');
   for (var r = 0; r < rows.length; r++) {
     buffer.write('<row r="${r + 1}">');
     final row = rows[r];
@@ -165,7 +199,12 @@ String _sheetXml(List<List<String>> rows) {
     }
     buffer.write('</row>');
   }
-  buffer.write('</sheetData></worksheet>');
+  buffer.write('</sheetData>');
+  if (rows.isNotEmpty && widths.isNotEmpty) {
+    final ref = 'A1:${_colLetter(widths.length - 1)}${rows.length}';
+    buffer.write('<autoFilter ref="$ref"/>');
+  }
+  buffer.write('</worksheet>');
   return buffer.toString();
 }
 

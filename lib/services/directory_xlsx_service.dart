@@ -174,12 +174,146 @@ int _byName(String lastA, String firstA, String lastB, String firstB) {
   return c != 0 ? c : foldLabel(firstA).compareTo(foldLabel(firstB));
 }
 
+// ─── Détection d'incohérences (export groupé Grande Loge) ─────────────
+// Relève, sans rien corriger, ce qui ne suit pas les conventions attendues
+// (voir la correction faite à la main en base le 2026-09-28) : téléphone au
+// format « +262 XXX XX XX XX », nom de famille en MAJUSCULES, prénom en
+// casse normale, doublon d'une même personne dans le répertoire d'une même
+// loge. La correction reste manuelle (dans l'appli, loge par loge) : cet
+// export ne modifie jamais les bases.
+
+final RegExp _phonePattern = RegExp(r'^\+262 \d{3} \d{2} \d{2} \d{2}$');
+
+bool _isValidPhone(String phone) =>
+    phone.trim().isEmpty || _phonePattern.hasMatch(phone.trim());
+
+bool _isUpperCaseOk(String s) => s.trim().isEmpty || s == s.toUpperCase();
+
+bool _isTitleCaseOk(String s) {
+  final t = s.trim();
+  if (t.isEmpty) return true;
+  for (final w in t.split(RegExp(r'[ -]'))) {
+    if (w.isEmpty) continue;
+    final expected = w[0].toUpperCase() + w.substring(1).toLowerCase();
+    if (w != expected) return false;
+  }
+  return true;
+}
+
+const List<String> kInconsistencyHeaders = [
+  'Loge',
+  'Répertoire',
+  'Prénom',
+  'Nom',
+  'Problème',
+  'Valeur actuelle',
+];
+
+List<List<String>> _inconsistencyRows(List<LodgeDirectory> lodges) {
+  final rows = <List<String>>[];
+
+  void check(
+    String lodgeName,
+    String category,
+    String firstName,
+    String lastName,
+    String phone,
+  ) {
+    if (!_isValidPhone(phone)) {
+      rows.add([
+        lodgeName,
+        category,
+        firstName,
+        lastName,
+        'Téléphone pas au format +262 XXX XX XX XX',
+        phone,
+      ]);
+    }
+    if (!_isUpperCaseOk(lastName)) {
+      rows.add([
+        lodgeName,
+        category,
+        firstName,
+        lastName,
+        'Nom pas en MAJUSCULES',
+        lastName,
+      ]);
+    }
+    if (!_isTitleCaseOk(firstName)) {
+      rows.add([
+        lodgeName,
+        category,
+        firstName,
+        lastName,
+        'Prénom pas en casse normale',
+        firstName,
+      ]);
+    }
+  }
+
+  void checkDuplicates(
+    String lodgeName,
+    String category,
+    List<(String, String)> names,
+  ) {
+    final counts = <String, int>{};
+    for (final (first, last) in names) {
+      final key = foldLabel('$first $last');
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    final flagged = <String>{};
+    for (final (first, last) in names) {
+      final key = foldLabel('$first $last');
+      if ((counts[key] ?? 0) > 1 && flagged.add(key)) {
+        rows.add([
+          lodgeName,
+          category,
+          first,
+          last,
+          'Doublon probable (${counts[key]} fiches) dans ce répertoire',
+          '',
+        ]);
+      }
+    }
+  }
+
+  for (final lodge in lodges) {
+    for (final m in lodge.members) {
+      check(lodge.lodgeName, kSheetMembers, m.firstName, m.lastName, m.phone);
+    }
+    checkDuplicates(lodge.lodgeName, kSheetMembers, [
+      for (final m in lodge.members) (m.firstName, m.lastName),
+    ]);
+    for (final v in lodge.visitors) {
+      check(lodge.lodgeName, kSheetVisitors, v.firstName, v.lastName, v.phone);
+    }
+    checkDuplicates(lodge.lodgeName, kSheetVisitors, [
+      for (final v in lodge.visitors) (v.firstName, v.lastName),
+    ]);
+    for (final d in lodge.dignitaries) {
+      check(
+        lodge.lodgeName,
+        kSheetDignitaries,
+        d.firstName,
+        d.lastName,
+        d.phone,
+      );
+    }
+    checkDuplicates(lodge.lodgeName, kSheetDignitaries, [
+      for (final d in lodge.dignitaries) (d.firstName, d.lastName),
+    ]);
+  }
+  return rows;
+}
+
 /// Classeur groupé des répertoires de plusieurs loges (export de la Grande
 /// Loge) : mêmes trois onglets que [buildDirectoryWorkbook], avec une colonne
 /// « Loge bleue » en tête (la loge dont le répertoire contient la fiche),
-/// triés par loge (dans l'ordre fourni) puis par nom. L'onglet Membres ajoute
-/// le degré aux Hauts Grades en dernière colonne. Sens unique : ce classeur
-/// n'est pas prévu pour être réimporté.
+/// triés par loge (dans l'ordre fourni) puis par nom, plus un 4e onglet
+/// « Incohérences » qui relève (sans rien corriger) les téléphones, casses de
+/// nom et doublons probables à vérifier — voir [_inconsistencyRows].
+/// L'onglet Membres ajoute le degré aux Hauts Grades en dernière colonne.
+/// Sens unique : ce classeur n'est pas prévu pour être réimporté.
 List<int> buildMultiLodgeDirectoryWorkbook(List<LodgeDirectory> lodges) {
   final members = <List<String>>[
     ['Loge bleue', ...kMemberHeaders, 'Degré Hauts Grades'],
@@ -223,10 +357,15 @@ List<int> buildMultiLodgeDirectoryWorkbook(List<LodgeDirectory> lodges) {
       ]);
     }
   }
+  final inconsistencies = <List<String>>[
+    kInconsistencyHeaders,
+    ..._inconsistencyRows(lodges),
+  ];
   return buildXlsx({
     kSheetMembers: members,
     kSheetVisitors: visitors,
     kSheetDignitaries: dignitaries,
+    'Incohérences': inconsistencies,
   });
 }
 
