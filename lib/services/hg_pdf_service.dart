@@ -157,10 +157,12 @@ Future<Uint8List> buildIahMesConvocationPdf(
   final masonicDate = getMasonicDate(session.dateTime);
   final sothiacDate = getSothiacDate(session.dateTime);
 
+  final lecturePlanche = session.extra['lecturePlancheText'] as String?;
   final fixedWorks = [
     session.travail1,
     session.travail2,
     session.travail3,
+    lecturePlanche,
     session.travail4,
   ].whereType<String>().where((t) => t.trim().isNotEmpty).toList();
   final complementary = session.agendaItems
@@ -179,6 +181,9 @@ Future<Uint8List> buildIahMesConvocationPdf(
     child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
   );
 
+  // Ligne numérotée de l'ordre du jour — le libellé « Thème de la Tenue : »
+  // (inséré automatiquement par _travailCollectifText) est mis en gras,
+  // le reste du texte du point reste en style normal.
   pw.Widget numberedLine(int n, String text) => pw.Padding(
     padding: pw.EdgeInsets.only(bottom: 3.5 * _mm),
     child: pw.Row(
@@ -192,9 +197,21 @@ Future<Uint8List> buildIahMesConvocationPdf(
           ),
         ),
         pw.Expanded(
-          child: pw.Text(
-            text,
-            style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.5),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              for (final line in text.split('\n'))
+                pw.Text(
+                  line.isEmpty ? ' ' : line,
+                  style: pw.TextStyle(
+                    font: line.trim() == 'Thème de la Tenue :'
+                        ? fonts.bold
+                        : fonts.base,
+                    fontSize: 10,
+                    height: 1.5,
+                  ),
+                ),
+            ],
           ),
         ),
       ],
@@ -309,9 +326,9 @@ Future<Uint8List> buildIahMesConvocationPdf(
         ),
         pw.SizedBox(height: 4 * _mm),
         pw.Text(
-          '${_formatDateLong(session.date)} à ${_sessionHeure(session)}',
+          'Le ${_formatDateLong(session.date)} à ${_sessionHeure(session)}',
           textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
         ),
         pw.SizedBox(height: 1.5 * _mm),
         pw.Text(
@@ -325,11 +342,11 @@ Future<Uint8List> buildIahMesConvocationPdf(
           textAlign: pw.TextAlign.center,
           style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
         ),
-        pw.SizedBox(height: 1.5 * _mm),
+        pw.SizedBox(height: 5 * _mm),
         pw.Text(
           'Au $lieu',
           textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.base, fontSize: 10.5),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
         ),
         pw.SizedBox(height: 6 * _mm),
         pw.Text(

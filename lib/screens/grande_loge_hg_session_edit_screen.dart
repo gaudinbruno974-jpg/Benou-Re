@@ -77,6 +77,9 @@ Map<String, String> _travauxFixes(
         'le Trois Fois Puissant Maître $signer.',
     't2': 'Lecture de l\'Ordre du Jour',
     't3': 'Appel des FF∴ et SS∴ du Collège',
+    't3b':
+        'Lecture de la planche tracée de notre dernière tenue au grade de '
+        '${hgDegreeNamePhrase(body, degree)}.',
   };
 }
 
@@ -88,7 +91,7 @@ String _travailCollectifText(String theme) {
   final t = theme.trim();
   return 'Travail collectif\n'
       '\n'
-      '${t.isEmpty ? '' : '$t\n\n'}'
+      '${t.isEmpty ? '' : 'Thème de la Tenue :\n\n$t\n\n'}'
       'Rappel concernant le travail collectif\n'
       '\n'
       'La parole circule et chacun est invité à prendre part aux échanges :\n'
@@ -109,7 +112,7 @@ String _ligneCloture(
   int ordresCount,
   String signerName,
 ) {
-  final n = 4 + ordresCount + 1;
+  final n = 5 + ordresCount + 1;
   final signer = signerName.isEmpty ? 'Trois Fois Puissant Maître' : signerName;
   final degreePhrase = body.key == kMaaKherou.key
       ? 'au grade de Maître'
@@ -149,6 +152,7 @@ class _GrandeLogeHgSessionEditScreenState
   late final TextEditingController _t1;
   late final TextEditingController _t2;
   late final TextEditingController _t3;
+  late final TextEditingController _lecturePlanche;
   late final TextEditingController _t4;
   late final TextEditingController _theme;
   late final TextEditingController _cloture;
@@ -188,6 +192,9 @@ class _GrandeLogeHgSessionEditScreenState
     _t1 = TextEditingController(text: s?.travail1 ?? '');
     _t2 = TextEditingController(text: s?.travail2 ?? '');
     _t3 = TextEditingController(text: s?.travail3 ?? '');
+    _lecturePlanche = TextEditingController(
+      text: (s?.extra['lecturePlancheText'] as String?) ?? '',
+    );
     _theme = TextEditingController(
       text: (s?.extra['travail4Theme'] as String?) ?? '',
     );
@@ -273,6 +280,7 @@ class _GrandeLogeHgSessionEditScreenState
       _t1,
       _t2,
       _t3,
+      _lecturePlanche,
       _t4,
       _theme,
       _cloture,
@@ -301,6 +309,7 @@ class _GrandeLogeHgSessionEditScreenState
     _t1.text = fixes['t1']!;
     _t2.text = fixes['t2']!;
     _t3.text = fixes['t3']!;
+    _lecturePlanche.text = fixes['t3b']!;
     _t4.text = _travailCollectifText(_theme.text);
     _regenerateCloture();
   }
@@ -508,6 +517,7 @@ class _GrandeLogeHgSessionEditScreenState
       'travail1': _t1.text.trim(),
       'travail2': _t2.text.trim(),
       'travail3': _t3.text.trim(),
+      'lecturePlancheText': _lecturePlanche.text.trim(),
       'travail4': _t4.text.trim(),
       'travail4Theme': _theme.text.trim(),
       'ordresJour': ordres,
@@ -652,6 +662,7 @@ class _GrandeLogeHgSessionEditScreenState
             _numberedField('1', _t1, enabled: !readOnly),
             _numberedField('2', _t2, enabled: !readOnly),
             _numberedField('3', _t3, enabled: !readOnly),
+            _numberedField('4', _lecturePlanche, enabled: !readOnly),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 7),
               child: TextField(
@@ -661,7 +672,7 @@ class _GrandeLogeHgSessionEditScreenState
                 minLines: 3,
                 style: const TextStyle(color: BrColors.text),
                 decoration: const InputDecoration(
-                  labelText: 'Thème du travail collectif (point 4)',
+                  labelText: 'Thème du travail collectif (point 5)',
                   hintText:
                       '« Titre du thème »\n\nQuestion ou texte introductif…',
                   alignLabelWithHint: true,
@@ -670,7 +681,7 @@ class _GrandeLogeHgSessionEditScreenState
                     setState(() => _t4.text = _travailCollectifText(v)),
               ),
             ),
-            _numberedField('4', _t4, enabled: !readOnly),
+            _numberedField('5', _t4, enabled: !readOnly),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
