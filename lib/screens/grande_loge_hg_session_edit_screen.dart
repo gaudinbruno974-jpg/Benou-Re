@@ -78,15 +78,15 @@ Map<String, String> _travauxFixes(
     't2': 'Lecture de l\'Ordre du Jour',
     't3': 'Appel des FF∴ et SS∴ du Collège',
     't3b':
-        'Lecture de la planche tracée de notre dernière tenue au grade de '
-        '${hgDegreeNamePhrase(body, degree)}.',
+        'Lecture de la planche tracée de nos derniers travaux '
+        '${_degreePhraseForBody(body, degree)}.',
   };
 }
 
-/// Point 4 « Travail collectif » — 3 blocs concaténés, demande explicite de
-/// l'utilisateur : un titre fixe, le thème de la tenue (libre, propre à
-/// chaque tenue, saisi dans un champ dédié), puis le rappel du protocole
-/// (fixe, permanent, toujours identique).
+/// Point « Travail collectif » — choisissable dans les ordres du jour
+/// complémentaires (voir _configureRow), 3 blocs concaténés : un titre fixe,
+/// le thème de la tenue (libre, propre à chaque tenue), puis le rappel du
+/// protocole (fixe, permanent, toujours identique).
 String _travailCollectifText(String theme) {
   final t = theme.trim();
   return 'Travail collectif\n'
@@ -112,7 +112,7 @@ String _ligneCloture(
   int ordresCount,
   String signerName,
 ) {
-  final n = 5 + ordresCount + 1;
+  final n = 4 + ordresCount + 1;
   final signer = signerName.isEmpty ? 'Trois Fois Puissant Maître' : signerName;
   final degreePhrase = body.key == kMaaKherou.key
       ? 'au grade de Maître'
@@ -153,8 +153,6 @@ class _GrandeLogeHgSessionEditScreenState
   late final TextEditingController _t2;
   late final TextEditingController _t3;
   late final TextEditingController _lecturePlanche;
-  late final TextEditingController _t4;
-  late final TextEditingController _theme;
   late final TextEditingController _cloture;
   late final TextEditingController _medaille;
   late final List<_OrdreRow> _ordres;
@@ -194,12 +192,6 @@ class _GrandeLogeHgSessionEditScreenState
     _t3 = TextEditingController(text: s?.travail3 ?? '');
     _lecturePlanche = TextEditingController(
       text: (s?.extra['lecturePlancheText'] as String?) ?? '',
-    );
-    _theme = TextEditingController(
-      text: (s?.extra['travail4Theme'] as String?) ?? '',
-    );
-    _t4 = TextEditingController(
-      text: s?.travail4 ?? _travailCollectifText(_theme.text),
     );
     _cloture = TextEditingController(text: s?.ligneCloture ?? '');
     _medaille = TextEditingController(
@@ -281,8 +273,6 @@ class _GrandeLogeHgSessionEditScreenState
       _t2,
       _t3,
       _lecturePlanche,
-      _t4,
-      _theme,
       _cloture,
       _medaille,
     ]) {
@@ -310,7 +300,6 @@ class _GrandeLogeHgSessionEditScreenState
     _t2.text = fixes['t2']!;
     _t3.text = fixes['t3']!;
     _lecturePlanche.text = fixes['t3b']!;
-    _t4.text = _travailCollectifText(_theme.text);
     _regenerateCloture();
   }
 
@@ -321,6 +310,28 @@ class _GrandeLogeHgSessionEditScreenState
       _ordresCount,
       _signerCtrl.text.trim(),
     );
+  }
+
+  String _ordreTypeTooltip(String type) {
+    switch (type) {
+      case kAgendaItemPlanche:
+        return 'Planche — modifier';
+      case kAgendaItemTravailCollectif:
+        return 'Travail collectif — modifier';
+      default:
+        return 'Point simple — configurer';
+    }
+  }
+
+  IconData _ordreTypeIcon(String type) {
+    switch (type) {
+      case kAgendaItemPlanche:
+        return Icons.menu_book_outlined;
+      case kAgendaItemTravailCollectif:
+        return Icons.groups_outlined;
+      default:
+        return Icons.short_text;
+    }
   }
 
   Future<void> _configureRow(int index) async {
@@ -357,6 +368,11 @@ class _GrandeLogeHgSessionEditScreenState
                           label: Text('Planche'),
                           icon: Icon(Icons.menu_book_outlined, size: 16),
                         ),
+                        ButtonSegment(
+                          value: kAgendaItemTravailCollectif,
+                          label: Text('Travail collectif'),
+                          icon: Icon(Icons.groups_outlined, size: 16),
+                        ),
                       ],
                       selected: {type},
                       onSelectionChanged: (s) =>
@@ -384,6 +400,21 @@ class _GrandeLogeHgSessionEditScreenState
                         style: const TextStyle(color: BrColors.text),
                         decoration: const InputDecoration(
                           labelText: 'Titre (facultatif)',
+                        ),
+                      ),
+                    ],
+                    if (type == kAgendaItemTravailCollectif) ...[
+                      const SizedBox(height: 16),
+                      TextField(
+                        controller: titleController,
+                        maxLines: null,
+                        minLines: 3,
+                        style: const TextStyle(color: BrColors.text),
+                        decoration: const InputDecoration(
+                          labelText: 'Thème de la Tenue',
+                          hintText:
+                              '« Titre du thème »\n\nQuestion ou texte introductif…',
+                          alignLabelWithHint: true,
                         ),
                       ),
                     ],
@@ -420,6 +451,10 @@ class _GrandeLogeHgSessionEditScreenState
                 '${civiliteAbbrev(author.civilite)} ${maskPersonName(author.fullName)}',
             title: row.title,
           );
+        } else if (type == kAgendaItemTravailCollectif) {
+          row.authorId = '';
+          row.title = titleController.text.trim();
+          row.controller.text = _travailCollectifText(row.title);
         } else {
           row.authorId = '';
           row.title = '';
@@ -518,8 +553,6 @@ class _GrandeLogeHgSessionEditScreenState
       'travail2': _t2.text.trim(),
       'travail3': _t3.text.trim(),
       'lecturePlancheText': _lecturePlanche.text.trim(),
-      'travail4': _t4.text.trim(),
-      'travail4Theme': _theme.text.trim(),
       'ordresJour': ordres,
       'agendaItems': agendaItems,
       'ligneCloture': _cloture.text.trim(),
@@ -663,25 +696,6 @@ class _GrandeLogeHgSessionEditScreenState
             _numberedField('2', _t2, enabled: !readOnly),
             _numberedField('3', _t3, enabled: !readOnly),
             _numberedField('4', _lecturePlanche, enabled: !readOnly),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 7),
-              child: TextField(
-                controller: _theme,
-                enabled: !readOnly,
-                maxLines: null,
-                minLines: 3,
-                style: const TextStyle(color: BrColors.text),
-                decoration: const InputDecoration(
-                  labelText: 'Thème du travail collectif (point 5)',
-                  hintText:
-                      '« Titre du thème »\n\nQuestion ou texte introductif…',
-                  alignLabelWithHint: true,
-                ),
-                onChanged: (v) =>
-                    setState(() => _t4.text = _travailCollectifText(v)),
-              ),
-            ),
-            _numberedField('5', _t4, enabled: !readOnly),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -714,7 +728,7 @@ class _GrandeLogeHgSessionEditScreenState
                     SizedBox(
                       width: 24,
                       child: Text(
-                        '${5 + i}.',
+                        '${4 + i}.',
                         style: const TextStyle(
                           color: BrColors.gold,
                           fontSize: 13,
@@ -722,33 +736,32 @@ class _GrandeLogeHgSessionEditScreenState
                       ),
                     ),
                     IconButton(
-                      tooltip: _ordres[i].type == kAgendaItemPlanche
-                          ? 'Planche — modifier'
-                          : 'Point simple — passer en Planche',
+                      tooltip: _ordreTypeTooltip(_ordres[i].type),
                       icon: Icon(
-                        _ordres[i].type == kAgendaItemPlanche
-                            ? Icons.menu_book_outlined
-                            : Icons.short_text,
+                        _ordreTypeIcon(_ordres[i].type),
                         size: 18,
-                        color: _ordres[i].type == kAgendaItemPlanche
-                            ? BrColors.gold
-                            : BrColors.muted,
+                        color: _ordres[i].type == kAgendaItemSimple
+                            ? BrColors.muted
+                            : BrColors.gold,
                       ),
                       onPressed: readOnly ? null : () => _configureRow(i),
                     ),
                     Expanded(
                       child: TextField(
                         controller: _ordres[i].controller,
-                        readOnly: _ordres[i].type == kAgendaItemPlanche,
+                        readOnly: _ordres[i].type != kAgendaItemSimple,
+                        maxLines: _ordres[i].type == kAgendaItemTravailCollectif
+                            ? null
+                            : 1,
                         style: const TextStyle(color: BrColors.text),
                         decoration: InputDecoration(
                           hintText: 'ex : Thème de la tenue...',
-                          suffixIcon: _ordres[i].type == kAgendaItemPlanche
-                              ? const Icon(Icons.lock_outline, size: 16)
-                              : null,
+                          suffixIcon: _ordres[i].type == kAgendaItemSimple
+                              ? null
+                              : const Icon(Icons.lock_outline, size: 16),
                         ),
                         onTap:
-                            (readOnly || _ordres[i].type != kAgendaItemPlanche)
+                            (readOnly || _ordres[i].type == kAgendaItemSimple)
                             ? null
                             : () => _configureRow(i),
                         onChanged: readOnly

@@ -163,7 +163,6 @@ Future<Uint8List> buildIahMesConvocationPdf(
     session.travail2,
     session.travail3,
     lecturePlanche,
-    session.travail4,
   ].whereType<String>().where((t) => t.trim().isNotEmpty).toList();
   final complementary = session.agendaItems
       .where((a) => a.text.trim().isNotEmpty)

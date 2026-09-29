@@ -8,6 +8,11 @@
 const String kAgendaItemSimple = 'simple';
 const String kAgendaItemPlanche = 'planche';
 
+/// Point « Travail collectif » (Hauts Grades uniquement, voir
+/// grande_loge_hg_session_edit_screen.dart) : thème saisi dans [title],
+/// texte complet (thème + rappel du protocole) déjà composé dans [text].
+const String kAgendaItemTravailCollectif = 'travail_collectif';
+
 class AgendaItem {
   /// Ligne telle qu'affichée/imprimée dans l'ordre du jour et la
   /// convocation — pour une planche, déjà composée automatiquement à partir
@@ -55,7 +60,10 @@ class AgendaItem {
 /// Compose la ligne d'ordre du jour d'une planche à partir de l'auteur (déjà
 /// mis en forme — en clair ou tronqué selon l'appelant) et du titre
 /// facultatif.
-String agendaPlancheLine({required String authorDisplayName, String title = ''}) {
+String agendaPlancheLine({
+  required String authorDisplayName,
+  String title = '',
+}) {
   final t = title.trim();
   if (t.isEmpty) return 'Planche présentée par $authorDisplayName';
   return 'Planche : « $t » — présentée par $authorDisplayName';
