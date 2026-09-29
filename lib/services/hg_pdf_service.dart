@@ -184,7 +184,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
   // (inséré automatiquement par _travailCollectifText) est mis en gras,
   // le reste du texte du point reste en style normal.
   pw.Widget numberedLine(int n, String text) => pw.Padding(
-    padding: pw.EdgeInsets.only(bottom: 3.5 * _mm),
+    padding: pw.EdgeInsets.only(bottom: 5 * _mm),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -200,22 +200,42 @@ Future<Uint8List> buildIahMesConvocationPdf(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               for (final line in text.split('\n'))
-                pw.Text(
-                  line.isEmpty ? ' ' : line,
-                  style: pw.TextStyle(
-                    font: line.trim() == 'Thème de la Tenue :'
-                        ? fonts.bold
-                        : fonts.base,
-                    fontSize: 10,
-                    height: 1.5,
+                // Une ligne vide (saut de paragraphe dans le texte source)
+                // n'a aucune hauteur propre une fois isolée dans son propre
+                // pw.Text — un SizedBox explicite recrée l'espacement.
+                if (line.isEmpty)
+                  pw.SizedBox(height: 10 * 1.5)
+                else
+                  pw.Text(
+                    line,
+                    style: pw.TextStyle(
+                      font: line.trim() == 'Thème de la Tenue :'
+                          ? fonts.bold
+                          : fonts.base,
+                      fontSize: 10,
+                      height: 1.5,
+                    ),
                   ),
-                ),
             ],
           ),
         ),
       ],
     ),
   );
+
+  // La ligne de clôture porte déjà son numéro dans le texte (voir
+  // _ligneCloture) — on l'extrait pour la faire passer par numberedLine et
+  // garder la même mise en forme que les autres points de l'ordre du jour.
+  final clotureMatch = RegExp(
+    r'^(\d+)\.\s*(.*)$',
+    dotAll: true,
+  ).firstMatch(cloture);
+  final pw.Widget clotureLine = clotureMatch == null
+      ? pw.Text(
+          cloture,
+          style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
+        )
+      : numberedLine(int.parse(clotureMatch.group(1)!), clotureMatch.group(2)!);
 
   doc.addPage(
     pw.MultiPage(
@@ -235,7 +255,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
             color: PdfColors.grey800,
           ),
         ),
-        pw.SizedBox(height: 4 * _mm),
+        pw.SizedBox(height: 7 * _mm),
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
@@ -289,7 +309,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
             ),
           ],
         ),
-        pw.SizedBox(height: 5 * _mm),
+        pw.SizedBox(height: 7 * _mm),
         pw.Text(
           hgInstitutionHeaderBlock(body),
           style: pw.TextStyle(font: fonts.bold, fontSize: 9),
@@ -308,7 +328,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
         pw.Text(
           'CONVOCATION',
           textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 15, color: _navy),
+          style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: _navy),
         ),
         pw.SizedBox(height: 6 * _mm),
         pw.Text(
@@ -357,13 +377,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
           numberedLine(i + 1, fixedWorks[i]),
         for (int i = 0; i < complementary.length; i++)
           numberedLine(fixedWorks.length + i + 1, complementary[i]),
-        if (cloture.isNotEmpty) ...[
-          pw.SizedBox(height: 2 * _mm),
-          pw.Text(
-            cloture,
-            style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
-          ),
-        ],
+        if (cloture.isNotEmpty) clotureLine,
         if (session.degreeLabel.isNotEmpty) ...[
           pw.SizedBox(height: 4 * _mm),
           pw.Text(

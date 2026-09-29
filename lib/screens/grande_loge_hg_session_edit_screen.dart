@@ -51,13 +51,13 @@ class _OrdreRow {
 /// _travauxFixes/_ligneCloture (session_edit_screen.dart), avec la
 /// terminologie du Collège de Perfection à la place de celle d'une loge
 /// bleue (pas de « V∴M∴ », pas de « Degré symbolique du R∴A∴P∴M∴M∴ »).
-/// « au 8e degré, au Grade de Maître Parfait » (IAH-MES) ou « au grade de
-/// Maître » (MAA-Kherou, sans ladder ni numéro — confirmé par l'utilisateur).
+/// « au 8e degré, Maître Parfait » (IAH-MES) ou « au grade de Maître »
+/// (MAA-Kherou, sans ladder ni numéro — confirmé par l'utilisateur).
 String _degreePhraseForBody(HgBody body, int degree) {
   if (body.key == kMaaKherou.key) return 'au grade de Maître';
   final degreeName = kIahMesDegreeNames[degree] ?? '';
   return 'au $degree'
-      'e degré, au Grade de $degreeName';
+      'e degré, $degreeName';
 }
 
 Map<String, String> _travauxFixes(
