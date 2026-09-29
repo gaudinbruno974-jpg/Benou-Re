@@ -147,7 +147,6 @@ Future<Uint8List> buildIahMesConvocationPdf(
         : 'assets/pdf/Souverain-Sanctuaire.jpg',
   );
   final degree = _sessionDegree(session);
-  final degreeName = hgDegreeNamePhrase(body, degree);
   final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
       ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
       : session.lieuReunionExtra!.trim();
@@ -377,27 +376,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
           numberedLine(i + 1, fixedWorks[i]),
         for (int i = 0; i < complementary.length; i++)
           numberedLine(fixedWorks.length + i + 1, complementary[i]),
-        // Clôture + « Grade de travail » regroupés dans une seule colonne :
-        // la mise en page ne coupe pas un widget composite en deux pages,
-        // ça évite qu'une seule des deux lignes se retrouve isolée en haut
-        // d'une nouvelle page.
-        pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            if (cloture.isNotEmpty) clotureLine,
-            if (session.degreeLabel.isNotEmpty) ...[
-              pw.SizedBox(height: 4 * _mm),
-              pw.Text(
-                'Grade de travail : $degreeName',
-                style: pw.TextStyle(
-                  font: fonts.base,
-                  fontSize: 9,
-                  color: PdfColors.grey700,
-                ),
-              ),
-            ],
-          ],
-        ),
+        if (cloture.isNotEmpty) clotureLine,
         if (session.suitAgapes) ...[
           pw.SizedBox(height: 8 * _mm),
           pw.Divider(color: PdfColors.grey400),
