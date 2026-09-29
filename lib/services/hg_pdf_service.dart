@@ -65,11 +65,21 @@ Future<pw.ImageProvider?> _loadImage(String path) async {
 }
 
 pw.Widget _footer(pw.Context context) => pw.Container(
-  alignment: pw.Alignment.center,
   margin: pw.EdgeInsets.only(top: 4 * _mm),
-  child: pw.Text(
-    '© Grande Loge de Bourbon (GLDB) - N° RNA W9R2011523',
-    style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+  child: pw.Row(
+    children: [
+      pw.Expanded(
+        child: pw.Text(
+          '© Grande Loge de Bourbon (GLDB) - N° RNA W9R2011523',
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+        ),
+      ),
+      pw.Text(
+        '${context.pageNumber}/${context.pagesCount}',
+        style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+      ),
+    ],
   ),
 );
 
@@ -685,16 +695,7 @@ Future<Uint8List> buildIahMesEmargementPdf(
         bold: fonts.bold,
         fontFallback: [fallback.base, fallback.bold],
       ),
-      footer: (context) => pw.Column(
-        mainAxisSize: pw.MainAxisSize.min,
-        children: [
-          pw.Text(
-            '${context.pageNumber}',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 10),
-          ),
-          _footer(context),
-        ],
-      ),
+      footer: _footer,
       build: (context) => [
         header(),
         metaLine(
