@@ -8,9 +8,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/hg_body.dart';
-import '../services/directory_xlsx_service.dart';
 import '../services/drive_service.dart';
 import '../services/hg_body_service.dart';
+import '../services/hg_directory_xlsx_service.dart';
 import '../services/hg_drive_folders.dart';
 import 'directory_export_actions.dart' show saveFileLocally;
 
@@ -23,7 +23,7 @@ Future<void> exportHgDirectories(BuildContext context, HgBody body) async {
   final dignitaries = await HgBodyService.instance
       .dignitariesStream(body)
       .first;
-  final bytes = buildDirectoryWorkbook(
+  final bytes = buildHgDirectoryWorkbook(
     members: members,
     visitors: visitors,
     dignitaries: dignitaries,
@@ -53,7 +53,7 @@ Future<void> exportHgDirectoryTemplate(
   BuildContext context,
   HgBody body,
 ) async {
-  final bytes = buildDirectoryTemplate();
+  final bytes = buildHgDirectoryTemplate();
   final fileName =
       'Modele_Import_Repertoires_${body.label.replaceAll(' ', '_')}.xlsx';
   await saveFileLocally(context, fileName, bytes);

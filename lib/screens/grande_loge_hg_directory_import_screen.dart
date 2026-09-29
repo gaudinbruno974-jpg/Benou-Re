@@ -8,8 +8,10 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import '../models/hg_body.dart';
-import '../services/directory_xlsx_service.dart';
+import '../services/directory_xlsx_service.dart'
+    show ImportAction, DirectoryCategory;
 import '../services/hg_body_service.dart';
+import '../services/hg_directory_xlsx_service.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'hg_directory_export_actions.dart';
@@ -68,15 +70,15 @@ class _GrandeLogeHgDirectoryImportScreenState
         return;
       }
       final List<Object> rows = switch (widget.category) {
-        DirectoryCategory.members => parseMemberSheet(
+        DirectoryCategory.members => parseHgMemberSheet(
           bytes,
           await HgBodyService.instance.membersOnce(widget.body),
         ),
-        DirectoryCategory.visitors => parseVisitorSheet(
+        DirectoryCategory.visitors => parseHgVisitorSheet(
           bytes,
           await HgBodyService.instance.visitorsStream(widget.body).first,
         ),
-        DirectoryCategory.dignitaries => parseDignitarySheet(
+        DirectoryCategory.dignitaries => parseHgDignitarySheet(
           bytes,
           await HgBodyService.instance.dignitariesStream(widget.body).first,
         ),
@@ -144,7 +146,7 @@ class _GrandeLogeHgDirectoryImportScreenState
 
     for (final row in toWrite) {
       switch (row) {
-        case MemberImportRow r:
+        case HgMemberImportRow r:
           final member = r.resolve(() => newId('m'));
           if (member == null) continue;
           await HgBodyService.instance.saveMember(widget.body, member);
@@ -153,7 +155,7 @@ class _GrandeLogeHgDirectoryImportScreenState
           } else {
             updated++;
           }
-        case VisitorImportRow r:
+        case HgVisitorImportRow r:
           final visitor = r.resolve(() => newId('v'));
           if (visitor == null) continue;
           await HgBodyService.instance.saveVisitor(widget.body, visitor);
@@ -162,7 +164,7 @@ class _GrandeLogeHgDirectoryImportScreenState
           } else {
             updated++;
           }
-        case DignitaryImportRow r:
+        case HgDignitaryImportRow r:
           final dignitary = r.resolve(() => newId('d'));
           if (dignitary == null) continue;
           await HgBodyService.instance.saveDignitary(widget.body, dignitary);
@@ -354,40 +356,40 @@ class _GrandeLogeHgDirectoryImportScreenState
 }
 
 ImportAction _rowAction(Object row) => switch (row) {
-  MemberImportRow r => r.action,
-  VisitorImportRow r => r.action,
-  DignitaryImportRow r => r.action,
+  HgMemberImportRow r => r.action,
+  HgVisitorImportRow r => r.action,
+  HgDignitaryImportRow r => r.action,
   _ => ImportAction.skip,
 };
 
 bool _rowHasExisting(Object row) => switch (row) {
-  MemberImportRow r => r.existing != null,
-  VisitorImportRow r => r.existing != null,
-  DignitaryImportRow r => r.existing != null,
+  HgMemberImportRow r => r.existing != null,
+  HgVisitorImportRow r => r.existing != null,
+  HgDignitaryImportRow r => r.existing != null,
   _ => false,
 };
 
 String _rowName(Object row) => switch (row) {
-  MemberImportRow r => '${r.firstName} ${r.lastName}'.trim(),
-  VisitorImportRow r => '${r.firstName} ${r.lastName}'.trim(),
-  DignitaryImportRow r => '${r.firstName} ${r.lastName}'.trim(),
+  HgMemberImportRow r => '${r.firstName} ${r.lastName}'.trim(),
+  HgVisitorImportRow r => '${r.firstName} ${r.lastName}'.trim(),
+  HgDignitaryImportRow r => '${r.firstName} ${r.lastName}'.trim(),
   _ => '',
 };
 
 String _rowSubtitle(Object row) => switch (row) {
-  MemberImportRow r => r.email,
-  VisitorImportRow r => r.lodge,
-  DignitaryImportRow r => r.lodge,
+  HgMemberImportRow r => r.email,
+  HgVisitorImportRow r => r.lodge,
+  HgDignitaryImportRow r => r.lodge,
   _ => '',
 };
 
 void _setRowAction(Object row, ImportAction action) {
   switch (row) {
-    case MemberImportRow r:
+    case HgMemberImportRow r:
       r.action = action;
-    case VisitorImportRow r:
+    case HgVisitorImportRow r:
       r.action = action;
-    case DignitaryImportRow r:
+    case HgDignitaryImportRow r:
       r.action = action;
   }
 }

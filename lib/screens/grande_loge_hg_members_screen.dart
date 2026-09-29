@@ -216,6 +216,12 @@ class _GrandeLogeHgMemberEditScreenState
   late final TextEditingController _firstNameCtrl;
   late final TextEditingController _lastNameCtrl;
   late final TextEditingController _functionCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _obedienceCtrl;
+  late final TextEditingController _motherLodgeCtrl;
+  late final TextEditingController _orientCtrl;
+  late final TextEditingController _degreeCtrl;
   late String _civilite;
   late String _grade;
   late String _status;
@@ -228,6 +234,12 @@ class _GrandeLogeHgMemberEditScreenState
     _firstNameCtrl = TextEditingController(text: m?.firstName ?? '');
     _lastNameCtrl = TextEditingController(text: m?.lastName ?? '');
     _functionCtrl = TextEditingController(text: m?.function ?? '');
+    _emailCtrl = TextEditingController(text: m?.email ?? '');
+    _phoneCtrl = TextEditingController(text: m?.phone ?? '');
+    _obedienceCtrl = TextEditingController(text: m?.obedience ?? '');
+    _motherLodgeCtrl = TextEditingController(text: m?.motherLodge ?? '');
+    _orientCtrl = TextEditingController(text: m?.orient ?? '');
+    _degreeCtrl = TextEditingController(text: m?.hautsGradesDegree ?? '');
     _civilite = m?.civilite.isNotEmpty == true ? m!.civilite : kFrere;
     _grade = m?.grade.isNotEmpty == true ? m!.grade : kMaitre;
     _status = m?.status ?? 'Actif';
@@ -238,6 +250,12 @@ class _GrandeLogeHgMemberEditScreenState
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     _functionCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _obedienceCtrl.dispose();
+    _motherLodgeCtrl.dispose();
+    _orientCtrl.dispose();
+    _degreeCtrl.dispose();
     super.dispose();
   }
 
@@ -255,6 +273,12 @@ class _GrandeLogeHgMemberEditScreenState
             ? 'Aucun'
             : _functionCtrl.text.trim(),
         status: _status,
+        email: _emailCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim(),
+        obedience: _obedienceCtrl.text.trim(),
+        motherLodge: _motherLodgeCtrl.text.trim(),
+        orient: _orientCtrl.text.trim(),
+        hautsGradesDegree: _degreeCtrl.text.trim(),
       );
       await HgBodyService.instance.saveMember(widget.body, m);
       if (mounted) Navigator.of(context).pop();
@@ -325,6 +349,48 @@ class _GrandeLogeHgMemberEditScreenState
                       DropdownMenuItem(value: s, child: Text(s)),
                   ],
                   onChanged: (v) => setState(() => _status = v ?? _status),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _emailCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _phoneCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Téléphone'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _motherLodgeCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(
+                    labelText: 'Loge mère',
+                    hintText: 'ex : R∴L∴ Bénou Ré',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _obedienceCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Obédience'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _orientCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Orient'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _degreeCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(
+                    labelText: 'Degré (Hauts Grades)',
+                    hintText: 'ex : 20',
+                  ),
                 ),
               ],
             ),

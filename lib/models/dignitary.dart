@@ -20,6 +20,9 @@ class Dignitary {
   final String email;
   final String phone;
 
+  /// Degré (Hauts Grades) — vide si non renseigné, sans lien avec [title].
+  final String grade;
+
   /// « Frère » / « Sœur », vide si non renseignée (voir civilite.dart).
   final String civilite;
 
@@ -42,6 +45,7 @@ class Dignitary {
     this.obedience = '',
     this.email = '',
     this.phone = '',
+    this.grade = '',
     this.civilite = '',
     this.preferredContact = '',
     this.protocolRank,
@@ -59,6 +63,7 @@ class Dignitary {
       obedience: (map['obedience'] ?? '') as String,
       email: (map['email'] ?? '') as String,
       phone: (map['phone'] ?? '') as String,
+      grade: (map['grade'] ?? '') as String,
       civilite: (map['civilite'] ?? '') as String,
       preferredContact: (map['preferredContact'] ?? '') as String,
       protocolRank: rank is num ? rank.toInt() : null,
@@ -76,6 +81,7 @@ class Dignitary {
       'obedience': obedience,
       'email': email,
       'phone': phone,
+      'grade': grade,
       'civilite': civilite,
       'preferredContact': preferredContact,
       'protocolRank': protocolRank,
@@ -93,6 +99,7 @@ class Dignitary {
     String? obedience,
     String? email,
     String? phone,
+    String? grade,
     String? civilite,
     String? preferredContact,
     int? protocolRank,
@@ -108,6 +115,7 @@ class Dignitary {
       obedience: obedience ?? this.obedience,
       email: email ?? this.email,
       phone: phone ?? this.phone,
+      grade: grade ?? this.grade,
       civilite: civilite ?? this.civilite,
       preferredContact: preferredContact ?? this.preferredContact,
       protocolRank: clearProtocolRank
@@ -146,9 +154,7 @@ List<Dignitary> dignitariesToAnnounce(
       foldLabel(d.title).contains('venerable maitre');
 
   return allDignitaries
-      .where(
-        (d) => session.dignitaryIds.contains(d.id) && !hasOfficeToday(d),
-      )
+      .where((d) => session.dignitaryIds.contains(d.id) && !hasOfficeToday(d))
       .toList()
     ..sort((a, b) {
       final va = isVenerable(a);

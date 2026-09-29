@@ -289,6 +289,12 @@ class Member {
   /// « Courriel »), vide si non renseigné — voir preferred_contact.dart.
   final String preferredContact;
   final String motherLodge;
+
+  /// Obédience et Orient d'origine — utiles pour un membre de Hauts Grades
+  /// (rattaché à une loge bleue d'une autre obédience), vides et sans usage
+  /// pour les membres des quatre loges bleues (déjà connus via LodgeConfig).
+  final String obedience;
+  final String orient;
   final String sponsor;
   final String loginId;
 
@@ -345,6 +351,8 @@ class Member {
     this.civilite = '',
     this.preferredContact = '',
     this.motherLodge = '',
+    this.obedience = '',
+    this.orient = '',
     this.sponsor = '',
     this.loginId = '',
     this.authUid = '',
@@ -402,6 +410,8 @@ class Member {
       civilite: (map['civilite'] ?? '') as String,
       preferredContact: (map['preferredContact'] ?? '') as String,
       motherLodge: (map['motherLodge'] ?? '') as String,
+      obedience: (map['obedience'] ?? '') as String,
+      orient: (map['orient'] ?? '') as String,
       sponsor: (map['sponsor'] ?? '') as String,
       loginId: (map['loginId'] ?? '') as String,
       authUid: (map['authUid'] ?? '') as String,
@@ -442,6 +452,8 @@ class Member {
       'civilite': civilite,
       'preferredContact': preferredContact,
       'motherLodge': motherLodge,
+      'obedience': obedience,
+      'orient': orient,
       'sponsor': sponsor,
       'loginId': loginId,
       'authUid': authUid,
@@ -510,6 +522,8 @@ class Member {
     String? civilite,
     String? preferredContact,
     String? motherLodge,
+    String? obedience,
+    String? orient,
     String? sponsor,
     String? loginId,
     String? authUid,
@@ -545,6 +559,8 @@ class Member {
       civilite: civilite ?? this.civilite,
       preferredContact: preferredContact ?? this.preferredContact,
       motherLodge: motherLodge ?? this.motherLodge,
+      obedience: obedience ?? this.obedience,
+      orient: orient ?? this.orient,
       sponsor: sponsor ?? this.sponsor,
       loginId: loginId ?? this.loginId,
       authUid: authUid ?? this.authUid,
