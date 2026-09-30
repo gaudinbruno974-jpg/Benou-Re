@@ -12,6 +12,7 @@ import '../models/civilite.dart';
 import '../models/dignitary.dart';
 import '../models/member.dart';
 import '../models/session.dart';
+import '../models/visitor.dart';
 import '../utils/name_mask.dart';
 import 'pdf_service.dart' show accueilApprentisHeure, plancheVmName;
 
@@ -65,6 +66,9 @@ String memberConvocationSubject(Session session, int chrono) =>
     _objet('Convocation à', session, chrono);
 
 /// Objet du mail envoyé à un dignitaire ou un Vénérable d'une autre Loge.
+String visitorInvitationSubject(Session session, int chrono) =>
+    _objet('Invitation à', session, chrono);
+
 String dignitaryInvitationSubject(Session session, int chrono) =>
     _objet('Invitation à', session, chrono);
 
@@ -244,6 +248,34 @@ String dignitaryInvitationBody(
   String responseUrl, {
   String lodgeVmName = '',
   Dignitary? recipient,
+}) {
+  final secretary = _findSecretary(members);
+  final greeting = presenceGreeting(
+    civilite: recipient?.civilite ?? '',
+    firstName: recipient?.firstName ?? '',
+  );
+  final lines = [
+    ..._commonLines(
+      session,
+      ordreDuJour,
+      informerVerbe: "a l'honneur de vous informer",
+      greeting: greeting,
+    ),
+    ..._linkLines(responseUrl),
+    ..._signOffLines(session, members, secretary, lodgeVmName: lodgeVmName),
+  ];
+  return lines.join('\n');
+}
+
+/// Corps du mail/message envoyé à un visiteur invité, avec son lien de
+/// réponse personnel inséré.
+String visitorInvitationBody(
+  Session session,
+  List<String> ordreDuJour,
+  List<Member> members,
+  String responseUrl, {
+  String lodgeVmName = '',
+  Visitor? recipient,
 }) {
   final secretary = _findSecretary(members);
   final greeting = presenceGreeting(

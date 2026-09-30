@@ -21,6 +21,7 @@ import '../models/member.dart';
 import '../models/preferred_contact.dart';
 import '../models/presence_link.dart';
 import '../models/session.dart';
+import '../models/visitor.dart';
 import '../services/bulk_email_service.dart';
 import '../services/email_link.dart';
 import '../services/invitation_service.dart';
@@ -42,6 +43,7 @@ class SessionInvitationsScreen extends StatefulWidget {
 
 class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
   bool _presenceLinksEnabled = false;
+  bool _visitorLinksEnabled = false;
   bool _delegationLinksEnabled = false;
 
   int _chrono(Session s) {
@@ -84,7 +86,8 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
       );
       await Printing.sharePdf(
         bytes: Uint8List.fromList(bytes),
-        filename: 'Convocation ${LodgeConfig.current.name} Tenue '
+        filename:
+            'Convocation ${LodgeConfig.current.name} Tenue '
             '${_chrono(session)}${session.driveFileDateGradeSuffix}.pdf',
       );
     } catch (e) {
@@ -138,6 +141,36 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
                 ),
                 if (_presenceLinksEnabled)
                   _PresenceLinksSection(
+                    session: session,
+                    chrono: chrono,
+                    onCopy: _copy,
+                    onOpen: _open,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          BrCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _visitorLinksEnabled,
+                  onChanged: (v) =>
+                      setState(() => _visitorLinksEnabled = v ?? false),
+                  title: const Text(
+                    'Invitation',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Chaque visiteur invité reçoit un lien pour déclarer sa '
+                    'présence, sans se connecter à l\'application.',
+                    style: TextStyle(color: BrColors.muted, fontSize: 12),
+                  ),
+                ),
+                if (_visitorLinksEnabled)
+                  _VisitorLinksSection(
                     session: session,
                     chrono: chrono,
                     onCopy: _copy,
@@ -215,10 +248,9 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
   // exclusion que le panneau Membres de « Présents en tenue ».
   List<Member> _eligibleMembers(AppState state) {
     final rank = Session.degreeRank(widget.session.degreeLabel);
-    final members = state.members
-        .where((m) => Session.degreeRank(m.grade) >= rank)
-        .toList()
-      ..sort((a, b) => a.lastName.compareTo(b.lastName));
+    final members =
+        state.members.where((m) => Session.degreeRank(m.grade) >= rank).toList()
+          ..sort((a, b) => a.lastName.compareTo(b.lastName));
     return members;
   }
 
@@ -233,9 +265,7 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
     if (dt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'La tenue doit avoir une date pour générer les liens.',
-          ),
+          content: Text('La tenue doit avoir une date pour générer les liens.'),
         ),
       );
       return;
@@ -245,10 +275,7 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
     final expiresAt = DateTime(dt.year, dt.month, dt.day);
     final existingMemberIds = existing.map((l) => l.memberId).toSet();
     final sessionLabel = invitationTitle(widget.session, widget.chrono);
-    final sessionDateLabel = DateFormat(
-      'EEEE d MMMM y',
-      'fr_FR',
-    ).format(dt);
+    final sessionDateLabel = DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
     for (final m in eligible) {
       if (existingMemberIds.contains(m.id)) continue;
       await state.createPresenceLink(
@@ -260,9 +287,7 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
           sessionLabel: sessionLabel,
           sessionDateLabel: sessionDateLabel,
           sessionType: widget.session.typeLabel,
-          sessionDegreeLabel: Session.degreeOrdinal(
-            widget.session.degreeLabel,
-          ),
+          sessionDegreeLabel: Session.degreeOrdinal(widget.session.degreeLabel),
           hasAgape: widget.session.suitAgapes,
           expiresAt: expiresAt,
           createdAt: DateTime.now(),
@@ -318,7 +343,8 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
       ];
       final result = await sendBulkGmails(
         pdfBytes: pdfBytes,
-        attachmentName: 'Convocation ${LodgeConfig.current.name} Tenue '
+        attachmentName:
+            'Convocation ${LodgeConfig.current.name} Tenue '
             '${widget.chrono}${widget.session.driveFileDateGradeSuffix}.pdf',
         recipients: recipients,
         onProgress: (done, total) {
@@ -354,7 +380,8 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
             .map((m) => m.id)
             .toSet();
         final allSelected =
-            selectableIds.isNotEmpty && selectableIds.every(_selectedIds.contains);
+            selectableIds.isNotEmpty &&
+            selectableIds.every(_selectedIds.contains);
 
         return Padding(
           padding: const EdgeInsets.only(top: 8),
@@ -399,7 +426,9 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: BrColors.violet),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: BrColors.violet,
+                    ),
                     icon: _sendingBulk
                         ? const SizedBox(
                             width: 14,
@@ -415,12 +444,12 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
                     onPressed: _sendingBulk || _selectedIds.isEmpty
                         ? null
                         : () => _sendSelected(
-                              eligible,
-                              byMember,
-                              ordreDuJour,
-                              state.members,
-                              state.lodgeVmName,
-                            ),
+                            eligible,
+                            byMember,
+                            ordreDuJour,
+                            state.members,
+                            state.lodgeVmName,
+                          ),
                   ),
                 ),
               ],
@@ -440,12 +469,12 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
                   onSelectedChanged: byMember[m.id] == null
                       ? null
                       : (v) => setState(() {
-                            if (v ?? false) {
-                              _selectedIds.add(m.id);
-                            } else {
-                              _selectedIds.remove(m.id);
-                            }
-                          }),
+                          if (v ?? false) {
+                            _selectedIds.add(m.id);
+                          } else {
+                            _selectedIds.remove(m.id);
+                          }
+                        }),
                   onCopy: widget.onCopy,
                   onOpen: widget.onOpen,
                 ),
@@ -641,7 +670,10 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
       return const [
         Padding(
           padding: EdgeInsets.symmetric(vertical: 8),
-          child: Text('Aucun résultat.', style: TextStyle(color: BrColors.muted)),
+          child: Text(
+            'Aucun résultat.',
+            style: TextStyle(color: BrColors.muted),
+          ),
         ),
       ];
     }
@@ -671,9 +703,7 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
     if (dt == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'La tenue doit avoir une date pour générer les liens.',
-          ),
+          content: Text('La tenue doit avoir une date pour générer les liens.'),
         ),
       );
       return;
@@ -694,9 +724,7 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
           sessionLabel: sessionLabel,
           sessionDateLabel: sessionDateLabel,
           sessionType: widget.session.typeLabel,
-          sessionDegreeLabel: Session.degreeOrdinal(
-            widget.session.degreeLabel,
-          ),
+          sessionDegreeLabel: Session.degreeOrdinal(widget.session.degreeLabel),
           hasAgape: widget.session.suitAgapes,
           recipientId: d.id,
           recipientName: d.fullName,
@@ -725,9 +753,7 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     final targets = recipients
-        .where(
-          (d) => _selectedIds.contains(d.id) && byRecipient[d.id] != null,
-        )
+        .where((d) => _selectedIds.contains(d.id) && byRecipient[d.id] != null)
         .toList();
     if (targets.isEmpty) return;
     setState(() {
@@ -761,7 +787,8 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
       ];
       final result = await sendBulkGmails(
         pdfBytes: pdfBytes,
-        attachmentName: 'Convocation ${LodgeConfig.current.name} Tenue '
+        attachmentName:
+            'Convocation ${LodgeConfig.current.name} Tenue '
             '${widget.chrono}${widget.session.driveFileDateGradeSuffix}.pdf',
         recipients: recipientsToSend,
         onProgress: (done, total) {
@@ -781,11 +808,9 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    // Tout dignitaire joignable (e-mail ou téléphone) peut être destinataire
-    // d'un lien : le bureau choisit ensuite, ligne par ligne, à qui l'envoyer.
-    final recipients = state.dignitaries
-        .where((d) => d.email.trim().isNotEmpty || d.phone.trim().isNotEmpty)
-        .toList()
+    // Tous les dignitaires sont listés, y compris sans coordonnées (affichés
+    // grisés par _DelegationLinkRow) — auparavant exclus en silence.
+    final recipients = List<Dignitary>.from(state.dignitaries)
       ..sort((a, b) => a.lastName.compareTo(b.lastName));
     final ordreDuJour = plancheOrdreDuJour(widget.session);
 
@@ -805,7 +830,9 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
           if (link == null) continue;
           final shouldBeAlone = dignitaryComesAlone(d);
           if (link.recipientAlone != shouldBeAlone) {
-            unawaited(state.syncPresenceLinkRecipientAlone(link.id, shouldBeAlone));
+            unawaited(
+              state.syncPresenceLinkRecipientAlone(link.id, shouldBeAlone),
+            );
           }
         }
         final missing = recipients
@@ -841,12 +868,18 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
                 .toList()
               ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
 
+        // L'envoi groupé passe par e-mail uniquement (sendBulkGmails) : un
+        // dignitaire sans e-mail (même avec un téléphone) reste cochable
+        // individuellement via WhatsApp, mais pas ici.
         final selectableIds = recipients
-            .where((d) => byRecipient.containsKey(d.id))
+            .where(
+              (d) => byRecipient.containsKey(d.id) && d.email.trim().isNotEmpty,
+            )
             .map((d) => d.id)
             .toSet();
         final allSelected =
-            selectableIds.isNotEmpty && selectableIds.every(_selectedIds.contains);
+            selectableIds.isNotEmpty &&
+            selectableIds.every(_selectedIds.contains);
 
         Widget row(Dignitary d) => _DelegationLinkRow(
           session: widget.session,
@@ -860,15 +893,15 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
               ? _linkUrl(byRecipient[d.id]!.id)
               : null,
           selected: _selectedIds.contains(d.id),
-          onSelectedChanged: byRecipient[d.id] == null
+          onSelectedChanged: !selectableIds.contains(d.id)
               ? null
               : (v) => setState(() {
-                    if (v ?? false) {
-                      _selectedIds.add(d.id);
-                    } else {
-                      _selectedIds.remove(d.id);
-                    }
-                  }),
+                  if (v ?? false) {
+                    _selectedIds.add(d.id);
+                  } else {
+                    _selectedIds.remove(d.id);
+                  }
+                }),
           onCopy: widget.onCopy,
           onOpen: widget.onOpen,
         );
@@ -950,7 +983,9 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: FilledButton.icon(
-                    style: FilledButton.styleFrom(backgroundColor: BrColors.violet),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: BrColors.violet,
+                    ),
                     icon: _sendingBulk
                         ? const SizedBox(
                             width: 14,
@@ -966,12 +1001,12 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
                     onPressed: _sendingBulk || _selectedIds.isEmpty
                         ? null
                         : () => _sendSelected(
-                              recipients,
-                              byRecipient,
-                              ordreDuJour,
-                              state.members,
-                              state.lodgeVmName,
-                            ),
+                            recipients,
+                            byRecipient,
+                            ordreDuJour,
+                            state.members,
+                            state.lodgeVmName,
+                          ),
                   ),
                 ),
               ],
@@ -1080,6 +1115,9 @@ class _DelegationLinkRow extends StatelessWidget {
 
   String _digitsOnly(String phone) => phone.replaceAll(RegExp(r'[^\d+]'), '');
 
+  bool get _noContact =>
+      dignitary.email.trim().isEmpty && dignitary.phone.trim().isEmpty;
+
   @override
   Widget build(BuildContext context) {
     final url = linkUrl;
@@ -1093,67 +1131,481 @@ class _DelegationLinkRow extends StatelessWidget {
             lodgeVmName: lodgeVmName,
             recipient: dignitary,
           );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 32,
-            child: Checkbox(
-              value: selected,
-              onChanged: onSelectedChanged,
-              side: const BorderSide(color: BrColors.muted),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dignitary.fullName,
-                  style: const TextStyle(color: BrColors.text, fontSize: 13),
-                ),
-                Text(
-                  _statusLabel,
-                  style: TextStyle(color: _statusColor, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          if (url != null) ...[
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Copier le texte',
-              icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
-              onPressed: () => onCopy(message),
-            ),
-            if (dignitary.phone.trim().isNotEmpty)
-              _ChannelButton(
-                icon: Icons.chat_outlined,
-                color: BrColors.teal,
-                tooltip: 'Envoyer sur WhatsApp',
-                preferred: dignitary.preferredContact == kContactWhatsApp,
-                onPressed: () => onOpen(
-                  'https://wa.me/${_digitsOnly(dignitary.phone)}'
-                  '?text=${Uri.encodeComponent(message)}',
-                ),
+    final noContact = _noContact;
+    return Opacity(
+      opacity: noContact ? 0.5 : 1,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Checkbox(
+                value: selected,
+                onChanged: onSelectedChanged,
+                side: const BorderSide(color: BrColors.muted),
               ),
-            if (dignitary.email.trim().isNotEmpty)
-              _ChannelButton(
-                icon: Icons.mail_outline,
-                color: BrColors.violet,
-                tooltip: 'Envoyer par e-mail',
-                preferred: dignitary.preferredContact == kContactCourriel,
-                onPressed: () => onOpen(
-                  emailComposeUrl(
-                    to: dignitary.email.trim(),
-                    subject: dignitaryInvitationSubject(session, chrono),
-                    body: message,
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dignitary.fullName,
+                    style: const TextStyle(color: BrColors.text, fontSize: 13),
+                  ),
+                  Text(
+                    noContact ? 'Pas de coordonnées' : _statusLabel,
+                    style: TextStyle(
+                      color: noContact ? BrColors.muted : _statusColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (url != null) ...[
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Copier le texte',
+                icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
+                onPressed: () => onCopy(message),
+              ),
+              if (dignitary.phone.trim().isNotEmpty)
+                _ChannelButton(
+                  icon: Icons.chat_outlined,
+                  color: BrColors.teal,
+                  tooltip: 'Envoyer sur WhatsApp',
+                  preferred: dignitary.preferredContact == kContactWhatsApp,
+                  onPressed: () => onOpen(
+                    'https://wa.me/${_digitsOnly(dignitary.phone)}'
+                    '?text=${Uri.encodeComponent(message)}',
                   ),
                 ),
-              ),
+              if (dignitary.email.trim().isNotEmpty)
+                _ChannelButton(
+                  icon: Icons.mail_outline,
+                  color: BrColors.violet,
+                  tooltip: 'Envoyer par e-mail',
+                  preferred: dignitary.preferredContact == kContactCourriel,
+                  onPressed: () => onOpen(
+                    emailComposeUrl(
+                      to: dignitary.email.trim(),
+                      subject: dignitaryInvitationSubject(session, chrono),
+                      body: message,
+                    ),
+                  ),
+                ),
+            ],
           ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Section « Invitation » pour les visiteurs : même principe que les
+/// dignitaires (_DelegationLinksSection), même kind de lien (delegation) —
+/// un visiteur ne fait jamais de délégation, `recipientAlone` reste
+/// toujours vrai (pas de décompte par grade, à la différence des
+/// dignitaires/Vénérables d'autres Loges).
+class _VisitorLinksSection extends StatefulWidget {
+  final Session session;
+  final int chrono;
+  final Future<void> Function(String) onCopy;
+  final Future<void> Function(String) onOpen;
+  const _VisitorLinksSection({
+    required this.session,
+    required this.chrono,
+    required this.onCopy,
+    required this.onOpen,
+  });
+
+  @override
+  State<_VisitorLinksSection> createState() => _VisitorLinksSectionState();
+}
+
+class _VisitorLinksSectionState extends State<_VisitorLinksSection> {
+  bool _generating = false;
+  final Set<String> _selectedIds = {};
+  bool _sendingBulk = false;
+  int _bulkDone = 0;
+  int _bulkTotal = 0;
+
+  String _linkUrl(String token) =>
+      '${LodgeConfig.current.webOrigin}/#/reponse/$token';
+
+  Future<void> _generateMissing(
+    List<Visitor> recipients,
+    List<PresenceLink> existing,
+  ) async {
+    final dt = widget.session.dateTime;
+    if (dt == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La tenue doit avoir une date pour générer les liens.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _generating = true);
+    final state = context.read<AppState>();
+    final expiresAt = DateTime(dt.year, dt.month, dt.day);
+    final existingRecipientIds = existing.map((l) => l.recipientId).toSet();
+    final sessionLabel = invitationTitle(widget.session, widget.chrono);
+    final sessionDateLabel = DateFormat('EEEE d MMMM y', 'fr_FR').format(dt);
+    for (final v in recipients) {
+      if (existingRecipientIds.contains(v.id)) continue;
+      await state.createPresenceLink(
+        PresenceLink(
+          id: generatePresenceToken(),
+          kind: kPresenceLinkKindDelegation,
+          sessionId: widget.session.id,
+          sessionLabel: sessionLabel,
+          sessionDateLabel: sessionDateLabel,
+          sessionType: widget.session.typeLabel,
+          sessionDegreeLabel: Session.degreeOrdinal(widget.session.degreeLabel),
+          hasAgape: widget.session.suitAgapes,
+          recipientId: v.id,
+          recipientName: v.fullName,
+          recipientAlone: true,
+          expiresAt: expiresAt,
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+    if (mounted) setState(() => _generating = false);
+  }
+
+  Future<void> _sendSelected(
+    List<Visitor> recipients,
+    Map<String, PresenceLink> byRecipient,
+    List<String> ordreDuJour,
+    List<Member> allMembers,
+    String lodgeVmName,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final targets = recipients
+        .where((v) => _selectedIds.contains(v.id) && byRecipient[v.id] != null)
+        .toList();
+    if (targets.isEmpty) return;
+    setState(() {
+      _sendingBulk = true;
+      _bulkDone = 0;
+      _bulkTotal = targets.length;
+    });
+    try {
+      final pdfBytes = Uint8List.fromList(
+        await buildConvocationPdf(
+          widget.session,
+          widget.chrono,
+          allMembers,
+          lodgeVmName: lodgeVmName,
+        ),
+      );
+      final recipientsToSend = [
+        for (final v in targets)
+          (
+            email: v.email,
+            subject: visitorInvitationSubject(widget.session, widget.chrono),
+            body: visitorInvitationBody(
+              widget.session,
+              ordreDuJour,
+              allMembers,
+              _linkUrl(byRecipient[v.id]!.id),
+              lodgeVmName: lodgeVmName,
+              recipient: v,
+            ),
+          ),
+      ];
+      final result = await sendBulkGmails(
+        pdfBytes: pdfBytes,
+        attachmentName:
+            'Convocation ${LodgeConfig.current.name} Tenue '
+            '${widget.chrono}${widget.session.driveFileDateGradeSuffix}.pdf',
+        recipients: recipientsToSend,
+        onProgress: (done, total) {
+          if (mounted) setState(() => _bulkDone = done);
+        },
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(result.summary)));
+      setState(() => _selectedIds.clear());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur : $e')));
+    } finally {
+      if (mounted) setState(() => _sendingBulk = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    // Tous les visiteurs sont listés, y compris sans coordonnées (affichés
+    // grisés par _VisitorLinkRow).
+    final recipients = List<Visitor>.from(state.visitors)
+      ..sort((a, b) => a.lastName.compareTo(b.lastName));
+    final ordreDuJour = plancheOrdreDuJour(widget.session);
+
+    return StreamBuilder<List<PresenceLink>>(
+      stream: state.presenceLinksForSession(widget.session.id),
+      builder: (context, snapshot) {
+        final all = snapshot.data ?? const <PresenceLink>[];
+        final existing = all
+            .where((l) => l.kind == kPresenceLinkKindDelegation)
+            .toList();
+        final byRecipient = {for (final l in existing) l.recipientId: l};
+        final missing = recipients
+            .where((v) => !byRecipient.containsKey(v.id))
+            .length;
+        // L'envoi groupé passe par e-mail uniquement (sendBulkGmails) : un
+        // visiteur sans e-mail (même avec un téléphone) reste cochable
+        // individuellement via WhatsApp, mais pas ici.
+        final selectableIds = recipients
+            .where(
+              (v) => byRecipient.containsKey(v.id) && v.email.trim().isNotEmpty,
+            )
+            .map((v) => v.id)
+            .toSet();
+        final allSelected =
+            selectableIds.isNotEmpty &&
+            selectableIds.every(_selectedIds.contains);
+
+        return Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (missing > 0)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: OutlinedButton.icon(
+                    icon: _generating
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.link, size: 16),
+                    label: Text('Générer les liens ($missing manquant(s))'),
+                    onPressed: _generating
+                        ? null
+                        : () => _generateMissing(recipients, existing),
+                  ),
+                ),
+              if (selectableIds.isNotEmpty) ...[
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
+                  dense: true,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  value: allSelected,
+                  onChanged: (v) => setState(() {
+                    if (v ?? false) {
+                      _selectedIds.addAll(selectableIds);
+                    } else {
+                      _selectedIds.removeAll(selectableIds);
+                    }
+                  }),
+                  title: const Text(
+                    'Envoi groupé (tout sélectionner)',
+                    style: TextStyle(color: BrColors.text, fontSize: 13),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: BrColors.violet,
+                    ),
+                    icon: _sendingBulk
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.mail_outline, size: 16),
+                    label: Text(
+                      _sendingBulk
+                          ? 'Envoi $_bulkDone/$_bulkTotal…'
+                          : 'Envoyer la sélection (${_selectedIds.length})',
+                    ),
+                    onPressed: _sendingBulk || _selectedIds.isEmpty
+                        ? null
+                        : () => _sendSelected(
+                            recipients,
+                            byRecipient,
+                            ordreDuJour,
+                            state.members,
+                            state.lodgeVmName,
+                          ),
+                  ),
+                ),
+              ],
+              for (final v in recipients)
+                _VisitorLinkRow(
+                  session: widget.session,
+                  chrono: widget.chrono,
+                  ordreDuJour: ordreDuJour,
+                  allMembers: state.members,
+                  lodgeVmName: state.lodgeVmName,
+                  visitor: v,
+                  link: byRecipient[v.id],
+                  linkUrl: byRecipient[v.id] != null
+                      ? _linkUrl(byRecipient[v.id]!.id)
+                      : null,
+                  selected: _selectedIds.contains(v.id),
+                  onSelectedChanged: !selectableIds.contains(v.id)
+                      ? null
+                      : (val) => setState(() {
+                          if (val ?? false) {
+                            _selectedIds.add(v.id);
+                          } else {
+                            _selectedIds.remove(v.id);
+                          }
+                        }),
+                  onCopy: widget.onCopy,
+                  onOpen: widget.onOpen,
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _VisitorLinkRow extends StatelessWidget {
+  final Session session;
+  final int chrono;
+  final List<String> ordreDuJour;
+  final List<Member> allMembers;
+  final String lodgeVmName;
+  final Visitor visitor;
+  final PresenceLink? link;
+  final String? linkUrl;
+  final bool selected;
+  final ValueChanged<bool?>? onSelectedChanged;
+  final Future<void> Function(String) onCopy;
+  final Future<void> Function(String) onOpen;
+  const _VisitorLinkRow({
+    required this.session,
+    required this.chrono,
+    required this.ordreDuJour,
+    required this.allMembers,
+    required this.lodgeVmName,
+    required this.visitor,
+    required this.link,
+    required this.linkUrl,
+    required this.selected,
+    required this.onSelectedChanged,
+    required this.onCopy,
+    required this.onOpen,
+  });
+
+  String get _statusLabel {
+    final l = link;
+    if (l == null) return 'Lien non généré';
+    if (!l.isAnswered) return 'En attente';
+    final label = l.status == kPresenceStatusPresent
+        ? 'Présent'
+        : (l.status == kPresenceStatusAbsent ? 'Absent' : 'En attente');
+    final agapeLabel = l.agapePresent == true ? ' + agapes' : '';
+    return '$label$agapeLabel';
+  }
+
+  Color get _statusColor {
+    final l = link;
+    if (l == null || !l.isAnswered) return BrColors.muted;
+    if (l.status == kPresenceStatusAbsent) return BrColors.menuTresorerie;
+    return BrColors.menuVisiteurs;
+  }
+
+  String _digitsOnly(String phone) => phone.replaceAll(RegExp(r'[^\d+]'), '');
+
+  bool get _noContact =>
+      visitor.email.trim().isEmpty && visitor.phone.trim().isEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = linkUrl;
+    final message = url == null
+        ? ''
+        : visitorInvitationBody(
+            session,
+            ordreDuJour,
+            allMembers,
+            url,
+            lodgeVmName: lodgeVmName,
+            recipient: visitor,
+          );
+    final noContact = _noContact;
+    return Opacity(
+      opacity: noContact ? 0.5 : 1,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Checkbox(
+                value: selected,
+                onChanged: onSelectedChanged,
+                side: const BorderSide(color: BrColors.muted),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    visitor.fullName,
+                    style: const TextStyle(color: BrColors.text, fontSize: 13),
+                  ),
+                  Text(
+                    noContact ? 'Pas de coordonnées' : _statusLabel,
+                    style: TextStyle(
+                      color: noContact ? BrColors.muted : _statusColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (url != null) ...[
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Copier le texte',
+                icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
+                onPressed: () => onCopy(message),
+              ),
+              if (visitor.phone.trim().isNotEmpty)
+                _ChannelButton(
+                  icon: Icons.chat_outlined,
+                  color: BrColors.teal,
+                  tooltip: 'Envoyer sur WhatsApp',
+                  preferred: false,
+                  onPressed: () => onOpen(
+                    'https://wa.me/${_digitsOnly(visitor.phone)}'
+                    '?text=${Uri.encodeComponent(message)}',
+                  ),
+                ),
+              if (visitor.email.trim().isNotEmpty)
+                _ChannelButton(
+                  icon: Icons.mail_outline,
+                  color: BrColors.violet,
+                  tooltip: 'Envoyer par e-mail',
+                  preferred: false,
+                  onPressed: () => onOpen(
+                    emailComposeUrl(
+                      to: visitor.email.trim(),
+                      subject: visitorInvitationSubject(session, chrono),
+                      body: message,
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }
