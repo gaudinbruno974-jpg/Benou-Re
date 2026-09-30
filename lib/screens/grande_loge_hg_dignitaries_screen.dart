@@ -261,7 +261,11 @@ class _GrandeLogeHgDignitaryEditScreenState
   late final TextEditingController _lastNameCtrl;
   late final TextEditingController _titleCtrl;
   late final TextEditingController _lodgeCtrl;
+  late final TextEditingController _orientCtrl;
   late final TextEditingController _obedienceCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _degreeCtrl;
   late String _civilite;
   bool _saving = false;
 
@@ -273,7 +277,11 @@ class _GrandeLogeHgDignitaryEditScreenState
     _lastNameCtrl = TextEditingController(text: d?.lastName ?? '');
     _titleCtrl = TextEditingController(text: d?.title ?? '');
     _lodgeCtrl = TextEditingController(text: d?.lodge ?? '');
+    _orientCtrl = TextEditingController(text: d?.orient ?? '');
     _obedienceCtrl = TextEditingController(text: d?.obedience ?? '');
+    _emailCtrl = TextEditingController(text: d?.email ?? '');
+    _phoneCtrl = TextEditingController(text: d?.phone ?? '');
+    _degreeCtrl = TextEditingController(text: d?.grade ?? '');
     _civilite = d?.civilite.isNotEmpty == true ? d!.civilite : kFrere;
   }
 
@@ -283,7 +291,11 @@ class _GrandeLogeHgDignitaryEditScreenState
     _lastNameCtrl.dispose();
     _titleCtrl.dispose();
     _lodgeCtrl.dispose();
+    _orientCtrl.dispose();
     _obedienceCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _degreeCtrl.dispose();
     super.dispose();
   }
 
@@ -298,7 +310,11 @@ class _GrandeLogeHgDignitaryEditScreenState
         civilite: _civilite,
         title: _titleCtrl.text.trim(),
         lodge: _lodgeCtrl.text.trim(),
+        orient: _orientCtrl.text.trim(),
         obedience: _obedienceCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim(),
+        grade: _degreeCtrl.text.trim(),
       );
       await HgBodyService.instance.saveDignitary(widget.body, d);
       if (mounted) Navigator.of(context).pop();
@@ -357,14 +373,41 @@ class _GrandeLogeHgDignitaryEditScreenState
                   controller: _lodgeCtrl,
                   style: const TextStyle(color: BrColors.text),
                   decoration: const InputDecoration(
-                    labelText: 'Loge / atelier',
+                    labelText: "Loge d'origine",
                   ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _orientCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Orient'),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _obedienceCtrl,
                   style: const TextStyle(color: BrColors.text),
                   decoration: const InputDecoration(labelText: 'Obédience'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _emailCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _phoneCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Téléphone'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _degreeCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(
+                    labelText: 'Degré (Hauts Grades)',
+                    hintText: 'ex : 20',
+                  ),
                 ),
               ],
             ),

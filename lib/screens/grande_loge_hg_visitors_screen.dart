@@ -8,7 +8,6 @@ import 'package:provider/provider.dart';
 
 import '../models/civilite.dart';
 import '../models/hg_body.dart';
-import '../models/member.dart' show kGrades;
 import '../models/visitor.dart';
 import '../services/directory_xlsx_service.dart';
 import '../services/hg_body_service.dart';
@@ -260,11 +259,14 @@ class _GrandeLogeHgVisitorEditScreenState
     extends State<GrandeLogeHgVisitorEditScreen> {
   late final TextEditingController _firstNameCtrl;
   late final TextEditingController _lastNameCtrl;
+  late final TextEditingController _functionCtrl;
   late final TextEditingController _lodgeCtrl;
   late final TextEditingController _orientCtrl;
   late final TextEditingController _obedienceCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _degreeCtrl;
   late String _civilite;
-  late String _grade;
   bool _saving = false;
 
   @override
@@ -273,20 +275,27 @@ class _GrandeLogeHgVisitorEditScreenState
     final v = widget.visitor;
     _firstNameCtrl = TextEditingController(text: v?.firstName ?? '');
     _lastNameCtrl = TextEditingController(text: v?.lastName ?? '');
+    _functionCtrl = TextEditingController(text: v?.function ?? '');
     _lodgeCtrl = TextEditingController(text: v?.lodge ?? '');
     _orientCtrl = TextEditingController(text: v?.orient ?? '');
     _obedienceCtrl = TextEditingController(text: v?.obedience ?? '');
+    _emailCtrl = TextEditingController(text: v?.email ?? '');
+    _phoneCtrl = TextEditingController(text: v?.phone ?? '');
+    _degreeCtrl = TextEditingController(text: v?.grade ?? '');
     _civilite = v?.civilite.isNotEmpty == true ? v!.civilite : kFrere;
-    _grade = v?.grade.isNotEmpty == true ? v!.grade : kGrades.last;
   }
 
   @override
   void dispose() {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
+    _functionCtrl.dispose();
     _lodgeCtrl.dispose();
     _orientCtrl.dispose();
     _obedienceCtrl.dispose();
+    _emailCtrl.dispose();
+    _phoneCtrl.dispose();
+    _degreeCtrl.dispose();
     super.dispose();
   }
 
@@ -299,10 +308,13 @@ class _GrandeLogeHgVisitorEditScreenState
         firstName: _firstNameCtrl.text.trim(),
         lastName: _lastNameCtrl.text.trim(),
         civilite: _civilite,
-        grade: _grade,
+        function: _functionCtrl.text.trim(),
         lodge: _lodgeCtrl.text.trim(),
         orient: _orientCtrl.text.trim(),
         obedience: _obedienceCtrl.text.trim(),
+        email: _emailCtrl.text.trim(),
+        phone: _phoneCtrl.text.trim(),
+        grade: _degreeCtrl.text.trim(),
       );
       await HgBodyService.instance.saveVisitor(widget.body, v);
       if (mounted) Navigator.of(context).pop();
@@ -348,21 +360,17 @@ class _GrandeLogeHgVisitorEditScreenState
                   decoration: const InputDecoration(labelText: 'Nom'),
                 ),
                 const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: _grade,
-                  decoration: const InputDecoration(labelText: 'Grade / degré'),
-                  items: [
-                    for (final g in kGrades)
-                      DropdownMenuItem(value: g, child: Text(g)),
-                  ],
-                  onChanged: (v) => setState(() => _grade = v ?? _grade),
+                TextField(
+                  controller: _functionCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Fonction'),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _lodgeCtrl,
                   style: const TextStyle(color: BrColors.text),
                   decoration: const InputDecoration(
-                    labelText: 'Loge / atelier',
+                    labelText: "Loge d'origine",
                   ),
                 ),
                 const SizedBox(height: 14),
@@ -376,6 +384,27 @@ class _GrandeLogeHgVisitorEditScreenState
                   controller: _obedienceCtrl,
                   style: const TextStyle(color: BrColors.text),
                   decoration: const InputDecoration(labelText: 'Obédience'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _emailCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Email'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _phoneCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(labelText: 'Téléphone'),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _degreeCtrl,
+                  style: const TextStyle(color: BrColors.text),
+                  decoration: const InputDecoration(
+                    labelText: 'Degré (Hauts Grades)',
+                    hintText: 'ex : 20',
+                  ),
                 ),
               ],
             ),
