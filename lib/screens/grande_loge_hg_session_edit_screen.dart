@@ -336,7 +336,16 @@ class _GrandeLogeHgSessionEditScreenState
 
   Future<void> _configureRow(int index) async {
     final row = _ordres[index];
-    final members = List<Member>.from(_members)
+    // IAH-MES uniquement (échelle 4°-14°, MAA-Kherou n'a pas cette notion
+    // de degré) : un F∴/S∴ ne peut être cité pour présenter une planche que
+    // s'il a atteint le degré de la tenue — même règle que pour les
+    // convocations (voir grande_loge_hg_session_invitations_screen.dart).
+    final eligibleAuthors = widget.body.key == kIahMes.key
+        ? _members.where(
+            (m) => (int.tryParse(m.hautsGradesDegree) ?? 0) >= _degree,
+          )
+        : _members;
+    final members = List<Member>.from(eligibleAuthors)
       ..sort((a, b) => a.fullName.compareTo(b.fullName));
     String type = row.type;
     String authorId = row.authorId;
