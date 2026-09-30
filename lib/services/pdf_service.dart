@@ -38,8 +38,7 @@ import '../utils/name_mask.dart';
 import 'activity_report_service.dart';
 import 'attendance_stats_service.dart';
 import 'agape_payment_service.dart';
-import 'treasury_document_service.dart'
-    show capitationCallBody, quitusBody;
+import 'treasury_document_service.dart' show capitationCallBody, quitusBody;
 
 // 1 mm en points PDF (le paquet `pdf` travaille en points ; jsPDF en mm).
 const double _mm = PdfPageFormat.mm;
@@ -48,20 +47,20 @@ const double _mm = PdfPageFormat.mm;
 /// les documents générés — voir aussi le champ `author` de chaque
 /// `pw.Document`, qui porte la même mention dans les métadonnées du PDF.
 pw.Widget _copyrightFooter(pw.Context context) => pw.Container(
-      alignment: pw.Alignment.center,
-      margin: pw.EdgeInsets.only(top: 4 * _mm),
-      child: pw.Text(
-        '© Grande Loge de Bourbon (GLDB) - N° RNA W9R2011523',
-        style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
-      ),
-    );
+  alignment: pw.Alignment.center,
+  margin: pw.EdgeInsets.only(top: 4 * _mm),
+  child: pw.Text(
+    '© Grande Loge de Bourbon (GLDB) - N° RNA W9R2011523',
+    style: pw.TextStyle(fontSize: 7, color: PdfColors.grey500),
+  ),
+);
 
 const _navy = PdfColor.fromInt(0xFF0C235C);
 const _violet = PdfColor.fromInt(0xFF701A75);
 const _grey = PdfColor.fromInt(0xFFD9D9D9);
 
 // Placement rituel de chaque office dans le Temple.
-const Map<String, String> _officePlacement = {
+const Map<String, String> officePlacement = {
   'Secrétaire': 'Orient',
   'Orateur': 'Orient',
   'Premier Surveillant': 'Colonne du Midi',
@@ -79,7 +78,7 @@ const Map<String, String> _officePlacement = {
   'Couvreur': 'Occident',
 };
 
-const Map<String, String> _directPlacement = {
+const Map<String, String> directPlacement = {
   'à l’Orient': 'Orient',
   "à l'Orient": 'Orient',
   'Colonne du Septentrion': 'Colonne du Nord',
@@ -89,7 +88,7 @@ const Map<String, String> _directPlacement = {
 
 String _degreOrdinal(String? degre) => Session.degreeOrdinal(degre ?? '');
 
-String _formatDateFR(String? dateStr) {
+String formatDateFR(String? dateStr) {
   if (dateStr == null || dateStr.isEmpty) return 'xx-xx-xxxx';
   final d = DateTime.tryParse(dateStr);
   if (d == null) return 'xx-xx-xxxx';
@@ -537,7 +536,11 @@ List<pw.Widget> _convocationContent({
     pw.Text(
       'La R∴L∴ ${LodgeConfig.current.name} a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu :',
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale, color: _violet),
+      style: pw.TextStyle(
+        font: fonts.base,
+        fontSize: 11 * scale,
+        color: _violet,
+      ),
     ),
     pw.SizedBox(height: 6 * _mm * scale),
     pw.Text(
@@ -583,7 +586,11 @@ List<pw.Widget> _convocationContent({
         "aider à la mise en place du Temple sous la houlette du Maître Second "
         "Surveillant et du Maître Expert.",
         textAlign: pw.TextAlign.left,
-        style: pw.TextStyle(font: fonts.base, fontSize: 10 * scale, color: _navy),
+        style: pw.TextStyle(
+          font: fonts.base,
+          fontSize: 10 * scale,
+          color: _navy,
+        ),
       ),
     ],
     pw.SizedBox(height: 6 * _mm * scale),
@@ -597,7 +604,11 @@ List<pw.Widget> _convocationContent({
     pw.Text(
       "Merci aux SS∴ et FF∴ De s'annoncer afin d'ajuster au mieux les Agapes.$telSuffix",
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(font: fonts.base, fontSize: 8.5 * scale, color: _navy),
+      style: pw.TextStyle(
+        font: fonts.base,
+        fontSize: 8.5 * scale,
+        color: _navy,
+      ),
     ),
     pw.SizedBox(height: 8 * _mm * scale),
     pw.Text(
@@ -708,7 +719,9 @@ Future<Uint8List> buildConvocationPdf(
   var scale = 1.0;
   pw.Document doc;
   while (true) {
-    doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+    doc = pw.Document(
+      author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+    );
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -741,10 +754,7 @@ Future<Uint8List> buildConvocationPdf(
     if (fitsOnePage || scale <= _kConvocationMinScale) {
       break;
     }
-    scale = (scale - _kConvocationScaleStep).clamp(
-      _kConvocationMinScale,
-      1.0,
-    );
+    scale = (scale - _kConvocationScaleStep).clamp(_kConvocationMinScale, 1.0);
   }
 
   return doc.save();
@@ -764,7 +774,9 @@ Future<Uint8List> buildEmargementPdf(
   // symboles ; on garde la typo Times avec repli DejaVu pour les glyphes manquants.
   final fallback = await _loadLodgeFonts();
   final logo = (await _loadLogos())[1]; // logo de la Loge
-  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
 
   final signatures = session.signatures;
   final type = session.type.isNotEmpty ? session.type : 'Ordinaire';
@@ -1034,7 +1046,9 @@ Future<Uint8List> buildAgapePaymentPdf(
 ) async {
   final fonts = await _loadLodgeFonts();
   final logo = (await _loadLogos())[1]; // logo de la Loge
-  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
 
   final payers = agapePayers(session, members, visitors, dignitaries);
   final signatures = session.agapePaymentSignatures;
@@ -1291,7 +1305,7 @@ String buildPlancheTraceeText(
   final vmName = maskPersonName(
     plancheVmName(session, members, lodgeVmName: lodgeVmName),
   );
-  final dateFR = _formatDateFR(session.dateReprise ?? session.date);
+  final dateFR = formatDateFR(session.dateReprise ?? session.date);
   final degre = _degreOrdinal(session.degreTravail ?? session.degree);
 
   paras.add('Planche Tracée de la Tenue Régulière N°$chrono du $dateFR');
@@ -1360,11 +1374,11 @@ String buildPlancheTraceeText(
     return r.isEmpty ? null : r;
   }
 
-  bool isOffice(String role) => _officePlacement.containsKey(role);
+  bool isOffice(String role) => officePlacement.containsKey(role);
   String? placementOf(Visitor v) {
     final role = roleOf(v);
     if (role == null) return null;
-    return _officePlacement[role] ?? _directPlacement[role];
+    return officePlacement[role] ?? directPlacement[role];
   }
 
   // Sans office pris ce jour, un dignitaire n'est pas cité dans la planche
@@ -1373,7 +1387,7 @@ String buildPlancheTraceeText(
   String? placementOfDignitary(Dignitary d) {
     final role = roleOfDignitary(d);
     if (role == null) return null;
-    return _officePlacement[role] ?? _directPlacement[role];
+    return officePlacement[role] ?? directPlacement[role];
   }
 
   String placementSentence(Visitor v, String placement, String role) {
@@ -1392,7 +1406,11 @@ String buildPlancheTraceeText(
     }
   }
 
-  String placementSentenceDignitary(Dignitary d, String placement, String role) {
+  String placementSentenceDignitary(
+    Dignitary d,
+    String placement,
+    String role,
+  ) {
     final lodgePart = d.lodge.isNotEmpty ? ' (${d.lodge})' : '';
     final who =
         '${civiliteArticleAbbrev(d.civilite)} ${maskPersonName(d.fullName)}$lodgePart';
@@ -1420,11 +1438,15 @@ String buildPlancheTraceeText(
             roleOf(v) != 'Orateur' &&
             isOffice(roleOf(v) ?? ''),
       )
-      .map((v) => '${maskPersonName(_visitorFullName(v))} (${roleOf(v)} – ${v.lodge})');
+      .map(
+        (v) =>
+            '${maskPersonName(_visitorFullName(v))} (${roleOf(v)} – ${v.lodge})',
+      );
   final dignitaryOrientEntries = presentDignitaries
       .where(
         (d) =>
-            placementOfDignitary(d) == 'Orient' && roleOfDignitary(d) != 'Orateur',
+            placementOfDignitary(d) == 'Orient' &&
+            roleOfDignitary(d) != 'Orateur',
       )
       .map((d) {
         final role = roleOfDignitary(d);
@@ -1441,8 +1463,18 @@ String buildPlancheTraceeText(
     );
   }
 
-  final orateurName = plancheOrateurName(session, members, visitors, dignitaries);
-  final orateurCivilite = _orateurCivilite(session, members, visitors, dignitaries);
+  final orateurName = plancheOrateurName(
+    session,
+    members,
+    visitors,
+    dignitaries,
+  );
+  final orateurCivilite = _orateurCivilite(
+    session,
+    members,
+    visitors,
+    dignitaries,
+  );
   paras.add(
     orateurName != null
         ? 'Le poste d’Orateur est occupé par ${civiliteArticleAbbrev(orateurCivilite)} $orateurName.'
@@ -1501,13 +1533,17 @@ String buildPlancheTraceeText(
 }
 
 /// Phrase de clôture décrivant le Tronc de la Veuve et le Sac aux propositions.
-String plancheTroncSentence(num troncAmount, String sacPropositions) {
+String plancheTroncSentence(
+  num troncAmount,
+  String sacPropositions, {
+  String officerTitle = 'V∴ M∴',
+}) {
   final tronc = troncAmount.toDouble();
   final euros = tronc.floor();
   final centimes = ((tronc - euros) * 100).round();
   final sac = sacPropositions.trim();
-  return 'L’ordre du jour étant épuisé, le V∴ M∴ fait circuler le Tronc de la veuve '
-      'et le Sac aux Propositions. '
+  return 'L’ordre du jour étant épuisé, le $officerTitle fait circuler le '
+      'Tronc de la veuve et le Sac aux Propositions. '
       '${sac.isEmpty ? 'Ce dernier revient pur et sans tache.' : 'Sac aux Propositions : $sac'} '
       'Le Tronc revient lourd de $euros Pierre(s) Plate(s) et $centimes '
       'Morceau(x) d’éclats, qui ont été pris en charge par le Trésorier.';
@@ -1571,7 +1607,9 @@ Future<Uint8List> buildPlancheTraceePdf(
 }) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
-  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
 
   final content = <pw.Widget>[];
   content.add(_lodgeHeader(fonts, logos[0], logos[1]));
@@ -1653,7 +1691,12 @@ Future<Uint8List> buildPlancheTraceePdf(
   }
 
   // Signatures
-  final orateurName = plancheOrateurName(session, members, visitors, dignitaries);
+  final orateurName = plancheOrateurName(
+    session,
+    members,
+    visitors,
+    dignitaries,
+  );
   final secretaryMember = members
       .where(
         (m) =>
@@ -1664,7 +1707,12 @@ Future<Uint8List> buildPlancheTraceePdf(
   final secretaryName = secretaryMember != null
       ? maskPersonName(_memberFullName(secretaryMember))
       : '';
-  final orateurCivilite = _orateurCivilite(session, members, visitors, dignitaries);
+  final orateurCivilite = _orateurCivilite(
+    session,
+    members,
+    visitors,
+    dignitaries,
+  );
   final sigs = <List<String?>>[
     [
       '${civiliteTitle(orateurCivilite)} Orateur',
@@ -1741,7 +1789,9 @@ Future<Uint8List> buildPlancheTraceePdf(
 Future<Uint8List> buildTreasuryReportPdf(int year, List<Member> members) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
-  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
 
   String euros(num v) => '${v.toStringAsFixed(2)} €';
 
@@ -1903,7 +1953,9 @@ Future<Uint8List> buildTreasuryReportPdf(int year, List<Member> members) async {
 Future<Uint8List> _buildTreasuryLetterPdf(String title, String body) async {
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos();
-  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
   doc.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
@@ -2013,7 +2065,9 @@ Future<Uint8List> buildPassportPdf(
     );
   }
 
-  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
   doc.addPage(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
@@ -2084,7 +2138,7 @@ Future<Uint8List> buildPassportPdf(
 String _fmtDdMmYyyy(DateTime? d) => d == null
     ? '?'
     : '${d.day.toString().padLeft(2, '0')}/'
-        '${d.month.toString().padLeft(2, '0')}/${d.year}';
+          '${d.month.toString().padLeft(2, '0')}/${d.year}';
 
 /// Document en lecture seule : n'agrège que ce qui est déjà enregistré
 /// ailleurs (voir activity_report_service.dart), aucune écriture.
@@ -2104,7 +2158,9 @@ Future<Uint8List> buildActivityReportPdf({
   final fonts = await _loadLodgeFonts();
   final logos = await _loadLogos(lodgeOverride: lodgeOverride);
   final lodge = lodgeOverride ?? LodgeConfig.current;
-  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
 
   final effectifs = computeEffectifsSection(
     members,
@@ -2121,7 +2177,12 @@ Future<Uint8List> buildActivityReportPdf({
     start: start,
     end: end,
   );
-  final treasury = computeTreasurySection(members, sessions, start: start, end: end);
+  final treasury = computeTreasurySection(
+    members,
+    sessions,
+    start: start,
+    end: end,
+  );
   final memberStats = computeMemberAttendance(
     members,
     sessions,
@@ -2129,7 +2190,12 @@ Future<Uint8List> buildActivityReportPdf({
     start: start,
     end: end,
   ); // déjà triée par taux de présence décroissant
-  final planches = computePlancheEntries(sessions, members, start: start, end: end);
+  final planches = computePlancheEntries(
+    sessions,
+    members,
+    start: start,
+    end: end,
+  );
   final planchesByAuthor = planchesCountByAuthor(planches);
 
   pw.Widget sectionTitle(String text) => pw.Padding(
@@ -2144,7 +2210,11 @@ Future<Uint8List> buildActivityReportPdf({
     padding: pw.EdgeInsets.only(bottom: 2 * _mm),
     child: pw.Text(
       text,
-      style: pw.TextStyle(font: fonts.base, fontSize: 10, color: PdfColors.grey700),
+      style: pw.TextStyle(
+        font: fonts.base,
+        fontSize: 10,
+        color: PdfColors.grey700,
+      ),
     ),
   );
 
@@ -2154,10 +2224,16 @@ Future<Uint8List> buildActivityReportPdf({
       children: [
         pw.SizedBox(
           width: 70 * _mm,
-          child: pw.Text(label, style: pw.TextStyle(font: fonts.bold, fontSize: 10)),
+          child: pw.Text(
+            label,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+          ),
         ),
         pw.Expanded(
-          child: pw.Text(value, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+          child: pw.Text(
+            value,
+            style: pw.TextStyle(font: fonts.base, fontSize: 10),
+          ),
         ),
       ],
     ),
@@ -2167,14 +2243,20 @@ Future<Uint8List> buildActivityReportPdf({
     final entries = counts.entries.toList();
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-      columnWidths: const {0: pw.FlexColumnWidth(60), 1: pw.FlexColumnWidth(20)},
+      columnWidths: const {
+        0: pw.FlexColumnWidth(60),
+        1: pw.FlexColumnWidth(20),
+      },
       children: [
         for (final e in entries)
           pw.TableRow(
             children: [
               pw.Padding(
                 padding: pw.EdgeInsets.all(2 * _mm),
-                child: pw.Text(e.key, style: pw.TextStyle(font: fonts.base, fontSize: 10)),
+                child: pw.Text(
+                  e.key,
+                  style: pw.TextStyle(font: fonts.base, fontSize: 10),
+                ),
               ),
               pw.Padding(
                 padding: pw.EdgeInsets.all(2 * _mm),
@@ -2210,7 +2292,11 @@ Future<Uint8List> buildActivityReportPdf({
           child: pw.Text(
             'Période du ${_fmtDdMmYyyy(start)} au ${_fmtDdMmYyyy(end)} '
             '— édité le ${_fmtDdMmYyyy(DateTime.now())}',
-            style: pw.TextStyle(font: fonts.base, fontSize: 10, color: PdfColors.grey700),
+            style: pw.TextStyle(
+              font: fonts.base,
+              fontSize: 10,
+              color: PdfColors.grey700,
+            ),
           ),
         ),
 
@@ -2260,7 +2346,9 @@ Future<Uint8List> buildActivityReportPdf({
         if (effectifs.newMembers.isEmpty &&
             effectifs.elevations.isEmpty &&
             effectifs.statusChanges.isEmpty)
-          emptyNote('Aucun mouvement (entrée, élévation, changement de statut) enregistré sur la période.'),
+          emptyNote(
+            'Aucun mouvement (entrée, élévation, changement de statut) enregistré sur la période.',
+          ),
 
         // ─── 2. Activité et assiduité ───────────────────────────
         sectionTitle('2. Activité et assiduité'),
@@ -2280,15 +2368,26 @@ Future<Uint8List> buildActivityReportPdf({
           ),
         ],
         pw.SizedBox(height: 2 * _mm),
-        pw.Text('Rayonnement extérieur', style: pw.TextStyle(font: fonts.bold, fontSize: 10.5)),
+        pw.Text(
+          'Rayonnement extérieur',
+          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+        ),
         pw.SizedBox(height: 2 * _mm),
-        kvRow('Visites de membres dans d\'autres Loges', '${activity.externalVisitCount}'),
+        kvRow(
+          'Visites de membres dans d\'autres Loges',
+          '${activity.externalVisitCount}',
+        ),
         kvRow('Visiteurs distincts reçus', '${activity.distinctVisitorCount}'),
-        kvRow('Dignitaires distincts reçus', '${activity.distinctDignitaryCount}'),
+        kvRow(
+          'Dignitaires distincts reçus',
+          '${activity.distinctDignitaryCount}',
+        ),
         if (activity.externalVisitCount == 0 &&
             activity.distinctVisitorCount == 0 &&
             activity.distinctDignitaryCount == 0)
-          emptyNote('Aucune tenue extérieure, aucun Visiteur ni Dignitaire enregistré sur la période.')
+          emptyNote(
+            'Aucune tenue extérieure, aucun Visiteur ni Dignitaire enregistré sur la période.',
+          )
         else if (activity.hasMultipleObediences) ...[
           pw.SizedBox(height: 2 * _mm),
           pw.Text(
@@ -2405,9 +2504,15 @@ Future<Uint8List> buildActivityReportPdf({
         // ─── 4. Trésorerie ───────────────────────────────────────
         sectionTitle('4. Trésorerie'),
         kvRow('Cotisation Loge due', _euroLabel(treasury.lodgeDuesTotal)),
-        kvRow('Cotisation Loge versée', _euroLabel(treasury.lodgeDuesPaidTotal)),
+        kvRow(
+          'Cotisation Loge versée',
+          _euroLabel(treasury.lodgeDuesPaidTotal),
+        ),
         kvRow('Cotisation Ordre due', _euroLabel(treasury.orderDuesTotal)),
-        kvRow('Cotisation Ordre versée', _euroLabel(treasury.orderDuesPaidTotal)),
+        kvRow(
+          'Cotisation Ordre versée',
+          _euroLabel(treasury.orderDuesPaidTotal),
+        ),
         kvRow('Tronc de la Veuve récolté', _euroLabel(treasury.troncTotal)),
 
         // ─── 5. Planches tracées étudiées ───────────────────────
@@ -2489,7 +2594,9 @@ Future<Uint8List> buildSupportRequestPdf({
     );
   }
 
-  final doc = pw.Document(author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523');
+  final doc = pw.Document(
+    author: 'Grande Loge de Bourbon (GLDB) — N° RNA W9R2011523',
+  );
   doc.addPage(
     pw.Page(
       pageFormat: PdfPageFormat.a4,
@@ -2546,10 +2653,7 @@ Future<Uint8List> buildSupportRequestPdf({
             ),
           ),
           pw.SizedBox(height: 10 * _mm),
-          pw.Text(
-            message,
-            style: pw.TextStyle(font: fonts.base, fontSize: 11),
-          ),
+          pw.Text(message, style: pw.TextStyle(font: fonts.base, fontSize: 11)),
           pw.SizedBox(height: 14 * _mm),
           _copyrightFooter(context),
         ],

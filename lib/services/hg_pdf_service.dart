@@ -28,8 +28,17 @@ import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
 import '../utils/name_mask.dart';
+import '../models/civilite.dart' show civiliteArticleAbbrev;
 import 'agape_payment_service.dart';
-import 'pdf_service.dart' show getMasonicDate, getSothiacDate;
+import 'pdf_service.dart'
+    show
+        getMasonicDate,
+        getSothiacDate,
+        formatDateFR,
+        officePlacement,
+        directPlacement,
+        plancheOrdreDuJour,
+        plancheTroncSentence;
 
 const double _mm = PdfPageFormat.mm;
 const _navy = PdfColor.fromInt(0xFF0C235C);
@@ -730,11 +739,280 @@ Future<Uint8List> buildIahMesEmargementPdf(
 // unique du Trois Fois Puissant Maître, gabarit visuel IAH-MES.
 // ══════════════════════════════════════════════════════════════════
 
+/// Construit le texte intégral de la planche tracée d'une tenue de Hauts
+/// Grades — même principe et même structure rituelle que
+/// buildPlancheTraceeText (pdf_service.dart, loges bleues), demande
+/// explicite de l'utilisateur ; adapté uniquement sur les termes propres à
+/// IAH-MES/MAA-Kherou (institution, « Trois Fois Puissant Maître » au lieu
+/// de « Vénérable Maître », degré aux Hauts Grades au lieu du degré
+/// symbolique). Fonction pure : sert à pré-remplir l'éditeur de planche et
+/// à générer le corps du PDF si `session.plancheDraftText` est vide.
+String buildIahMesPlancheTraceeText(
+  HgBody body,
+  Session session,
+  List<Member> members,
+  List<Visitor> visitors,
+  List<Dignitary> dignitaries,
+  int chrono, {
+  num? troncAmount,
+  String? sacPropositions,
+  List<String>? travauxNotes,
+}) {
+  final paras = <String>[];
+  // session.vmName est déjà saisi sous forme abrégée par l'officier (ex.
+  // « Jean-Pierre T∴ »), sans nom de famille en clair — même convention que
+  // le reste de la convocation IAH-MES (hg_pdf_service.dart), pas de
+  // maskPersonName ici (à la différence des loges bleues, où le nom du
+  // V∴M∴ vient en clair d'une fiche Membre).
+  final signerName = (session.vmName ?? '').trim().isEmpty
+      ? 'Trois Fois Puissant Maître'
+      : session.vmName!.trim();
+  final dateFR = formatDateFR(session.dateReprise ?? session.date);
+  final degree = int.tryParse(session.degreTravail ?? session.degree) ?? 4;
+  final degreePhrase = hgDegreeOrdinalPhrase(body, degree);
+  final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
+      ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
+      : session.lieuReunionExtra!.trim();
+  final institution = hgInstitutionHeader(body);
+
+  paras.add('Planche Tracée de la Tenue Régulière N°$chrono du $dateFR');
+  paras.add('De $institution, au $lieu');
+  paras.add(
+    'Trois Fois Puissant Maître en chaire et vous tous mes Frères et Sœurs '
+    'en vos grades et qualités.',
+  );
+  paras.add(
+    'Protocole de la Tenue '
+    '${session.type == 'Solennelle' ? 'Solennelle' : (session.typeTenue ?? (session.type.isNotEmpty ? session.type : 'Régulière'))} '
+    'du $dateFR de Ère Vulgaire.',
+  );
+  paras.add(
+    'Les Sœurs et Frères composant $institution, régulièrement convoqués, '
+    'sont traditionnellement réunis en un lieu très pur, très saint et très '
+    'éclairé par la lumière d’Egypte, lieu où règne la Paix, la Joie et '
+    'l’Harmonie.',
+  );
+  paras.add(
+    'Les Sœurs et Frères sont éclairés à l’orient par la sagesse du Trois '
+    'Fois Puissant Maître en chaire $signerName.',
+  );
+  paras.add(
+    'Les Sœurs et Frères dont le nom figure sur le registre des présences, '
+    'nous ont fait la joie d’assister à nos travaux.',
+  );
+
+  // Membres excusés.
+  final excused = session.excusedIds
+      .map((id) => members.where((m) => m.id == id).firstOrNull)
+      .whereType<Member>()
+      .toList();
+  if (excused.isNotEmpty) {
+    final noms = excused
+        .asMap()
+        .entries
+        .map(
+          (e) =>
+              '${civiliteArticleAbbrev(e.value.civilite, capitalize: e.key == 0)} '
+              '${maskPersonName('${e.value.firstName} ${e.value.lastName}'.trim())}',
+        )
+        .join(', ');
+    paras.add(
+      '$noms membre(s) de $institution sont absents excusés. (Voir la '
+      'liste des membres excusés)',
+    );
+  } else {
+    paras.add('Aucun membre de $institution n’est absent excusé.');
+  }
+
+  // Invités.
+  final presentVisitors = session.visitorIds
+      .map((id) => visitors.where((v) => v.id == id).firstOrNull)
+      .whereType<Visitor>()
+      .toList();
+  final presentDignitaries = session.dignitaryIds
+      .map((id) => dignitaries.where((d) => d.id == id).firstOrNull)
+      .whereType<Dignitary>()
+      .toList();
+
+  String? roleOf(Visitor v) {
+    final r = (session.visitorRoles[v.id] ?? '').trim();
+    if (r.isNotEmpty && r != 'Simple Visiteur' && r != 'Visiteur') return r;
+    return null;
+  }
+
+  String? roleOfDignitary(Dignitary d) {
+    final r = (session.dignitaryRoles[d.id] ?? '').trim();
+    return r.isEmpty ? null : r;
+  }
+
+  bool isOffice(String role) => officePlacement.containsKey(role);
+  String? placementOf(Visitor v) {
+    final role = roleOf(v);
+    if (role == null) return null;
+    return officePlacement[role] ?? directPlacement[role];
+  }
+
+  String? placementOfDignitary(Dignitary d) {
+    final role = roleOfDignitary(d);
+    if (role == null) return null;
+    return officePlacement[role] ?? directPlacement[role];
+  }
+
+  String placementSentence(Visitor v, String placement, String role) {
+    final who =
+        '${civiliteArticleAbbrev(v.civilite)} '
+        '${maskPersonName('${v.firstName} ${v.lastName}'.trim())} (${v.lodge})';
+    final qualite = isOffice(role) ? ' en qualité de $role' : '';
+    switch (placement) {
+      case 'Colonne du Midi':
+        return 'Au Midi, a pris place $who$qualite.';
+      case 'Colonne du Nord':
+        return 'Au Nord, a pris place $who$qualite.';
+      case 'Occident':
+        return 'À l’Occident, à la porte d’entrée à l’intérieur, a pris '
+            'place $who$qualite.';
+      default:
+        return 'À l’Orient, a pris place $who$qualite.';
+    }
+  }
+
+  String placementSentenceDignitary(
+    Dignitary d,
+    String placement,
+    String role,
+  ) {
+    final lodgePart = d.lodge.isNotEmpty ? ' (${d.lodge})' : '';
+    final who =
+        '${civiliteArticleAbbrev(d.civilite)} '
+        '${maskPersonName(d.fullName)}$lodgePart';
+    final qualite = isOffice(role) ? ' en qualité de $role' : '';
+    switch (placement) {
+      case 'Colonne du Midi':
+        return 'Au Midi, a pris place $who$qualite.';
+      case 'Colonne du Nord':
+        return 'Au Nord, a pris place $who$qualite.';
+      case 'Occident':
+        return 'À l’Occident, à la porte d’entrée à l’intérieur, a pris '
+            'place $who$qualite.';
+      default:
+        return 'À l’Orient, a pris place $who$qualite.';
+    }
+  }
+
+  final visitorOrientEntries = presentVisitors
+      .where(
+        (v) =>
+            placementOf(v) == 'Orient' &&
+            roleOf(v) != 'Orateur' &&
+            isOffice(roleOf(v) ?? ''),
+      )
+      .map(
+        (v) =>
+            '${maskPersonName('${v.firstName} ${v.lastName}'.trim())} '
+            '(${roleOf(v)} – ${v.lodge})',
+      );
+  final dignitaryOrientEntries = presentDignitaries
+      .where(
+        (d) =>
+            placementOfDignitary(d) == 'Orient' &&
+            roleOfDignitary(d) != 'Orateur',
+      )
+      .map((d) {
+        final role = roleOfDignitary(d);
+        final qualifier = (role != null && isOffice(role))
+            ? role
+            : (d.title.isNotEmpty ? d.title : 'Dignitaire');
+        final lodgePart = d.lodge.isNotEmpty ? ' – ${d.lodge}' : '';
+        return '${maskPersonName(d.fullName)} ($qualifier$lodgePart)';
+      });
+  final orientEntries = [...visitorOrientEntries, ...dignitaryOrientEntries];
+  if (orientEntries.isNotEmpty) {
+    paras.add(
+      'A l’Orient, sont venus soutenir nos travaux les dignitaires '
+      'suivants : ${orientEntries.join(', ')}.',
+    );
+  }
+
+  final orateurVisitor = presentVisitors
+      .where((v) => roleOf(v) == 'Orateur')
+      .firstOrNull;
+  final orateurDignitary = presentDignitaries
+      .where((d) => roleOfDignitary(d) == 'Orateur')
+      .firstOrNull;
+  final orateurName = (session.plancheOrateurName ?? '').trim().isNotEmpty
+      ? maskPersonName(session.plancheOrateurName!.trim())
+      : orateurVisitor != null
+      ? maskPersonName(
+          '${orateurVisitor.firstName} ${orateurVisitor.lastName}'.trim(),
+        )
+      : orateurDignitary != null
+      ? maskPersonName(orateurDignitary.fullName)
+      : null;
+  final orateurCivilite = (session.plancheOrateurName ?? '').trim().isNotEmpty
+      ? ''
+      : orateurVisitor?.civilite ?? orateurDignitary?.civilite ?? '';
+  paras.add(
+    orateurName != null
+        ? 'Le poste d’Orateur est occupé par '
+              '${civiliteArticleAbbrev(orateurCivilite)} $orateurName.'
+        : 'Le poste d’Orateur est resté vide.',
+  );
+
+  for (final v in presentVisitors) {
+    final role = roleOf(v);
+    final placement = placementOf(v);
+    if (role == 'Orateur') continue;
+    if (placement == null) continue;
+    if (placement == 'Orient' && isOffice(role ?? '')) continue;
+    paras.add(placementSentence(v, placement, role as String));
+  }
+
+  for (final d in presentDignitaries) {
+    final role = roleOfDignitary(d);
+    if (role == null || role == 'Orateur') continue;
+    final placement = placementOfDignitary(d);
+    if (placement == null || placement == 'Orient') continue;
+    paras.add(placementSentenceDignitary(d, placement, role));
+  }
+
+  paras.add('La planche tracée de nos derniers travaux a été adoptée.');
+
+  paras.add('L’ordre du jour de la Tenue a appelé :');
+  final items = plancheOrdreDuJour(session);
+  final notes = travauxNotes ?? session.plancheTravauxNotes;
+  for (var idx = 0; idx < items.length; idx++) {
+    paras.add('${idx + 1}. ${items[idx]}');
+    final note = (idx < notes.length ? notes[idx] : '').trim();
+    if (note.isNotEmpty) paras.add(note);
+  }
+
+  paras.add(
+    plancheTroncSentence(
+      troncAmount ?? session.troncAmount,
+      sacPropositions ?? session.sacPropositions ?? '',
+      officerTitle: 'Trois Fois Puissant Maître',
+    ),
+  );
+
+  paras.add(
+    'Les Travaux sont ensuite fermés au $degreePhrase. Au cours de ce '
+    'Cérémonial, les Sœurs et les Frères forment une Chaîne d’Union '
+    'Fraternelle, selon le Rite, puis se séparent en jurant de garder le '
+    'Silence sur les Travaux de ce Jour.',
+  );
+  paras.add('J’ai dit Trois Fois Puissant Maître,');
+
+  return paras.join('\n\n');
+}
+
 Future<Uint8List> buildIahMesPlancheTraceePdf(
   HgBody body,
   Session session,
-  int chrono,
-) async {
+  int chrono, {
+  List<Member> members = const [],
+  List<Visitor> visitors = const [],
+  List<Dignitary> dignitaries = const [],
+}) async {
   final fonts = await _loadFonts();
   final logo = await _loadImage(_logoAsset(body));
   final doc = pw.Document(
@@ -744,7 +1022,19 @@ Future<Uint8List> buildIahMesPlancheTraceePdf(
   final signerName = (session.vmName ?? '').trim().isEmpty
       ? 'Trois Fois Puissant Maître'
       : session.vmName!.trim();
-  final text = (session.plancheDraftText ?? '').trim();
+  // Le texte édité et enregistré prime sur le texte généré automatiquement
+  // (même principe que plancheBodyText, pdf_service.dart, loges bleues).
+  final draft = (session.plancheDraftText ?? '').trim();
+  final text = draft.isNotEmpty
+      ? draft
+      : buildIahMesPlancheTraceeText(
+          body,
+          session,
+          members,
+          visitors,
+          dignitaries,
+          chrono,
+        );
   final paragraphs = text
       .split('\n')
       .map((p) => p.trim())

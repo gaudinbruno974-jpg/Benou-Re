@@ -414,6 +414,9 @@ class _DetailBodyState extends State<_DetailBody> {
                   widget.body,
                   session,
                   _chronoOf(session),
+                  members: _members,
+                  visitors: _visitors,
+                  dignitaries: _dignitaries,
                 ),
               ),
             ),
@@ -456,7 +459,14 @@ class _DetailBodyState extends State<_DetailBody> {
           ),
         ),
         'Planche Tracee $label Tenue $chrono$suffix.pdf': Uint8List.fromList(
-          await buildIahMesPlancheTraceePdf(widget.body, session, chrono),
+          await buildIahMesPlancheTraceePdf(
+            widget.body,
+            session,
+            chrono,
+            members: _members,
+            visitors: _visitors,
+            dignitaries: _dignitaries,
+          ),
         ),
       };
       await archiveHgSessionFiles(widget.body, session, files);
