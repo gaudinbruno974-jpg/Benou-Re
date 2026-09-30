@@ -204,7 +204,23 @@ class _GrandeLogeHgPresenceScreenState
           StreamBuilder<List<Member>>(
             stream: HgBodyService.instance.membersStream(widget.body),
             builder: (context, snap) {
-              final members = snap.data ?? const [];
+              final allMembers = snap.data ?? const [];
+              // IAH-MES uniquement (échelle 4°-14°, MAA-Kherou n'a pas
+              // cette notion de degré) : même règle que les convocations et
+              // le choix d'un auteur de planche.
+              final members = widget.body.key == kIahMes.key
+                  ? allMembers.where((m) {
+                      final sessionDegree =
+                          int.tryParse(
+                            widget.session.degreTravail ??
+                                widget.session.degree,
+                          ) ??
+                          0;
+                      final memberDegree =
+                          int.tryParse(m.hautsGradesDegree) ?? 0;
+                      return memberDegree >= sessionDegree;
+                    }).toList()
+                  : allMembers;
               if (members.isEmpty) {
                 return const Padding(
                   padding: EdgeInsets.all(12),
