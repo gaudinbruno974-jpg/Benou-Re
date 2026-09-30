@@ -6,7 +6,8 @@
 // est purement informatif (pas de tarif/médaille, la Loge courante ne
 // facture ni n'organise rien) : il sert juste à donner un chiffre au Bureau
 // pour prévenir la Loge qui invite du nombre de FF∴/SS∴ restant au repas.
-import 'member.dart' show Member, kApprenti, kCompagnon, kMaitre;
+import 'member.dart'
+    show Member, kApprenti, kCompagnon, kMaitre, kHiddenTechnicalRoles;
 import 'presence_link.dart';
 import 'session.dart' show Session;
 
@@ -113,8 +114,8 @@ class ExternalSession {
   /// « Tenue ordinaire », ou le libellé libre si « Autre ».
   String get eventTypeLabel =>
       eventType == kExternalEventAutre && eventTypeOther.trim().isNotEmpty
-          ? eventTypeOther.trim()
-          : eventType;
+      ? eventTypeOther.trim()
+      : eventType;
 
   factory ExternalSession.fromMap(String id, Map<String, dynamic> map) {
     return ExternalSession(
@@ -133,11 +134,13 @@ class ExternalSession {
       attachmentDriveUrl: (map['attachmentDriveUrl'] ?? '') as String,
       attachmentFileId: (map['attachmentFileId'] ?? '') as String,
       attachmentContentType: (map['attachmentContentType'] ?? '') as String,
-      attendingMemberIds: (map['attendingMemberIds'] as List?)
+      attendingMemberIds:
+          (map['attendingMemberIds'] as List?)
               ?.map((e) => e.toString())
               .toList() ??
           const [],
-      agapeIds: (map['agapeIds'] as List?)?.map((e) => e.toString()).toList() ??
+      agapeIds:
+          (map['agapeIds'] as List?)?.map((e) => e.toString()).toList() ??
           const [],
     );
   }
@@ -201,9 +204,14 @@ class ExternalSession {
 /// règle maçonnique que pour une tenue de la Loge (un grade supérieur peut
 /// toujours assister à un degré inférieur) — voir Session.degreeRank.
 List<Member> eligibleExternalRecipients(String degree, List<Member> members) {
-  if (degree.isEmpty || degree == kExternalDegreeAll) return members;
+  final realMembers = members.where(
+    (m) => !kHiddenTechnicalRoles.contains(m.role),
+  );
+  if (degree.isEmpty || degree == kExternalDegreeAll) {
+    return realMembers.toList();
+  }
   final rank = Session.degreeRank(degree);
-  return members.where((m) => Session.degreeRank(m.grade) >= rank).toList();
+  return realMembers.where((m) => Session.degreeRank(m.grade) >= rank).toList();
 }
 
 /// Répercute une réponse reçue par lien (kind == kPresenceLinkKindExternal)

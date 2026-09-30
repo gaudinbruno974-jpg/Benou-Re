@@ -62,7 +62,11 @@ class _OrdreRow {
 // depuis config/settings ou la fiche membre portant l'office (même repli que
 // plancheVmName), jamais un nom figé — sans quoi le texte généré par défaut
 // resterait celui du flavor d'origine (benoure) quelle que soit la loge.
-Map<String, String> _travauxFixes(String degre, TimeOfDay? heure, String vmName) {
+Map<String, String> _travauxFixes(
+  String degre,
+  TimeOfDay? heure,
+  String vmName,
+) {
   final ord = Session.degreeOrdinal(degre);
   final h = heure != null
       ? '${heure.hour.toString().padLeft(2, '0')}h${heure.minute.toString().padLeft(2, '0')}'
@@ -92,11 +96,7 @@ class SessionEditScreen extends StatefulWidget {
   /// redevient strictement en lecture seule.
   final bool forceUnlock;
 
-  const SessionEditScreen({
-    super.key,
-    this.session,
-    this.forceUnlock = false,
-  });
+  const SessionEditScreen({super.key, this.session, this.forceUnlock = false});
 
   @override
   State<SessionEditScreen> createState() => _SessionEditScreenState();
@@ -258,8 +258,13 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   /// saisie libre n'est proposée que pour un point simple.
   Future<void> _configureRow(int index) async {
     final row = _ordres[index];
-    final members = List<Member>.from(context.read<AppState>().members)
-      ..sort((a, b) => a.fullName.compareTo(b.fullName));
+    final members =
+        context
+            .read<AppState>()
+            .members
+            .where((m) => !kHiddenTechnicalRoles.contains(m.role))
+            .toList()
+          ..sort((a, b) => a.fullName.compareTo(b.fullName));
     String type = row.type;
     String authorId = row.authorId;
     final titleController = TextEditingController(text: row.title);
@@ -303,7 +308,10 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                         decoration: const InputDecoration(labelText: 'Auteur'),
                         items: [
                           for (final m in members)
-                            DropdownMenuItem(value: m.id, child: Text(m.fullName)),
+                            DropdownMenuItem(
+                              value: m.id,
+                              child: Text(m.fullName),
+                            ),
                         ],
                         onChanged: (v) =>
                             setDialogState(() => authorId = v ?? ''),
@@ -377,7 +385,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     );
     final res = await DriveService.instance.ensureFolderAndUpload(session, {
       'Convocation ${LodgeConfig.current.name} Tenue $chrono'
-          '${session.driveFileDateGradeSuffix}.pdf': pdf,
+              '${session.driveFileDateGradeSuffix}.pdf':
+          pdf,
     });
     final map = session.toMap();
     map['driveFolderId'] = res.folderId;
@@ -709,7 +718,8 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
                               ? const Icon(Icons.lock_outline, size: 16)
                               : null,
                         ),
-                        onTap: (readOnly || _ordres[i].type != kAgendaItemPlanche)
+                        onTap:
+                            (readOnly || _ordres[i].type != kAgendaItemPlanche)
                             ? null
                             : () => _configureRow(i),
                         onChanged: readOnly

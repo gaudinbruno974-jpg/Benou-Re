@@ -118,11 +118,16 @@ List<MemberAttendanceStat> computeMemberAttendance(
   DateTime? end,
 }) {
   final pastSessions = pastSessionsInRange(sessions, start: start, end: end);
-  final pastExternal =
-      pastExternalSessionsInRange(externalSessions, start: start, end: end);
+  final pastExternal = pastExternalSessionsInRange(
+    externalSessions,
+    start: start,
+    end: end,
+  );
 
   final stats = <MemberAttendanceStat>[];
-  for (final m in members) {
+  for (final m in members.where(
+    (m) => !kHiddenTechnicalRoles.contains(m.role),
+  )) {
     final memberRank = Session.degreeRank(m.grade);
     var eligible = 0;
     var present = 0;
@@ -136,8 +141,9 @@ List<MemberAttendanceStat> computeMemberAttendance(
         excused++;
       }
     }
-    final externalVisits =
-        pastExternal.where((s) => s.attendingMemberIds.contains(m.id)).length;
+    final externalVisits = pastExternal
+        .where((s) => s.attendingMemberIds.contains(m.id))
+        .length;
     var planches = 0;
     for (final s in pastSessions) {
       for (final item in s.agendaItems) {
@@ -216,7 +222,9 @@ List<VisitorFrequentation> computeVisitorFrequentation(
   final pastSessions = pastSessionsInRange(sessions, start: start, end: end);
   final result = <VisitorFrequentation>[];
   for (final v in visitors) {
-    final visits = pastSessions.where((s) => s.visitorIds.contains(v.id)).toList();
+    final visits = pastSessions
+        .where((s) => s.visitorIds.contains(v.id))
+        .toList();
     if (visits.isEmpty) continue;
     final lastVisit = visits
         .map((s) => s.dateTime)
@@ -248,8 +256,9 @@ List<DignitaryFrequentation> computeDignitaryFrequentation(
   final pastSessions = pastSessionsInRange(sessions, start: start, end: end);
   final result = <DignitaryFrequentation>[];
   for (final d in dignitaries) {
-    final visits =
-        pastSessions.where((s) => s.dignitaryIds.contains(d.id)).toList();
+    final visits = pastSessions
+        .where((s) => s.dignitaryIds.contains(d.id))
+        .toList();
     if (visits.isEmpty) continue;
     final lastVisit = visits
         .map((s) => s.dateTime)

@@ -249,7 +249,13 @@ class _PresenceLinksSectionState extends State<_PresenceLinksSection> {
   List<Member> _eligibleMembers(AppState state) {
     final rank = Session.degreeRank(widget.session.degreeLabel);
     final members =
-        state.members.where((m) => Session.degreeRank(m.grade) >= rank).toList()
+        state.members
+            .where(
+              (m) =>
+                  !kHiddenTechnicalRoles.contains(m.role) &&
+                  Session.degreeRank(m.grade) >= rank,
+            )
+            .toList()
           ..sort((a, b) => a.lastName.compareTo(b.lastName));
     return members;
   }

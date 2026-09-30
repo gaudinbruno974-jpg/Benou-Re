@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
+import '../models/member.dart' show kHiddenTechnicalRoles;
 import '../services/drive_access_sync_service.dart';
 import '../services/drive_service.dart';
 import '../state/app_state.dart';
@@ -39,7 +40,11 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
   String? _accessError;
 
   Future<void> _run() async {
-    final members = context.read<AppState>().members;
+    final members = context
+        .read<AppState>()
+        .members
+        .where((m) => !kHiddenTechnicalRoles.contains(m.role))
+        .toList();
     setState(() {
       _running = true;
       _error = null;
@@ -138,7 +143,9 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
                           height: 18,
                           width: 18,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: BrColors.text),
+                            strokeWidth: 2,
+                            color: BrColors.text,
+                          ),
                         )
                       : const Icon(Icons.sync),
                   label: const Text('Synchroniser les accès Drive'),
@@ -162,8 +169,10 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
             const SizedBox(height: 20),
             BrCard(
               accent: BrColors.error,
-              child: Text('Erreur : $_error',
-                  style: const TextStyle(color: BrColors.text)),
+              child: Text(
+                'Erreur : $_error',
+                style: const TextStyle(color: BrColors.text),
+              ),
             ),
           ],
           if (_result != null) ...[
@@ -172,20 +181,26 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
             const SizedBox(height: 14),
             if (_result!.isEmpty)
               const BrCard(
-                child: Text('Aucun changement : les accès étaient déjà à jour.',
-                    style: TextStyle(color: BrColors.muted)),
+                child: Text(
+                  'Aucun changement : les accès étaient déjà à jour.',
+                  style: TextStyle(color: BrColors.muted),
+                ),
               )
             else ...[
               if (_result!.granted.isNotEmpty)
-                _resultCard('Accès accordés', _result!.granted,
-                    const Color(0xFF34D399)),
+                _resultCard(
+                  'Accès accordés',
+                  _result!.granted,
+                  const Color(0xFF34D399),
+                ),
               if (_result!.revoked.isNotEmpty)
                 _resultCard('Accès retirés', _result!.revoked, BrColors.gold),
               if (_result!.driftCorrected.isNotEmpty)
                 _resultCard(
-                    'Dérive corrigée (accès périmé détecté sur Drive)',
-                    _result!.driftCorrected,
-                    BrColors.violet),
+                  'Dérive corrigée (accès périmé détecté sur Drive)',
+                  _result!.driftCorrected,
+                  BrColors.violet,
+                ),
               if (_result!.roleFixed.isNotEmpty)
                 _resultCard('Rôle corrigé', _result!.roleFixed, BrColors.teal),
               if (_result!.failed.isNotEmpty)
@@ -196,14 +211,18 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
             const SizedBox(height: 20),
             BrCard(
               accent: BrColors.error,
-              child: Text('Lecture des accès existants : $_accessError',
-                  style: const TextStyle(color: BrColors.text)),
+              child: Text(
+                'Lecture des accès existants : $_accessError',
+                style: const TextStyle(color: BrColors.text),
+              ),
             ),
           ],
           if (_access != null) ...[
             const SizedBox(height: 24),
-            const BrSectionTitle('ACCÈS EXISTANTS',
-                icon: Icons.folder_shared_outlined),
+            const BrSectionTitle(
+              'ACCÈS EXISTANTS',
+              icon: Icons.folder_shared_outlined,
+            ),
             const SizedBox(height: 14),
             for (final folder in _access!) _accessCard(folder),
           ],
@@ -220,21 +239,26 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(folder.folderName,
-                style: const TextStyle(
-                    color: BrColors.violet, fontWeight: FontWeight.bold)),
+            Text(
+              folder.folderName,
+              style: const TextStyle(
+                color: BrColors.violet,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 8),
             if (folder.entries.isEmpty)
-              const Text('Aucun accès particulier.',
-                  style: TextStyle(color: BrColors.muted, fontSize: 13))
+              const Text(
+                'Aucun accès particulier.',
+                style: TextStyle(color: BrColors.muted, fontSize: 13),
+              )
             else
               for (final e in folder.entries)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4),
                   child: Text(
                     '${e.email} — ${_roleLabels[e.role] ?? e.role}',
-                    style:
-                        const TextStyle(color: BrColors.text, fontSize: 13),
+                    style: const TextStyle(color: BrColors.text, fontSize: 13),
                   ),
                 ),
           ],
@@ -251,14 +275,18 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title,
-                style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              style: TextStyle(color: color, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
             for (final line in lines)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text(line,
-                    style: const TextStyle(color: BrColors.text, fontSize: 13)),
+                child: Text(
+                  line,
+                  style: const TextStyle(color: BrColors.text, fontSize: 13),
+                ),
               ),
           ],
         ),

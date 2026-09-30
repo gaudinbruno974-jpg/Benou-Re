@@ -105,10 +105,10 @@ class InventoryScreen extends StatelessWidget {
                   onTap: items.isEmpty
                       ? null
                       : () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const InventoryCheckScreen(),
-                            ),
+                          MaterialPageRoute(
+                            builder: (_) => const InventoryCheckScreen(),
                           ),
+                        ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -162,18 +162,21 @@ class InventoryScreen extends StatelessWidget {
     InventoryItem? item,
   ) async {
     final state = context.read<AppState>();
-    final categories = state.inventoryItems
-        .map((i) => i.category)
-        .where((c) => c.trim().isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
-    final memberNames = state.members
-        .map((m) => m.fullName)
-        .where((n) => n.trim().isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final categories =
+        state.inventoryItems
+            .map((i) => i.category)
+            .where((c) => c.trim().isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    final memberNames =
+        state.members
+            .where((m) => !kHiddenTechnicalRoles.contains(m.role))
+            .map((m) => m.fullName)
+            .where((n) => n.trim().isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     var lentByValue = item?.lentBy;
     final lentByOptions = [
       if (lentByValue != null &&

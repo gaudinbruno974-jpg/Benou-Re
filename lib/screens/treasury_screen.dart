@@ -29,8 +29,11 @@ class TreasuryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final canEdit = canEditTreasury(state.currentUser);
-    final members = [...state.members]
-      ..sort((a, b) => a.lastName.compareTo(b.lastName));
+    final members =
+        state.members
+            .where((m) => !kHiddenTechnicalRoles.contains(m.role))
+            .toList()
+          ..sort((a, b) => a.lastName.compareTo(b.lastName));
 
     return DefaultTabController(
       length: 2,
@@ -44,7 +47,10 @@ class TreasuryScreen extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             tabs: [
               Tab(icon: Icon(Icons.groups_outlined), text: 'Cotisations'),
-              Tab(icon: Icon(Icons.savings_outlined), text: 'Tronc de la Veuve'),
+              Tab(
+                icon: Icon(Icons.savings_outlined),
+                text: 'Tronc de la Veuve',
+              ),
             ],
           ),
         ),
@@ -106,8 +112,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: BrColors.surface,
-        title: Text('Nouvelle année : $target',
-            style: const TextStyle(color: BrColors.goldBright)),
+        title: Text(
+          'Nouvelle année : $target',
+          style: const TextStyle(color: BrColors.goldBright),
+        ),
         content: Text(
           'Créer les cotisations $target en reprenant les montants de $latest '
           '(tous marqués non-payés). Les années déjà enregistrées ne sont pas '
@@ -118,8 +126,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler',
-                style: TextStyle(color: BrColors.muted)),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: BrColors.muted),
+            ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: BrColors.gold),
@@ -143,19 +153,18 @@ class _CotisationsTabState extends State<_CotisationsTab> {
   Future<void> _editAmounts(Member m) async {
     final year = _year;
     final dues = m.duesFor(year);
-    final lodgeCtrl =
-        TextEditingController(text: '${dues.lodgeDues}');
-    final orderCtrl =
-        TextEditingController(text: '${dues.orderDues}');
-    final elevationCtrl =
-        TextEditingController(text: '${dues.elevationDues}');
+    final lodgeCtrl = TextEditingController(text: '${dues.lodgeDues}');
+    final orderCtrl = TextEditingController(text: '${dues.orderDues}');
+    final elevationCtrl = TextEditingController(text: '${dues.elevationDues}');
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: BrColors.surface,
-        title: Text('Montants $year — ${m.fullName}',
-            style: const TextStyle(color: BrColors.goldBright, fontSize: 16)),
+        title: Text(
+          'Montants $year — ${m.fullName}',
+          style: const TextStyle(color: BrColors.goldBright, fontSize: 16),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -169,8 +178,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Annuler',
-                style: TextStyle(color: BrColors.muted)),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: BrColors.muted),
+            ),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: BrColors.gold),
@@ -204,20 +215,25 @@ class _CotisationsTabState extends State<_CotisationsTab> {
   ) async {
     final year = _year;
     final ctrl = TextEditingController(
-        text: paidAmount > 0 ? _trim(paidAmount) : '');
+      text: paidAmount > 0 ? _trim(paidAmount) : '',
+    );
 
     final result = await showDialog<num>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: BrColors.surface,
-        title: Text('$label $year — ${m.fullName}',
-            style: const TextStyle(color: BrColors.goldBright, fontSize: 16)),
+        title: Text(
+          '$label $year — ${m.fullName}',
+          style: const TextStyle(color: BrColors.goldBright, fontSize: 16),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Montant dû : ${_trim(dues)} €',
-                style: const TextStyle(color: BrColors.muted, fontSize: 13)),
+            Text(
+              'Montant dû : ${_trim(dues)} €',
+              style: const TextStyle(color: BrColors.muted, fontSize: 13),
+            ),
             const SizedBox(height: 12),
             _amountField(ctrl, 'Montant versé (€)'),
           ],
@@ -225,18 +241,21 @@ class _CotisationsTabState extends State<_CotisationsTab> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler',
-                style: TextStyle(color: BrColors.muted)),
+            child: const Text(
+              'Annuler',
+              style: TextStyle(color: BrColors.muted),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, dues),
-            child: const Text('Solder',
-                style: TextStyle(color: _emerald)),
+            child: const Text('Solder', style: TextStyle(color: _emerald)),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: BrColors.gold),
             onPressed: () => Navigator.pop(
-                ctx, num.tryParse(ctrl.text.replaceAll(',', '.')) ?? 0),
+              ctx,
+              num.tryParse(ctrl.text.replaceAll(',', '.')) ?? 0,
+            ),
             child: const Text('Enregistrer'),
           ),
         ],
@@ -252,7 +271,9 @@ class _CotisationsTabState extends State<_CotisationsTab> {
       'LOGE' => dy.copyWith(lodgeDuesPaidAmount: amount, lodgeDuesPaid: false),
       'ORDRE' => dy.copyWith(orderDuesPaidAmount: amount, orderDuesPaid: false),
       _ => dy.copyWith(
-          elevationDuesPaidAmount: amount, elevationDuesPaid: false),
+        elevationDuesPaidAmount: amount,
+        elevationDuesPaid: false,
+      ),
     };
     var synced = updated.syncPaidFlags();
     // Date de règlement (utilisée sur le Quitus) : fixée à aujourd'hui dès
@@ -260,10 +281,12 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     final today = DateFormat('dd/MM/yyyy').format(DateTime.now());
     if (label == 'LOGE') {
       synced = synced.copyWith(
-          lodgeDuesPaidDate: synced.lodgeDuesPaid ? today : '');
+        lodgeDuesPaidDate: synced.lodgeDuesPaid ? today : '',
+      );
     } else if (label == 'ORDRE') {
       synced = synced.copyWith(
-          orderDuesPaidDate: synced.orderDuesPaid ? today : '');
+        orderDuesPaidDate: synced.orderDuesPaid ? today : '',
+      );
     }
     await state.updateMember(m.withDuesForYear(year, synced));
   }
@@ -277,20 +300,23 @@ class _CotisationsTabState extends State<_CotisationsTab> {
       case 'LOGE':
         final paid = !d.lodgeDuesPaid;
         return d.copyWith(
-            lodgeDuesPaid: paid,
-            lodgeDuesPaidAmount: paid ? d.lodgeDues : 0,
-            lodgeDuesPaidDate: paid ? today : '');
+          lodgeDuesPaid: paid,
+          lodgeDuesPaidAmount: paid ? d.lodgeDues : 0,
+          lodgeDuesPaidDate: paid ? today : '',
+        );
       case 'ORDRE':
         final paid = !d.orderDuesPaid;
         return d.copyWith(
-            orderDuesPaid: paid,
-            orderDuesPaidAmount: paid ? d.orderDues : 0,
-            orderDuesPaidDate: paid ? today : '');
+          orderDuesPaid: paid,
+          orderDuesPaidAmount: paid ? d.orderDues : 0,
+          orderDuesPaidDate: paid ? today : '',
+        );
       default:
         final paid = !d.elevationDuesPaid;
         return d.copyWith(
-            elevationDuesPaid: paid,
-            elevationDuesPaidAmount: paid ? d.elevationDues : 0);
+          elevationDuesPaid: paid,
+          elevationDuesPaidAmount: paid ? d.elevationDues : 0,
+        );
     }
   }
 
@@ -322,13 +348,23 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     try {
       bytes = Uint8List.fromList(
         isQuitus
-            ? await buildQuitusPdf(m, year, widget.members,
-                lodgeVmName: state.lodgeVmName)
-            : await buildCapitationCallPdf(m, year, widget.members,
-                lodgeVmName: state.lodgeVmName),
+            ? await buildQuitusPdf(
+                m,
+                year,
+                widget.members,
+                lodgeVmName: state.lodgeVmName,
+              )
+            : await buildCapitationCallPdf(
+                m,
+                year,
+                widget.members,
+                lodgeVmName: state.lodgeVmName,
+              ),
       );
     } catch (e) {
-      messenger.showSnackBar(SnackBar(content: Text('Erreur de génération : $e')));
+      messenger.showSnackBar(
+        SnackBar(content: Text('Erreur de génération : $e')),
+      );
       return;
     }
 
@@ -346,15 +382,23 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     }
 
     if (!mounted) return;
-    final subject = isQuitus ? quitusSubject(year) : capitationCallSubject(year);
+    final subject = isQuitus
+        ? quitusSubject(year)
+        : capitationCallSubject(year);
     final body = isQuitus
         ? quitusBody(m, year, widget.members, lodgeVmName: state.lodgeVmName)
-        : capitationCallBody(m, year, widget.members,
-            lodgeVmName: state.lodgeVmName);
+        : capitationCallBody(
+            m,
+            year,
+            widget.members,
+            lodgeVmName: state.lodgeVmName,
+          );
     final to = m.email.trim();
     if (to.isEmpty) {
       messenger.showSnackBar(
-        const SnackBar(content: Text('Ce membre n\'a pas d\'e-mail renseigné.')),
+        const SnackBar(
+          content: Text('Ce membre n\'a pas d\'e-mail renseigné.'),
+        ),
       );
       return;
     }
@@ -372,14 +416,22 @@ class _CotisationsTabState extends State<_CotisationsTab> {
       );
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(content: Text('E-mail envoyé, avec le PDF en pièce jointe.')),
+        const SnackBar(
+          content: Text('E-mail envoyé, avec le PDF en pièce jointe.'),
+        ),
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Envoi Gmail impossible ($e) — ouverture sans pièce jointe.')),
+        SnackBar(
+          content: Text(
+            'Envoi Gmail impossible ($e) — ouverture sans pièce jointe.',
+          ),
+        ),
       );
       if (!mounted) return;
-      await openExternalUrl(emailComposeUrl(to: to, subject: subject, body: body));
+      await openExternalUrl(
+        emailComposeUrl(to: to, subject: subject, body: body),
+      );
     }
 
     if (!mounted) return;
@@ -413,8 +465,9 @@ class _CotisationsTabState extends State<_CotisationsTab> {
     final canEdit = widget.canEdit;
     final year = _year;
 
-    final unpaidMembers =
-        members.where((m) => _amountDue(m, year) > 0).toList();
+    final unpaidMembers = members
+        .where((m) => _amountDue(m, year) > 0)
+        .toList();
     final visibleMembers = _unpaidOnly ? unpaidMembers : members;
 
     num collected = 0;
@@ -442,8 +495,9 @@ class _CotisationsTabState extends State<_CotisationsTab> {
               const SizedBox(width: 12),
               FilledButton.icon(
                 style: FilledButton.styleFrom(
-                    backgroundColor: BrColors.gold,
-                    foregroundColor: Colors.black),
+                  backgroundColor: BrColors.gold,
+                  foregroundColor: Colors.black,
+                ),
                 onPressed: _createNextYear,
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Nouvelle année'),
@@ -452,8 +506,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
               IconButton(
                 tooltip: 'Exporter le bilan $year en PDF',
                 onPressed: () => _exportPdf(members),
-                icon: const Icon(Icons.picture_as_pdf_outlined,
-                    color: BrColors.gold),
+                icon: const Icon(
+                  Icons.picture_as_pdf_outlined,
+                  color: BrColors.gold,
+                ),
               ),
             ],
           ],
@@ -462,16 +518,18 @@ class _CotisationsTabState extends State<_CotisationsTab> {
         Row(
           children: [
             _Counter(
-                label: 'TOTAL ENCAISSÉ',
-                value: collected,
-                hint: 'Reçu en banque de loge',
-                color: _emerald),
+              label: 'TOTAL ENCAISSÉ',
+              value: collected,
+              hint: 'Reçu en banque de loge',
+              color: _emerald,
+            ),
             const SizedBox(width: 12),
             _Counter(
-                label: 'À PERCEVOIR',
-                value: pending,
-                hint: 'Relances à envoyer',
-                color: BrColors.gold),
+              label: 'À PERCEVOIR',
+              value: pending,
+              hint: 'Relances à envoyer',
+              color: BrColors.gold,
+            ),
           ],
         ),
         const SizedBox(height: 16),
@@ -511,9 +569,10 @@ class _CotisationsTabState extends State<_CotisationsTab> {
                 color: _unpaidOnly ? Colors.black : BrColors.gold,
               ),
               labelStyle: TextStyle(
-                  color: _unpaidOnly ? Colors.black : BrColors.gold,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold),
+                color: _unpaidOnly ? Colors.black : BrColors.gold,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
               backgroundColor: BrColors.gold.withValues(alpha: 0.08),
               selectedColor: BrColors.gold,
               checkmarkColor: Colors.black,
@@ -522,9 +581,13 @@ class _CotisationsTabState extends State<_CotisationsTab> {
             if (_unpaidOnly && unpaidMembers.isNotEmpty)
               Chip(
                 label: Text(
-                    'Reste à percevoir : ${pending.toStringAsFixed(0)} €'),
+                  'Reste à percevoir : ${pending.toStringAsFixed(0)} €',
+                ),
                 labelStyle: const TextStyle(
-                    color: _rose, fontSize: 12, fontWeight: FontWeight.bold),
+                  color: _rose,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
                 backgroundColor: _rose.withValues(alpha: 0.1),
                 side: BorderSide(color: _rose.withValues(alpha: 0.4)),
               ),
@@ -532,10 +595,11 @@ class _CotisationsTabState extends State<_CotisationsTab> {
         ),
         const SizedBox(height: 24),
         BrSectionTitle(
-            _unpaidOnly
-                ? 'MEMBRES AVEC COTISATIONS IMPAYÉES $year (${unpaidMembers.length})'
-                : 'DÉTAIL DES COMPTES INDIVIDUELS $year (${members.length})',
-            icon: Icons.receipt_long_outlined),
+          _unpaidOnly
+              ? 'MEMBRES AVEC COTISATIONS IMPAYÉES $year (${unpaidMembers.length})'
+              : 'DÉTAIL DES COMPTES INDIVIDUELS $year (${members.length})',
+          icon: Icons.receipt_long_outlined,
+        ),
         const SizedBox(height: 16),
         if (visibleMembers.isEmpty)
           Container(
@@ -547,8 +611,7 @@ class _CotisationsTabState extends State<_CotisationsTab> {
             ),
             child: Column(
               children: [
-                const Icon(Icons.verified_outlined,
-                    size: 32, color: _emerald),
+                const Icon(Icons.verified_outlined, size: 32, color: _emerald),
                 const SizedBox(height: 8),
                 Text(
                   _unpaidOnly
@@ -561,186 +624,227 @@ class _CotisationsTabState extends State<_CotisationsTab> {
             ),
           ),
         for (final m in visibleMembers)
-          Builder(builder: (context) {
-            final d = m.duesFor(year);
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: BrCard(
-                accent: _amountDue(m, year) > 0 ? _rose : _emerald,
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        BrAvatar(
-                          firstName: m.firstName,
-                          lastName: m.lastName,
-                          size: 42,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(m.fullName.toUpperCase(),
+          Builder(
+            builder: (context) {
+              final d = m.duesFor(year);
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: BrCard(
+                  accent: _amountDue(m, year) > 0 ? _rose : _emerald,
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          BrAvatar(
+                            firstName: m.firstName,
+                            lastName: m.lastName,
+                            size: 42,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  m.fullName.toUpperCase(),
                                   style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      letterSpacing: 0.4)),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${m.grade} • ${m.function != 'Aucun' ? m.function : 'Membre'}',
-                                style: const TextStyle(
-                                    color: BrColors.muted, fontSize: 12),
-                              ),
-                              if (m.isExemptFromDues)
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 6),
-                                  child: BrBadge(
-                                    label: 'Exonéré • ${m.status}',
-                                    color: _emerald,
-                                    icon: Icons.verified_outlined,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    letterSpacing: 0.4,
                                   ),
                                 ),
-                              if (_unpaidOnly)
+                                const SizedBox(height: 4),
                                 Text(
-                                  'Reste dû : ${_amountDue(m, year).toStringAsFixed(0)} €',
+                                  '${m.grade} • ${m.function != 'Aucun' ? m.function : 'Membre'}',
                                   style: const TextStyle(
+                                    color: BrColors.muted,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                if (m.isExemptFromDues)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 6),
+                                    child: BrBadge(
+                                      label: 'Exonéré • ${m.status}',
+                                      color: _emerald,
+                                      icon: Icons.verified_outlined,
+                                    ),
+                                  ),
+                                if (_unpaidOnly)
+                                  Text(
+                                    'Reste dû : ${_amountDue(m, year).toStringAsFixed(0)} €',
+                                    style: const TextStyle(
                                       color: _rose,
                                       fontSize: 12,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                            ],
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ),
-                        if (canEdit && !m.isExemptFromDues)
-                          IconButton(
-                            tooltip: 'Modifier les montants $year',
-                            icon: const Icon(Icons.edit_outlined,
-                                size: 18, color: BrColors.muted),
-                            onPressed: () => _editAmounts(m),
-                          ),
-                        if (canEdit && !m.isExemptFromDues)
-                          PopupMenuButton<bool>(
-                            tooltip: 'Envoyer un document',
-                            icon: const Icon(Icons.mail_outline,
-                                size: 18, color: BrColors.muted),
-                            onSelected: (isQuitus) =>
-                                _sendDocument(m, isQuitus: isQuitus),
-                            itemBuilder: (context) => [
-                              const PopupMenuItem(
-                                value: false,
-                                child: Text('Envoyer l\'Appel de cotisation'),
+                          if (canEdit && !m.isExemptFromDues)
+                            IconButton(
+                              tooltip: 'Modifier les montants $year',
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                                color: BrColors.muted,
                               ),
-                              PopupMenuItem(
-                                value: true,
-                                enabled: d.fullyPaid,
-                                child: Text(
-                                  d.fullyPaid
-                                      ? 'Envoyer le Quitus'
-                                      : 'Envoyer le Quitus (Loge et Ordre '
-                                          'pas encore soldés)',
-                                ),
+                              onPressed: () => _editAmounts(m),
+                            ),
+                          if (canEdit && !m.isExemptFromDues)
+                            PopupMenuButton<bool>(
+                              tooltip: 'Envoyer un document',
+                              icon: const Icon(
+                                Icons.mail_outline,
+                                size: 18,
+                                color: BrColors.muted,
                               ),
-                            ],
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    if (m.isExemptFromDues)
-                      const Text(
-                        'Membre exonéré : ses cotisations ne sont pas comptées '
-                        'dans les totaux.',
-                        style:
-                            TextStyle(color: BrColors.muted, fontSize: 12),
-                      )
-                    else
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          _DueChip(
-                            label: 'LOGE',
-                            amount: d.lodgeDues,
-                            paidAmount: d.lodgeCollected,
-                            paid: d.lodgeDuesPaid,
-                            onTap: canEdit
-                                ? () => state.updateMember(m.withDuesForYear(
-                                    year, _toggleLine(d, 'LOGE')))
-                                : null,
-                            onLongPress: canEdit
-                                ? () => _editPayment(m, 'LOGE', d.lodgeDues,
-                                    d.lodgeCollected)
-                                : null,
-                          ),
-                          _DueChip(
-                            label: 'ORDRE',
-                            amount: d.orderDues,
-                            paidAmount: d.orderCollected,
-                            paid: d.orderDuesPaid,
-                            onTap: canEdit
-                                ? () => state.updateMember(m.withDuesForYear(
-                                    year, _toggleLine(d, 'ORDRE')))
-                                : null,
-                            onLongPress: canEdit
-                                ? () => _editPayment(m, 'ORDRE', d.orderDues,
-                                    d.orderCollected)
-                                : null,
-                          ),
-                          if (d.elevationDues > 0)
+                              onSelected: (isQuitus) =>
+                                  _sendDocument(m, isQuitus: isQuitus),
+                              itemBuilder: (context) => [
+                                const PopupMenuItem(
+                                  value: false,
+                                  child: Text('Envoyer l\'Appel de cotisation'),
+                                ),
+                                PopupMenuItem(
+                                  value: true,
+                                  enabled: d.fullyPaid,
+                                  child: Text(
+                                    d.fullyPaid
+                                        ? 'Envoyer le Quitus'
+                                        : 'Envoyer le Quitus (Loge et Ordre '
+                                              'pas encore soldés)',
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      if (m.isExemptFromDues)
+                        const Text(
+                          'Membre exonéré : ses cotisations ne sont pas comptées '
+                          'dans les totaux.',
+                          style: TextStyle(color: BrColors.muted, fontSize: 12),
+                        )
+                      else
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
                             _DueChip(
-                              label: 'GRADES',
-                              amount: d.elevationDues,
-                              paidAmount: d.elevationCollected,
-                              paid: d.elevationDuesPaid,
+                              label: 'LOGE',
+                              amount: d.lodgeDues,
+                              paidAmount: d.lodgeCollected,
+                              paid: d.lodgeDuesPaid,
                               onTap: canEdit
-                                  ? () => state.updateMember(m.withDuesForYear(
-                                      year, _toggleLine(d, 'GRADES')))
+                                  ? () => state.updateMember(
+                                      m.withDuesForYear(
+                                        year,
+                                        _toggleLine(d, 'LOGE'),
+                                      ),
+                                    )
                                   : null,
                               onLongPress: canEdit
-                                  ? () => _editPayment(m, 'GRADES',
-                                      d.elevationDues, d.elevationCollected)
+                                  ? () => _editPayment(
+                                      m,
+                                      'LOGE',
+                                      d.lodgeDues,
+                                      d.lodgeCollected,
+                                    )
                                   : null,
                             ),
-                        ],
-                      ),
-                    if (!m.isExemptFromDues &&
-                        (d.appelSent || d.quitusSent)) ...[
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 10,
-                        runSpacing: 4,
-                        children: [
-                          if (d.appelSent)
-                            Text(
-                              'Appel envoyé le ${d.appelSentDate}',
-                              style: const TextStyle(
-                                  color: BrColors.muted, fontSize: 11),
+                            _DueChip(
+                              label: 'ORDRE',
+                              amount: d.orderDues,
+                              paidAmount: d.orderCollected,
+                              paid: d.orderDuesPaid,
+                              onTap: canEdit
+                                  ? () => state.updateMember(
+                                      m.withDuesForYear(
+                                        year,
+                                        _toggleLine(d, 'ORDRE'),
+                                      ),
+                                    )
+                                  : null,
+                              onLongPress: canEdit
+                                  ? () => _editPayment(
+                                      m,
+                                      'ORDRE',
+                                      d.orderDues,
+                                      d.orderCollected,
+                                    )
+                                  : null,
                             ),
-                          if (d.quitusSent)
-                            Text(
-                              'Quitus envoyé le ${d.quitusSentDate}',
-                              style: const TextStyle(
-                                  color: BrColors.muted, fontSize: 11),
-                            ),
-                        ],
-                      ),
+                            if (d.elevationDues > 0)
+                              _DueChip(
+                                label: 'GRADES',
+                                amount: d.elevationDues,
+                                paidAmount: d.elevationCollected,
+                                paid: d.elevationDuesPaid,
+                                onTap: canEdit
+                                    ? () => state.updateMember(
+                                        m.withDuesForYear(
+                                          year,
+                                          _toggleLine(d, 'GRADES'),
+                                        ),
+                                      )
+                                    : null,
+                                onLongPress: canEdit
+                                    ? () => _editPayment(
+                                        m,
+                                        'GRADES',
+                                        d.elevationDues,
+                                        d.elevationCollected,
+                                      )
+                                    : null,
+                              ),
+                          ],
+                        ),
+                      if (!m.isExemptFromDues &&
+                          (d.appelSent || d.quitusSent)) ...[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 4,
+                          children: [
+                            if (d.appelSent)
+                              Text(
+                                'Appel envoyé le ${d.appelSentDate}',
+                                style: const TextStyle(
+                                  color: BrColors.muted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            if (d.quitusSent)
+                              Text(
+                                'Quitus envoyé le ${d.quitusSentDate}',
+                                style: const TextStyle(
+                                  color: BrColors.muted,
+                                  fontSize: 11,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                      if (canEdit && !m.isExemptFromDues) ...[
+                        const SizedBox(height: 6),
+                        const Text(
+                          'Appui long sur une cotisation : saisir un versement '
+                          'partiel.',
+                          style: TextStyle(color: BrColors.muted, fontSize: 10),
+                        ),
+                      ],
                     ],
-                    if (canEdit && !m.isExemptFromDues) ...[
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Appui long sur une cotisation : saisir un versement '
-                        'partiel.',
-                        style: TextStyle(color: BrColors.muted, fontSize: 10),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-            );
-          }),
+              );
+            },
+          ),
       ],
     );
   }
@@ -750,8 +854,11 @@ class _YearSelector extends StatelessWidget {
   final int year;
   final List<int> years;
   final ValueChanged<int> onChanged;
-  const _YearSelector(
-      {required this.year, required this.years, required this.onChanged});
+  const _YearSelector({
+    required this.year,
+    required this.years,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -764,11 +871,16 @@ class _YearSelector extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_today_outlined,
-              size: 16, color: BrColors.gold),
+          const Icon(
+            Icons.calendar_today_outlined,
+            size: 16,
+            color: BrColors.gold,
+          ),
           const SizedBox(width: 8),
-          const Text('Année',
-              style: TextStyle(color: BrColors.muted, fontSize: 12)),
+          const Text(
+            'Année',
+            style: TextStyle(color: BrColors.muted, fontSize: 12),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: DropdownButtonHideUnderline(
@@ -777,9 +889,10 @@ class _YearSelector extends StatelessWidget {
                 value: year,
                 dropdownColor: BrColors.surface,
                 style: const TextStyle(
-                    color: BrColors.goldBright,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15),
+                  color: BrColors.goldBright,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 15,
+                ),
                 items: [
                   for (final y in years)
                     DropdownMenuItem(value: y, child: Text('$y')),
@@ -817,47 +930,62 @@ class _TroncTab extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
       children: [
         BrCard(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              children: [
-                Container(
-                  height: 66,
-                  width: 66,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: BrColors.gold.withValues(alpha: 0.14),
-                    border: Border.all(
-                        color: BrColors.gold.withValues(alpha: 0.4)),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: [
+              Container(
+                height: 66,
+                width: 66,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: BrColors.gold.withValues(alpha: 0.14),
+                  border: Border.all(
+                    color: BrColors.gold.withValues(alpha: 0.4),
                   ),
-                  child: const Icon(Icons.account_balance_wallet,
-                      size: 32, color: BrColors.goldBright),
                 ),
-                const SizedBox(height: 14),
-                const Text('CAISSE GÉNÉRALE DU TRONC',
-                    style: TextStyle(
-                        color: BrColors.muted,
-                        fontSize: 11,
-                        letterSpacing: 2)),
-                const SizedBox(height: 4),
-                Text('${total.toStringAsFixed(2)} €',
-                    style: const TextStyle(
-                        color: BrColors.goldBright,
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold)),
-                const SizedBox(height: 10),
-                const Text(
-                  "Fonds dédiés aux œuvres de bienfaisance et à l'aide aux veuves et orphelins de l'atelier.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: BrColors.muted, fontSize: 12, height: 1.4),
+                child: const Icon(
+                  Icons.account_balance_wallet,
+                  size: 32,
+                  color: BrColors.goldBright,
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'CAISSE GÉNÉRALE DU TRONC',
+                style: TextStyle(
+                  color: BrColors.muted,
+                  fontSize: 11,
+                  letterSpacing: 2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '${total.toStringAsFixed(2)} €',
+                style: const TextStyle(
+                  color: BrColors.goldBright,
+                  fontSize: 36,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Text(
+                "Fonds dédiés aux œuvres de bienfaisance et à l'aide aux veuves et orphelins de l'atelier.",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: BrColors.muted,
+                  fontSize: 12,
+                  height: 1.4,
+                ),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 26),
-        BrSectionTitle('HISTORIQUE DES TENUES (${withTronc.length})',
-            icon: Icons.history),
+        BrSectionTitle(
+          'HISTORIQUE DES TENUES (${withTronc.length})',
+          icon: Icons.history,
+        ),
         const SizedBox(height: 16),
         if (withTronc.isEmpty)
           Container(
@@ -868,8 +996,9 @@ class _TroncTab extends StatelessWidget {
               border: Border.all(color: BrColors.muted.withValues(alpha: 0.3)),
             ),
             child: const Text(
-                "Aucun tronc de la veuve n'a encore été récolté.",
-                style: TextStyle(color: BrColors.muted)),
+              "Aucun tronc de la veuve n'a encore été récolté.",
+              style: TextStyle(color: BrColors.muted),
+            ),
           )
         else
           for (final s in withTronc)
@@ -889,15 +1018,18 @@ class _TroncTab extends StatelessWidget {
                                 ? s.title
                                 : 'Tenue au ${s.degreeLabel}',
                             style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14.5),
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14.5,
+                            ),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'Grade : ${s.degreeLabel} • ${_fmtDate(s)}',
                             style: const TextStyle(
-                                color: BrColors.muted, fontSize: 12),
+                              color: BrColors.muted,
+                              fontSize: 12,
+                            ),
                           ),
                         ],
                       ),
@@ -905,18 +1037,24 @@ class _TroncTab extends StatelessWidget {
                     const SizedBox(width: 12),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: _emerald.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(999),
                         border: Border.all(
-                            color: _emerald.withValues(alpha: 0.45)),
+                          color: _emerald.withValues(alpha: 0.45),
+                        ),
                       ),
-                      child: Text('+ ${s.troncAmount.toStringAsFixed(2)} €',
-                          style: const TextStyle(
-                              color: _emerald,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13)),
+                      child: Text(
+                        '+ ${s.troncAmount.toStringAsFixed(2)} €',
+                        style: const TextStyle(
+                          color: _emerald,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -951,29 +1089,37 @@ class _Counter extends StatelessWidget {
       child: BrCard(
         accent: color,
         padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-          child: Column(
-            children: [
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.5)),
-              const SizedBox(height: 8),
-              FittedBox(
-                child: Text('${value.toStringAsFixed(0)} €',
-                    style: TextStyle(
-                        color: color,
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold)),
+        child: Column(
+          children: [
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
               ),
-              const SizedBox(height: 6),
-              Text(hint,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: BrColors.muted, fontSize: 10)),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            FittedBox(
+              child: Text(
+                '${value.toStringAsFixed(0)} €',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              hint,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: BrColors.muted, fontSize: 10),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1001,8 +1147,8 @@ class _DueChip extends StatelessWidget {
     final color = paid
         ? _emerald
         : partial
-            ? BrColors.gold
-            : _rose;
+        ? BrColors.gold
+        : _rose;
     final text = paid
         ? '$label : $amount €'
         : '$label : ${paidAmount % 1 == 0 ? paidAmount.toStringAsFixed(0) : paidAmount} € / $amount €';
@@ -1021,19 +1167,23 @@ class _DueChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-                paid
-                    ? Icons.check_circle
-                    : partial
-                        ? Icons.timelapse
-                        : Icons.cancel,
-                size: 15,
-                color: color),
+              paid
+                  ? Icons.check_circle
+                  : partial
+                  ? Icons.timelapse
+                  : Icons.cancel,
+              size: 15,
+              color: color,
+            ),
             const SizedBox(width: 5),
-            Text(text,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
+            Text(
+              text,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ],
         ),
       ),
