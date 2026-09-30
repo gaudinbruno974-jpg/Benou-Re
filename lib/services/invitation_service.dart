@@ -47,9 +47,7 @@ String presenceGreeting({required String civilite, required String firstName}) {
 /// l'affichage sur la page publique d'un lien de réponse (PresenceLink).
 String invitationTitle(Session session, int chrono) {
   final dt = session.dateTime;
-  final date = dt == null
-      ? 'jj/mm/aaaa'
-      : DateFormat('dd/MM/yyyy').format(dt);
+  final date = dt == null ? 'jj/mm/aaaa' : DateFormat('dd/MM/yyyy').format(dt);
   return 'Tenue $chrono du $date';
 }
 
@@ -87,7 +85,10 @@ String _heureDebut(Session session) {
 String _agapeDetails(Session session) {
   final heure = (session.heureAgape ?? session.agapeTime).trim();
   final type = (session.typeRepas ?? session.agapeType).trim();
-  final parts = [if (heure.isNotEmpty) 'à $heure', if (type.isNotEmpty) '($type)'];
+  final parts = [
+    if (heure.isNotEmpty) 'à $heure',
+    if (type.isNotEmpty) '($type)',
+  ];
   return parts.isEmpty ? '' : ' ${parts.join(' ')}';
 }
 
@@ -112,8 +113,9 @@ List<String> _commonLines(
         '${_tenueLabel(session)} qui se tiendra le ${_dateLongue(session)}.',
     '',
     'Nous avons le plaisir de vous convier fraternellement à participer à '
-        'nos travaux, qui se dérouleront de ${_heureDebut(session)} à '
-        '${session.closingTime} au ${_lieu(session)}.',
+        'nos travaux, qui se dérouleront de ${_heureDebut(session)}'
+        '${session.closingTime.trim().isEmpty ? '' : ' à ${session.closingTime}'} '
+        'au ${_lieu(session)}.',
   ];
   if (ordreDuJour.isNotEmpty) {
     lines.add('');
@@ -126,7 +128,9 @@ List<String> _commonLines(
     final prix = (session.montantMedaille ?? 0) > 0
         ? session.montantMedaille!
         : session.agapePrice;
-    final medaille = prix > 0 ? ' (participation pour la médaille : $prix €)' : '';
+    final medaille = prix > 0
+        ? ' (participation pour la médaille : $prix €)'
+        : '';
     lines.add('');
     lines.add(
       "Les travaux seront suivis d'agapes${_agapeDetails(session)}$medaille.",
@@ -195,8 +199,9 @@ List<String> _signOffLines(
   ];
 }
 
-Member? _findSecretary(List<Member> members) =>
-    members.where((m) => foldLabel(m.function).contains('secretaire')).firstOrNull;
+Member? _findSecretary(List<Member> members) => members
+    .where((m) => foldLabel(m.function).contains('secretaire'))
+    .firstOrNull;
 
 /// Corps du mail/message envoyé à un membre de la Loge, avec son lien de
 /// réponse personnel inséré. Le destinataire est salué nommément dès que sa
