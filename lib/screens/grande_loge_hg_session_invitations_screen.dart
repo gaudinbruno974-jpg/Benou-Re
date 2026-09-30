@@ -326,7 +326,21 @@ class _MemberLinksSectionState extends State<_MemberLinksSection> {
     return StreamBuilder<List<Member>>(
       stream: HgBodyService.instance.membersStream(widget.body),
       builder: (context, memberSnap) {
-        final eligible = memberSnap.data ?? const <Member>[];
+        final allMembers = memberSnap.data ?? const <Member>[];
+        // IAH-MES uniquement (échelle de degré 4°-14° — MAA-Kherou n'en a
+        // pas, confirmé par l'utilisateur, pas de filtre là-bas) : un
+        // membre en dessous du degré de la tenue ne peut pas être convoqué.
+        final eligible = widget.body.key == kIahMes.key
+            ? allMembers.where((m) {
+                final sessionDegree =
+                    int.tryParse(
+                      widget.session.degreTravail ?? widget.session.degree,
+                    ) ??
+                    0;
+                final memberDegree = int.tryParse(m.hautsGradesDegree) ?? 0;
+                return memberDegree >= sessionDegree;
+              }).toList()
+            : allMembers;
         return StreamBuilder<List<HgPresenceLink>>(
           stream: HgBodyService.instance.hgPresenceLinksForSessionStream(
             widget.body,
