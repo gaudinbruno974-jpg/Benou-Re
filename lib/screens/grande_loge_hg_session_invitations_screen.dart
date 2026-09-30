@@ -19,6 +19,7 @@ import '../models/hg_presence_link.dart';
 import '../models/member.dart';
 import '../models/preferred_contact.dart';
 import '../models/session.dart';
+import '../models/visitor.dart';
 import '../services/bulk_email_service.dart';
 import '../services/email_link.dart';
 import '../services/hg_body_service.dart';
@@ -57,6 +58,7 @@ class GrandeLogeHgSessionInvitationsScreen extends StatefulWidget {
 class _GrandeLogeHgSessionInvitationsScreenState
     extends State<GrandeLogeHgSessionInvitationsScreen> {
   bool _presenceLinksEnabled = false;
+  bool _visitorLinksEnabled = false;
   bool _delegationLinksEnabled = false;
 
   Future<void> _copy(String text) async {
@@ -156,6 +158,38 @@ class _GrandeLogeHgSessionInvitationsScreenState
               children: [
                 CheckboxListTile(
                   contentPadding: EdgeInsets.zero,
+                  value: _visitorLinksEnabled,
+                  onChanged: (v) =>
+                      setState(() => _visitorLinksEnabled = v ?? false),
+                  title: const Text(
+                    'Invitation',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                  subtitle: const Text(
+                    'Chaque visiteur invité reçoit un lien pour déclarer sa '
+                    'présence, sans se connecter à l\'application.',
+                    style: TextStyle(color: BrColors.muted, fontSize: 12),
+                  ),
+                ),
+                if (_visitorLinksEnabled)
+                  _VisitorLinksSection(
+                    body: widget.body,
+                    session: widget.session,
+                    chrono: chrono,
+                    ordreDuJour: ordreDuJour,
+                    onCopy: _copy,
+                    onOpen: _open,
+                  ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          BrCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                CheckboxListTile(
+                  contentPadding: EdgeInsets.zero,
                   value: _delegationLinksEnabled,
                   onChanged: (v) =>
                       setState(() => _delegationLinksEnabled = v ?? false),
@@ -188,9 +222,10 @@ class _GrandeLogeHgSessionInvitationsScreenState
   }
 }
 
-/// Section « Convocation » (Flux A) : un lien par membre du corps — tous
-/// éligibles, sans filtre par degré (même principe que les Présences —
-/// grande_loge_hg_presence_screen.dart n'a pas non plus ce filtre).
+/// Section « Convocation » (Flux A) : un lien par membre du corps éligible
+/// au degré de la tenue (IAH-MES uniquement — même filtre que Présences,
+/// voir grande_loge_hg_presence_screen.dart, et le choix d'un auteur de
+/// planche).
 class _MemberLinksSection extends StatefulWidget {
   final HgBody body;
   final Session session;
@@ -727,13 +762,12 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
     return StreamBuilder<List<Dignitary>>(
       stream: HgBodyService.instance.dignitariesStream(widget.body),
       builder: (context, dignitarySnap) {
-        final recipients =
-            (dignitarySnap.data ?? const <Dignitary>[])
-                .where(
-                  (d) => d.email.trim().isNotEmpty || d.phone.trim().isNotEmpty,
-                )
-                .toList()
-              ..sort((a, b) => a.lastName.compareTo(b.lastName));
+        // Tous les dignitaires sont listés, y compris sans coordonnées
+        // (affichés grisés par _DelegationLinkRow) — auparavant exclus en
+        // silence, ce qui les rendait invisibles sans explication.
+        final recipients = (dignitarySnap.data ?? const <Dignitary>[]).toList()
+          ..sort((a, b) => a.lastName.compareTo(b.lastName));
+        final recipientIds = recipients.map((d) => d.id).toSet();
 
         return StreamBuilder<List<HgPresenceLink>>(
           stream: HgBodyService.instance.hgPresenceLinksForSessionStream(
@@ -742,8 +776,16 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
           ),
           builder: (context, snapshot) {
             final all = snapshot.data ?? const <HgPresenceLink>[];
+            // Même « kind » que les Visiteurs (kHgPresenceLinkKindDelegation,
+            // choix confirmé par l'utilisateur) : on isole les liens de ce
+            // corps de dignitaires par recipientId, pas par kind seul, pour
+            // ne pas mélanger les décomptes avec ceux des visiteurs.
             final existing = all
-                .where((l) => l.kind == kHgPresenceLinkKindDelegation)
+                .where(
+                  (l) =>
+                      l.kind == kHgPresenceLinkKindDelegation &&
+                      recipientIds.contains(l.recipientId),
+                )
                 .toList();
             final byRecipient = {for (final l in existing) l.recipientId: l};
             for (final d in recipients) {
@@ -767,8 +809,15 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
               0,
               (sum, l) => sum + (l.delegationCount ?? 0),
             );
+            // L'envoi groupé passe par e-mail uniquement (sendBulkGmails) :
+            // un dignitaire sans e-mail (même avec un téléphone) reste
+            // cochable individuellement via WhatsApp, mais pas ici.
             final selectableIds = recipients
-                .where((d) => byRecipient.containsKey(d.id))
+                .where(
+                  (d) =>
+                      byRecipient.containsKey(d.id) &&
+                      d.email.trim().isNotEmpty,
+                )
                 .map((d) => d.id)
                 .toSet();
             final allSelected =
@@ -860,7 +909,7 @@ class _DelegationLinksSectionState extends State<_DelegationLinksSection> {
                       dignitary: d,
                       link: byRecipient[d.id],
                       selected: _selectedIds.contains(d.id),
-                      onSelectedChanged: byRecipient[d.id] == null
+                      onSelectedChanged: !selectableIds.contains(d.id)
                           ? null
                           : (v) => setState(() {
                               if (v ?? false) {
@@ -968,6 +1017,9 @@ class _DelegationLinkRow extends StatelessWidget {
 
   String _digitsOnly(String phone) => phone.replaceAll(RegExp(r'[^\d+]'), '');
 
+  bool get _noContact =>
+      dignitary.email.trim().isEmpty && dignitary.phone.trim().isEmpty;
+
   @override
   Widget build(BuildContext context) {
     final l = link;
@@ -980,71 +1032,494 @@ class _DelegationLinkRow extends StatelessWidget {
             _linkUrl(l.id),
             recipient: dignitary,
           );
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 32,
-            child: Checkbox(
-              value: selected,
-              onChanged: onSelectedChanged,
-              side: const BorderSide(color: BrColors.muted),
-            ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  dignitary.fullName,
-                  style: const TextStyle(color: BrColors.text, fontSize: 13),
-                ),
-                Text(
-                  _statusLabel,
-                  style: TextStyle(color: _statusColor, fontSize: 11),
-                ),
-              ],
-            ),
-          ),
-          if (l != null) ...[
-            IconButton(
-              visualDensity: VisualDensity.compact,
-              tooltip: 'Copier le texte',
-              icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
-              onPressed: () => onCopy(message),
-            ),
-            if (dignitary.phone.trim().isNotEmpty)
-              _ChannelButton(
-                icon: Icons.chat_outlined,
-                color: BrColors.teal,
-                tooltip: 'Envoyer sur WhatsApp',
-                preferred: dignitary.preferredContact == kContactWhatsApp,
-                onPressed: () => onOpen(
-                  'https://wa.me/${_digitsOnly(dignitary.phone)}'
-                  '?text=${Uri.encodeComponent(message)}',
-                ),
+    final noContact = _noContact;
+    return Opacity(
+      opacity: noContact ? 0.5 : 1,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Checkbox(
+                value: selected,
+                onChanged: onSelectedChanged,
+                side: const BorderSide(color: BrColors.muted),
               ),
-            if (dignitary.email.trim().isNotEmpty)
-              _ChannelButton(
-                icon: Icons.mail_outline,
-                color: BrColors.violet,
-                tooltip: 'Envoyer par e-mail',
-                preferred: dignitary.preferredContact == kContactCourriel,
-                onPressed: () => onOpen(
-                  emailComposeUrl(
-                    to: dignitary.email.trim(),
-                    subject: hgDignitaryInvitationSubject(
-                      body,
-                      session,
-                      chrono,
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    dignitary.fullName,
+                    style: const TextStyle(color: BrColors.text, fontSize: 13),
+                  ),
+                  Text(
+                    noContact ? 'Pas de coordonnées' : _statusLabel,
+                    style: TextStyle(
+                      color: noContact ? BrColors.muted : _statusColor,
+                      fontSize: 11,
                     ),
-                    body: message,
+                  ),
+                ],
+              ),
+            ),
+            if (l != null) ...[
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Copier le texte',
+                icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
+                onPressed: () => onCopy(message),
+              ),
+              if (dignitary.phone.trim().isNotEmpty)
+                _ChannelButton(
+                  icon: Icons.chat_outlined,
+                  color: BrColors.teal,
+                  tooltip: 'Envoyer sur WhatsApp',
+                  preferred: dignitary.preferredContact == kContactWhatsApp,
+                  onPressed: () => onOpen(
+                    'https://wa.me/${_digitsOnly(dignitary.phone)}'
+                    '?text=${Uri.encodeComponent(message)}',
                   ),
                 ),
-              ),
+              if (dignitary.email.trim().isNotEmpty)
+                _ChannelButton(
+                  icon: Icons.mail_outline,
+                  color: BrColors.violet,
+                  tooltip: 'Envoyer par e-mail',
+                  preferred: dignitary.preferredContact == kContactCourriel,
+                  onPressed: () => onOpen(
+                    emailComposeUrl(
+                      to: dignitary.email.trim(),
+                      subject: hgDignitaryInvitationSubject(
+                        body,
+                        session,
+                        chrono,
+                      ),
+                      body: message,
+                    ),
+                  ),
+                ),
+            ],
           ],
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Section « Invitation » pour les visiteurs : même principe que les
+/// dignitaires (_DelegationLinksSection), même kind de lien (delegation,
+/// choix confirmé par l'utilisateur) — un visiteur ne fait jamais de
+/// délégation, `recipientAlone` reste toujours vrai.
+class _VisitorLinksSection extends StatefulWidget {
+  final HgBody body;
+  final Session session;
+  final int chrono;
+  final List<String> ordreDuJour;
+  final Future<void> Function(String) onCopy;
+  final Future<void> Function(String) onOpen;
+  const _VisitorLinksSection({
+    required this.body,
+    required this.session,
+    required this.chrono,
+    required this.ordreDuJour,
+    required this.onCopy,
+    required this.onOpen,
+  });
+
+  @override
+  State<_VisitorLinksSection> createState() => _VisitorLinksSectionState();
+}
+
+class _VisitorLinksSectionState extends State<_VisitorLinksSection> {
+  bool _generating = false;
+  final Set<String> _selectedIds = {};
+  bool _sendingBulk = false;
+  int _bulkDone = 0;
+  int _bulkTotal = 0;
+
+  Future<void> _generateMissing(
+    List<Visitor> recipients,
+    List<HgPresenceLink> existing,
+  ) async {
+    final dt = widget.session.dateTime;
+    if (dt == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La tenue doit avoir une date pour générer les liens.'),
+        ),
+      );
+      return;
+    }
+    setState(() => _generating = true);
+    final expiresAt = DateTime(dt.year, dt.month, dt.day);
+    final existingRecipientIds = existing.map((l) => l.recipientId).toSet();
+    final sessionLabel = hgInvitationTitle(widget.session, widget.chrono);
+    for (final v in recipients) {
+      if (existingRecipientIds.contains(v.id)) continue;
+      await HgBodyService.instance.createHgPresenceLink(
+        HgPresenceLink(
+          id: generateHgPresenceToken(),
+          bodyKey: widget.body.key,
+          kind: kHgPresenceLinkKindDelegation,
+          sessionId: widget.session.id,
+          sessionLabel: sessionLabel,
+          sessionDateLabel: sessionLabel,
+          sessionType: widget.session.typeLabel,
+          sessionDegreeLabel: hgDegreeOrdinalPhrase(
+            widget.body,
+            int.tryParse(
+                  widget.session.degreTravail ?? widget.session.degree,
+                ) ??
+                4,
+          ),
+          hasAgape: widget.session.suitAgapes,
+          recipientId: v.id,
+          recipientName: v.fullName,
+          recipientAlone: true,
+          expiresAt: expiresAt,
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+    if (mounted) setState(() => _generating = false);
+  }
+
+  Future<void> _sendSelected(
+    List<Visitor> recipients,
+    Map<String, HgPresenceLink> byRecipient,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final targets = recipients
+        .where((v) => _selectedIds.contains(v.id) && byRecipient[v.id] != null)
+        .toList();
+    if (targets.isEmpty) return;
+    setState(() {
+      _sendingBulk = true;
+      _bulkDone = 0;
+      _bulkTotal = targets.length;
+    });
+    try {
+      final pdfBytes = await buildIahMesConvocationPdf(
+        widget.body,
+        widget.session,
+      );
+      final recipientsToSend = [
+        for (final v in targets)
+          (
+            email: v.email,
+            subject: hgVisitorInvitationSubject(
+              widget.body,
+              widget.session,
+              widget.chrono,
+            ),
+            body: hgVisitorInvitationBody(
+              widget.body,
+              widget.session,
+              widget.ordreDuJour,
+              _linkUrl(byRecipient[v.id]!.id),
+              recipient: v,
+            ),
+          ),
+      ];
+      final result = await sendBulkGmails(
+        pdfBytes: pdfBytes,
+        attachmentName:
+            'Convocation ${widget.body.label} Tenue '
+            '${widget.chrono}.pdf',
+        recipients: recipientsToSend,
+        onProgress: (done, total) {
+          if (mounted) setState(() => _bulkDone = done);
+        },
+      );
+      if (!mounted) return;
+      messenger.showSnackBar(SnackBar(content: Text(result.summary)));
+      setState(() => _selectedIds.clear());
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Erreur : $e')));
+    } finally {
+      if (mounted) setState(() => _sendingBulk = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Visitor>>(
+      stream: HgBodyService.instance.visitorsStream(widget.body),
+      builder: (context, visitorSnap) {
+        // Tous les visiteurs sont listés, y compris sans coordonnées
+        // (affichés grisés par _VisitorLinkRow).
+        final recipients = (visitorSnap.data ?? const <Visitor>[]).toList()
+          ..sort((a, b) => a.lastName.compareTo(b.lastName));
+        final recipientIds = recipients.map((v) => v.id).toSet();
+
+        return StreamBuilder<List<HgPresenceLink>>(
+          stream: HgBodyService.instance.hgPresenceLinksForSessionStream(
+            widget.body,
+            widget.session.id,
+          ),
+          builder: (context, snapshot) {
+            final all = snapshot.data ?? const <HgPresenceLink>[];
+            // Même « kind » que les Dignitaires : isolé par recipientId pour
+            // ne pas mélanger les décomptes entre les deux sections.
+            final existing = all
+                .where(
+                  (l) =>
+                      l.kind == kHgPresenceLinkKindDelegation &&
+                      recipientIds.contains(l.recipientId),
+                )
+                .toList();
+            final byRecipient = {for (final l in existing) l.recipientId: l};
+            final missing = recipients
+                .where((v) => !byRecipient.containsKey(v.id))
+                .length;
+            // L'envoi groupé passe par e-mail uniquement (sendBulkGmails) :
+            // un visiteur sans e-mail (même avec un téléphone) reste
+            // cochable individuellement via WhatsApp, mais pas ici.
+            final selectableIds = recipients
+                .where(
+                  (v) =>
+                      byRecipient.containsKey(v.id) &&
+                      v.email.trim().isNotEmpty,
+                )
+                .map((v) => v.id)
+                .toSet();
+            final allSelected =
+                selectableIds.isNotEmpty &&
+                selectableIds.every(_selectedIds.contains);
+
+            return Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (missing > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: OutlinedButton.icon(
+                        icon: _generating
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.link, size: 16),
+                        label: Text('Générer les liens ($missing manquant(s))'),
+                        onPressed: _generating
+                            ? null
+                            : () => _generateMissing(recipients, existing),
+                      ),
+                    ),
+                  if (selectableIds.isNotEmpty) ...[
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      value: allSelected,
+                      onChanged: (v) => setState(() {
+                        if (v ?? false) {
+                          _selectedIds.addAll(selectableIds);
+                        } else {
+                          _selectedIds.removeAll(selectableIds);
+                        }
+                      }),
+                      title: const Text(
+                        'Envoi groupé (tout sélectionner)',
+                        style: TextStyle(color: BrColors.text, fontSize: 13),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: BrColors.violet,
+                        ),
+                        icon: _sendingBulk
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.mail_outline, size: 16),
+                        label: Text(
+                          _sendingBulk
+                              ? 'Envoi $_bulkDone/$_bulkTotal…'
+                              : 'Envoyer la sélection (${_selectedIds.length})',
+                        ),
+                        onPressed: _sendingBulk || _selectedIds.isEmpty
+                            ? null
+                            : () => _sendSelected(recipients, byRecipient),
+                      ),
+                    ),
+                  ],
+                  for (final v in recipients)
+                    _VisitorLinkRow(
+                      body: widget.body,
+                      session: widget.session,
+                      chrono: widget.chrono,
+                      ordreDuJour: widget.ordreDuJour,
+                      visitor: v,
+                      link: byRecipient[v.id],
+                      selected: _selectedIds.contains(v.id),
+                      onSelectedChanged: !selectableIds.contains(v.id)
+                          ? null
+                          : (val) => setState(() {
+                              if (val ?? false) {
+                                _selectedIds.add(v.id);
+                              } else {
+                                _selectedIds.remove(v.id);
+                              }
+                            }),
+                      onCopy: widget.onCopy,
+                      onOpen: widget.onOpen,
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _VisitorLinkRow extends StatelessWidget {
+  final HgBody body;
+  final Session session;
+  final int chrono;
+  final List<String> ordreDuJour;
+  final Visitor visitor;
+  final HgPresenceLink? link;
+  final bool selected;
+  final ValueChanged<bool?>? onSelectedChanged;
+  final Future<void> Function(String) onCopy;
+  final Future<void> Function(String) onOpen;
+  const _VisitorLinkRow({
+    required this.body,
+    required this.session,
+    required this.chrono,
+    required this.ordreDuJour,
+    required this.visitor,
+    required this.link,
+    required this.selected,
+    required this.onSelectedChanged,
+    required this.onCopy,
+    required this.onOpen,
+  });
+
+  String get _statusLabel {
+    final l = link;
+    if (l == null) return 'Lien non généré';
+    if (!l.isAnswered) return 'En attente';
+    final label = l.status == kHgPresenceStatusPresent
+        ? 'Présent'
+        : (l.status == kHgPresenceStatusAbsent ? 'Absent' : 'En attente');
+    final agapeLabel = l.agapePresent == true ? ' + agapes' : '';
+    return '$label$agapeLabel';
+  }
+
+  Color get _statusColor {
+    final l = link;
+    if (l == null || !l.isAnswered) return BrColors.muted;
+    if (l.status == kHgPresenceStatusAbsent) return BrColors.menuTresorerie;
+    return BrColors.menuVisiteurs;
+  }
+
+  String _digitsOnly(String phone) => phone.replaceAll(RegExp(r'[^\d+]'), '');
+
+  bool get _noContact =>
+      visitor.email.trim().isEmpty && visitor.phone.trim().isEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = link;
+    final message = l == null
+        ? ''
+        : hgVisitorInvitationBody(
+            body,
+            session,
+            ordreDuJour,
+            _linkUrl(l.id),
+            recipient: visitor,
+          );
+    final noContact = _noContact;
+    return Opacity(
+      opacity: noContact ? 0.5 : 1,
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 32,
+              child: Checkbox(
+                value: selected,
+                onChanged: onSelectedChanged,
+                side: const BorderSide(color: BrColors.muted),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    visitor.fullName,
+                    style: const TextStyle(color: BrColors.text, fontSize: 13),
+                  ),
+                  Text(
+                    noContact ? 'Pas de coordonnées' : _statusLabel,
+                    style: TextStyle(
+                      color: noContact ? BrColors.muted : _statusColor,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (l != null) ...[
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                tooltip: 'Copier le texte',
+                icon: const Icon(Icons.copy, size: 18, color: BrColors.muted),
+                onPressed: () => onCopy(message),
+              ),
+              if (visitor.phone.trim().isNotEmpty)
+                _ChannelButton(
+                  icon: Icons.chat_outlined,
+                  color: BrColors.teal,
+                  tooltip: 'Envoyer sur WhatsApp',
+                  preferred: false,
+                  onPressed: () => onOpen(
+                    'https://wa.me/${_digitsOnly(visitor.phone)}'
+                    '?text=${Uri.encodeComponent(message)}',
+                  ),
+                ),
+              if (visitor.email.trim().isNotEmpty)
+                _ChannelButton(
+                  icon: Icons.mail_outline,
+                  color: BrColors.violet,
+                  tooltip: 'Envoyer par e-mail',
+                  preferred: false,
+                  onPressed: () => onOpen(
+                    emailComposeUrl(
+                      to: visitor.email.trim(),
+                      subject: hgVisitorInvitationSubject(
+                        body,
+                        session,
+                        chrono,
+                      ),
+                      body: message,
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
       ),
     );
   }

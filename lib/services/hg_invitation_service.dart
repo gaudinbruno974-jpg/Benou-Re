@@ -13,6 +13,7 @@ import '../models/dignitary.dart';
 import '../models/hg_body.dart';
 import '../models/member.dart';
 import '../models/session.dart';
+import '../models/visitor.dart';
 import '../utils/name_mask.dart';
 import 'hg_pdf_service.dart' show hgDegreeOrdinalPhrase, hgInstitutionHeader;
 import 'invitation_service.dart' show presenceGreeting;
@@ -47,6 +48,10 @@ String hgMemberConvocationSubject(HgBody body, Session session, int chrono) =>
 
 /// Objet du mail envoyé à un dignitaire invité.
 String hgDignitaryInvitationSubject(HgBody body, Session session, int chrono) =>
+    _objet('Invitation à', body, session, chrono);
+
+/// Objet du mail envoyé à un visiteur invité.
+String hgVisitorInvitationSubject(HgBody body, Session session, int chrono) =>
     _objet('Invitation à', body, session, chrono);
 
 int _degreeOf(Session session) =>
@@ -179,6 +184,33 @@ String hgDignitaryInvitationBody(
   List<String> ordreDuJour,
   String responseUrl, {
   Dignitary? recipient,
+}) {
+  final greeting = presenceGreeting(
+    civilite: recipient?.civilite ?? '',
+    firstName: recipient?.firstName ?? '',
+  );
+  final lines = [
+    ..._commonLines(
+      body,
+      session,
+      ordreDuJour,
+      informerVerbe: "a l'honneur de vous informer",
+      greeting: greeting,
+    ),
+    ..._linkLines(responseUrl),
+    ..._signOffLines(session),
+  ];
+  return lines.join('\n');
+}
+
+/// Corps du mail/message envoyé à un visiteur invité, avec son lien de
+/// réponse personnel inséré.
+String hgVisitorInvitationBody(
+  HgBody body,
+  Session session,
+  List<String> ordreDuJour,
+  String responseUrl, {
+  Visitor? recipient,
 }) {
   final greeting = presenceGreeting(
     civilite: recipient?.civilite ?? '',
