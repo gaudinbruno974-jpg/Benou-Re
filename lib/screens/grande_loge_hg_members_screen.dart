@@ -105,7 +105,6 @@ class GrandeLogeHgMembersScreen extends StatelessWidget {
                       )
                     : null,
                 child: BrCard(
-                  accent: BrColors.forGrade(m.grade),
                   padding: const EdgeInsets.all(14),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,7 +132,11 @@ class GrandeLogeHgMembersScreen extends StatelessWidget {
                               spacing: 8,
                               runSpacing: 6,
                               children: [
-                                BrGradeBadge(grade: m.grade),
+                                if (m.hautsGradesDegree.trim().isNotEmpty)
+                                  BrBadge(
+                                    label: m.hautsGradesDegree.trim(),
+                                    color: BrColors.gold,
+                                  ),
                                 if (m.function.isNotEmpty &&
                                     m.function != 'Aucun')
                                   BrBadge(
@@ -211,8 +214,6 @@ class GrandeLogeHgMemberEditScreen extends StatefulWidget {
 
 class _GrandeLogeHgMemberEditScreenState
     extends State<GrandeLogeHgMemberEditScreen> {
-  static const _statuses = ['Actif', 'Honoraire', 'En sommeil'];
-
   late final TextEditingController _firstNameCtrl;
   late final TextEditingController _lastNameCtrl;
   late final TextEditingController _functionCtrl;
@@ -223,8 +224,6 @@ class _GrandeLogeHgMemberEditScreenState
   late final TextEditingController _orientCtrl;
   late final TextEditingController _degreeCtrl;
   late String _civilite;
-  late String _grade;
-  late String _status;
   bool _saving = false;
 
   @override
@@ -241,8 +240,6 @@ class _GrandeLogeHgMemberEditScreenState
     _orientCtrl = TextEditingController(text: m?.orient ?? '');
     _degreeCtrl = TextEditingController(text: m?.hautsGradesDegree ?? '');
     _civilite = m?.civilite.isNotEmpty == true ? m!.civilite : kFrere;
-    _grade = m?.grade.isNotEmpty == true ? m!.grade : kMaitre;
-    _status = m?.status ?? 'Actif';
   }
 
   @override
@@ -268,11 +265,9 @@ class _GrandeLogeHgMemberEditScreenState
         firstName: _firstNameCtrl.text.trim(),
         lastName: _lastNameCtrl.text.trim(),
         civilite: _civilite,
-        grade: _grade,
         function: _functionCtrl.text.trim().isEmpty
             ? 'Aucun'
             : _functionCtrl.text.trim(),
-        status: _status,
         email: _emailCtrl.text.trim(),
         phone: _phoneCtrl.text.trim(),
         obedience: _obedienceCtrl.text.trim(),
@@ -322,16 +317,6 @@ class _GrandeLogeHgMemberEditScreenState
                   decoration: const InputDecoration(labelText: 'Nom'),
                 ),
                 const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: _grade,
-                  decoration: const InputDecoration(labelText: 'Grade / degré'),
-                  items: [
-                    for (final g in kGrades)
-                      DropdownMenuItem(value: g, child: Text(g)),
-                  ],
-                  onChanged: (v) => setState(() => _grade = v ?? _grade),
-                ),
-                const SizedBox(height: 14),
                 TextField(
                   controller: _functionCtrl,
                   style: const TextStyle(color: BrColors.text),
@@ -339,16 +324,6 @@ class _GrandeLogeHgMemberEditScreenState
                     labelText: 'Office / fonction',
                     hintText: 'ex : Grand Orateur',
                   ),
-                ),
-                const SizedBox(height: 14),
-                DropdownButtonFormField<String>(
-                  initialValue: _status,
-                  decoration: const InputDecoration(labelText: 'Statut'),
-                  items: [
-                    for (final s in _statuses)
-                      DropdownMenuItem(value: s, child: Text(s)),
-                  ],
-                  onChanged: (v) => setState(() => _status = v ?? _status),
                 ),
                 const SizedBox(height: 14),
                 TextField(
