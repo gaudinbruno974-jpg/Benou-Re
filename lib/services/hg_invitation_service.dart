@@ -95,8 +95,9 @@ List<String> _commonLines(
         '${_dateLongue(session)}.',
     '',
     'Nous avons le plaisir de vous convier fraternellement à participer à '
-        'nos travaux, qui se dérouleront de ${_heureDebut(session)} à '
-        '${session.closingTime} au ${_lieu(session)}.',
+        'nos travaux, qui se dérouleront de ${_heureDebut(session)}'
+        '${session.closingTime.trim().isEmpty ? '' : ' à ${session.closingTime}'} '
+        'au ${_lieu(session)}.',
   ];
   if (ordreDuJour.isNotEmpty) {
     lines.add('');
