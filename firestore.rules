@@ -210,10 +210,16 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
-    // Réglages de la Loge (chrono, nom du V∴M∴).
+    // Réglages de la Loge (chrono, nom du V∴M∴) — également utilisé par la
+    // Grande Loge pour les compteurs de chrono des corps de Hauts Grades
+    // (iahmesSessionChrono/maakherouSessionChrono, voir
+    // hg_body_service.dart:allocateSessionChrono) : canEditSessions() seul
+    // ne reconnaît pas le système de rôles de la Grande Loge (Member.role),
+    // d'où l'ajout explicite de canEditIahMes()/canEditMaaKherou() — sans
+    // effet sur les 4 loges bleues, dont les comptes n'ont pas de rôle.
     match /config/{docId} {
       allow read: if signedIn();
-      allow write: if canEditSessions();
+      allow write: if canEditSessions() || canEditIahMes() || canEditMaaKherou();
     }
 
     // Log minimal des Demandes (Suggestions / Dysfonctionnements) : chrono +
