@@ -7,11 +7,8 @@
 // explicite de l'utilisateur) ; le reste ouvre un écran « à venir » en
 // attendant sa construction.
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
 import '../models/hg_body.dart';
-import '../services/drive_service.dart';
-import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
@@ -137,60 +134,8 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                 ),
               ),
             ),
-          if (body.key == kIahMes.key &&
-              canEditHgBody(context.watch<AppState>().currentUser, body))
-            BrMenuTile(
-              title: "Créer l'arborescence Drive",
-              subtitle: 'Dossiers numérotés 01 à 14',
-              icon: Icons.create_new_folder_outlined,
-              color: BrColors.violet,
-              onTap: () => _createDriveTree(context),
-            ),
         ],
       ),
     );
-  }
-}
-
-/// Dossiers numérotés du Drive d'IAH-MES (SSTR / IAH-MES), mêmes noms que le
-/// Drive de Petit Prince — demande de l'utilisateur. Les rituels (dossier
-/// « Rituels 4-14 » et ses 11 grades, ids dans kIahMesRituelsFolderIds) se
-/// rangent à la main dans « 08 Rituel » : un déplacement garde les mêmes ids.
-const List<String> _kIahMesDriveFolders = [
-  '01 Association',
-  '02 Banque',
-  '03 Dossier Membres',
-  '04 Location temple assurance',
-  '05 Factures',
-  '06 Invitations Externes recues',
-  '07 Planches',
-  '08 Rituel',
-  '09 Tenues et PV',
-  '10 Capitations',
-  '11 Enquêtes',
-  '12 instruction',
-  '13 Ticket Applications',
-  "14 Rapports d'activité",
-];
-
-/// Crée (sans doublon, relançable) les dossiers numérotés sous SSTR / IAH-MES,
-/// avec la connexion Google de l'utilisateur.
-Future<void> _createDriveTree(BuildContext context) async {
-  final messenger = ScaffoldMessenger.of(context);
-  messenger.showSnackBar(
-    const SnackBar(content: Text('Création des dossiers Drive...')),
-  );
-  try {
-    await DriveService.instance.ensureFolderTree(const [
-      'IAH-MES',
-    ], _kIahMesDriveFolders);
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Arborescence Drive prête (SSTR / IAH-MES).'),
-        backgroundColor: BrColors.teal,
-      ),
-    );
-  } catch (e) {
-    messenger.showSnackBar(SnackBar(content: Text('Erreur Drive : $e')));
   }
 }
