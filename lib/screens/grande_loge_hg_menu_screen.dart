@@ -14,6 +14,7 @@ import '../widgets/br_decor.dart';
 import 'grande_loge_coming_soon_screen.dart';
 import 'grande_loge_hg_agape_payment_screen.dart';
 import 'grande_loge_hg_dignitaries_screen.dart';
+import 'grande_loge_hg_drive_access_screen.dart';
 import 'grande_loge_hg_grade_menu_screen.dart';
 import 'grande_loge_hg_members_screen.dart';
 import 'grande_loge_hg_sessions_screen.dart';
@@ -98,6 +99,7 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                   'Dignitaires' => 'Répertoire',
                   'Paiement des Agapes' => 'Médailles & signatures',
                   'Rituels' || 'Matériel' => 'Par grade',
+                  'Accès Drive' when body.key == kIahMes.key => 'Vérifier',
                   _ when _hasSessionsScreen(item.title, body) => 'Convocations',
                   _ => 'À venir',
                 },
@@ -122,6 +124,8 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                             body: body,
                             section: item.title,
                           );
+                        case 'Accès Drive' when body.key == kIahMes.key:
+                          return const GrandeLogeHgDriveAccessScreen();
                       }
                       if (_hasSessionsScreen(item.title, body)) {
                         return GrandeLogeHgSessionsScreen(body: body);
