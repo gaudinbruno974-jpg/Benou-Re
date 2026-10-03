@@ -81,10 +81,15 @@ Map<String, String> _travauxFixes(
   };
 }
 
-String _ligneCloture(String degre, int ordresCount, String vmName) {
+String _ligneCloture(
+  String degre,
+  int fixedCount,
+  int ordresCount,
+  String vmName,
+) {
   final ord = Session.degreeOrdinal(degre);
-  final n = 4 + ordresCount + 1;
-  return '$n. Clôture des Travaux au $ord Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ $vmName.';
+  final n = fixedCount + ordresCount + 1;
+  return '$n. La fermeture des travaux au $ord Degré symbolique du R∴A∴P∴M∴M∴ par le V∴M∴ $vmName.';
 }
 
 class SessionEditScreen extends StatefulWidget {
@@ -114,6 +119,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   late final TextEditingController _cloture;
   late final TextEditingController _medaille;
   late final List<_OrdreRow> _ordres;
+  bool _t2On = true;
+  bool _t3On = true;
+  bool _t4On = true;
 
   late String _type;
   late String _degree;
@@ -148,6 +156,9 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
     _t2 = TextEditingController(text: s?.travail2 ?? '');
     _t3 = TextEditingController(text: s?.travail3 ?? '');
     _t4 = TextEditingController(text: s?.travail4 ?? '');
+    _t2On = s == null || _t2.text.trim().isNotEmpty;
+    _t3On = s == null || _t3.text.trim().isNotEmpty;
+    _t4On = s == null || _t4.text.trim().isNotEmpty;
     _cloture = TextEditingController(text: s?.ligneCloture ?? '');
     _medaille = TextEditingController(
       text: (s?.montantMedaille ?? 0) > 0 ? '${s!.montantMedaille}' : '',
@@ -241,14 +252,40 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
   void _regenerateTravaux() {
     final fixes = _travauxFixes(_degree, _heureReprise, _currentVmName);
     _t1.text = fixes['t1']!;
-    _t2.text = fixes['t2']!;
-    _t3.text = fixes['t3']!;
-    _t4.text = fixes['t4']!;
+    _t2.text = _t2On ? fixes['t2']! : '';
+    _t3.text = _t3On ? fixes['t3']! : '';
+    _t4.text = _t4On ? fixes['t4']! : '';
     _regenerateCloture();
   }
 
+  int get _fixedCount =>
+      1 + (_t2On ? 1 : 0) + (_t3On ? 1 : 0) + (_t4On ? 1 : 0);
+
   void _regenerateCloture() {
-    _cloture.text = _ligneCloture(_degree, _ordresCount, _currentVmName);
+    _cloture.text = _ligneCloture(
+      _degree,
+      _fixedCount,
+      _ordresCount,
+      _currentVmName,
+    );
+  }
+
+  void _setFixedOn(String key, bool on) {
+    final fixes = _travauxFixes(_degree, _heureReprise, _currentVmName);
+    setState(() {
+      switch (key) {
+        case 't2':
+          _t2On = on;
+          _t2.text = on ? fixes['t2']! : '';
+        case 't3':
+          _t3On = on;
+          _t3.text = on ? fixes['t3']! : '';
+        case 't4':
+          _t4On = on;
+          _t4.text = on ? fixes['t4']! : '';
+      }
+      _regenerateCloture();
+    });
   }
 
   /// Boîte de configuration d'un point d'ordre du jour complémentaire :
@@ -640,9 +677,27 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             const SizedBox(height: 8),
             _Heading('ORDRE DU JOUR — TRAVAUX FIXES ($ord Degré)'),
             _numberedField('1', _t1, enabled: !readOnly),
-            _numberedField('2', _t2, enabled: !readOnly),
-            _numberedField('3', _t3, enabled: !readOnly),
-            _numberedField('4', _t4, enabled: !readOnly),
+            _optionalNumberedField(
+              '2',
+              _t2,
+              on: _t2On,
+              onChanged: (v) => _setFixedOn('t2', v),
+              enabled: !readOnly,
+            ),
+            _optionalNumberedField(
+              '3',
+              _t3,
+              on: _t3On,
+              onChanged: (v) => _setFixedOn('t3', v),
+              enabled: !readOnly,
+            ),
+            _optionalNumberedField(
+              '4',
+              _t4,
+              on: _t4On,
+              onChanged: (v) => _setFixedOn('t4', v),
+              enabled: !readOnly,
+            ),
             Padding(
               padding: const EdgeInsets.only(top: 4, left: 4),
               child: Text(
@@ -751,7 +806,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 4),
               child: Text(
-                'Numéro auto-généré : ${4 + _ordresCount + 1}° (texte modifiable).',
+                'Numéro auto-généré : ${_fixedCount + _ordresCount + 1}° (texte modifiable).',
                 style: const TextStyle(color: BrColors.muted, fontSize: 11),
               ),
             ),
@@ -919,6 +974,44 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
               : null,
         ),
         enabled: enabled,
+      ),
+    );
+  }
+
+  Widget _optionalNumberedField(
+    String num,
+    TextEditingController c, {
+    required bool on,
+    required ValueChanged<bool> onChanged,
+    bool enabled = true,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Checkbox(
+            value: on,
+            onChanged: enabled ? (v) => onChanged(v ?? false) : null,
+            activeColor: BrColors.teal,
+          ),
+          SizedBox(
+            width: 24,
+            child: Text(
+              '$num.',
+              style: const TextStyle(color: BrColors.gold, fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: TextField(
+              controller: c,
+              maxLines: null,
+              enabled: enabled && on,
+              style: const TextStyle(color: BrColors.text, fontSize: 13),
+              decoration: InputDecoration(hintText: 'Travail $num'),
+            ),
+          ),
+        ],
       ),
     );
   }
