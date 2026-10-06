@@ -23,13 +23,7 @@ List<String> hgRepertoiresDrivePath(HgBody body) => body.key == kIahMes.key
 
 int _degreeOf(Session s) => int.tryParse(s.degreTravail ?? s.degree) ?? 4;
 
-int _chronoOf(Session s) {
-  if (s.chrono != null) return s.chrono!.toInt();
-  return int.tryParse(
-        (s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
-      ) ??
-      0;
-}
+int _chronoOf(Session s) => s.numero ?? 0;
 
 String _two(int n) => n.toString().padLeft(2, '0');
 

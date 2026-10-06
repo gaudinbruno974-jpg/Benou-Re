@@ -61,12 +61,15 @@ EffectifsSection computeEffectifsSection(
   final newMembers = members
       .where((m) => _inRange(tryParseFrDate(m.entryDate), start, end))
       .toList();
-  final periodEvents =
-      memberEvents.where((e) => _inRange(e.dateTime, start, end)).toList();
-  final elevations =
-      periodEvents.where((e) => e.type == kMemberEventElevation).toList();
-  final statusChanges =
-      periodEvents.where((e) => e.type == kMemberEventStatusChange).toList();
+  final periodEvents = memberEvents
+      .where((e) => _inRange(e.dateTime, start, end))
+      .toList();
+  final elevations = periodEvents
+      .where((e) => e.type == kMemberEventElevation)
+      .toList();
+  final statusChanges = periodEvents
+      .where((e) => e.type == kMemberEventStatusChange)
+      .toList();
   return EffectifsSection(
     byGrade: byGrade,
     byStatus: byStatus,
@@ -171,49 +174,65 @@ ActivitySection computeActivitySection(
   final averageRate = attendance.isEmpty
       ? 0.0
       : attendance.map((s) => s.attendanceRate).reduce((a, b) => a + b) /
-          attendance.length;
+            attendance.length;
 
-  final pastExternal =
-      pastExternalSessionsInRange(externalSessions, start: start, end: end);
-  final externalVisitCount =
-      pastExternal.fold<int>(0, (sum, s) => sum + s.attendingMemberIds.length);
+  final pastExternal = pastExternalSessionsInRange(
+    externalSessions,
+    start: start,
+    end: end,
+  );
+  final externalVisitCount = pastExternal.fold<int>(
+    0,
+    (sum, s) => sum + s.attendingMemberIds.length,
+  );
 
   final membersById = {for (final m in members) m.id: m};
-  final externalVisitEntries = pastExternal
-      .where((s) => s.attendingMemberIds.isNotEmpty)
-      .map(
-        (s) => ExternalVisitEntry(
-          date: s.dateTime,
-          organizingLodge: s.organizingLodge,
-          memberNames: [
-            for (final id in s.attendingMemberIds) membersById[id]?.fullName,
-          ].whereType<String>().toList(),
-        ),
-      )
-      .toList()
-    ..sort((a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
+  final externalVisitEntries =
+      pastExternal
+          .where((s) => s.attendingMemberIds.isNotEmpty)
+          .map(
+            (s) => ExternalVisitEntry(
+              date: s.dateTime,
+              organizingLodge: s.organizingLodge,
+              memberNames: [
+                for (final id in s.attendingMemberIds)
+                  membersById[id]?.fullName,
+              ].whereType<String>().toList(),
+            ),
+          )
+          .toList()
+        ..sort(
+          (a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)),
+        );
 
   final visitorsById = {for (final v in visitors) v.id: v};
   final dignitariesById = {for (final d in dignitaries) d.id: d};
-  final receivedGuestsEntries = pastSessions
-      .where((s) => s.visitorIds.isNotEmpty || s.dignitaryIds.isNotEmpty)
-      .map(
-        (s) => ReceivedGuestsEntry(
-          date: s.dateTime,
-          sessionLabel: _sessionLabel(s),
-          visitorNames: [
-            for (final id in s.visitorIds) visitorsById[id]?.fullName,
-          ].whereType<String>().toList(),
-          dignitaryNames: [
-            for (final id in s.dignitaryIds) dignitariesById[id]?.fullName,
-          ].whereType<String>().toList(),
-        ),
-      )
-      .toList()
-    ..sort((a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)));
+  final receivedGuestsEntries =
+      pastSessions
+          .where((s) => s.visitorIds.isNotEmpty || s.dignitaryIds.isNotEmpty)
+          .map(
+            (s) => ReceivedGuestsEntry(
+              date: s.dateTime,
+              sessionLabel: _sessionLabel(s),
+              visitorNames: [
+                for (final id in s.visitorIds) visitorsById[id]?.fullName,
+              ].whereType<String>().toList(),
+              dignitaryNames: [
+                for (final id in s.dignitaryIds) dignitariesById[id]?.fullName,
+              ].whereType<String>().toList(),
+            ),
+          )
+          .toList()
+        ..sort(
+          (a, b) => (a.date ?? DateTime(0)).compareTo(b.date ?? DateTime(0)),
+        );
 
-  final visitorStats =
-      computeVisitorFrequentation(visitors, sessions, start: start, end: end);
+  final visitorStats = computeVisitorFrequentation(
+    visitors,
+    sessions,
+    start: start,
+    end: end,
+  );
   final dignitaryStats = computeDignitaryFrequentation(
     dignitaries,
     sessions,
@@ -297,9 +316,7 @@ TreasurySection computeTreasurySection(
   DateTime? start,
   DateTime? end,
 }) {
-  final knownYears = <int>{
-    for (final m in members) ...m.duesByYear.keys,
-  };
+  final knownYears = <int>{for (final m in members) ...m.duesByYear.keys};
   final years = _yearsOverlapping(knownYears, start, end);
 
   num lodgeDuesTotal = 0;
@@ -314,17 +331,22 @@ TreasurySection computeTreasurySection(
       if (dues == null) continue;
       lodgeDuesTotal += dues.lodgeDues;
       orderDuesTotal += dues.orderDues;
-      if (dues.lodgeDuesPaid && _inRange(tryParseFrDate(dues.lodgeDuesPaidDate), start, end)) {
+      if (dues.lodgeDuesPaid &&
+          _inRange(tryParseFrDate(dues.lodgeDuesPaidDate), start, end)) {
         lodgeDuesPaidTotal += dues.lodgeDues;
       }
-      if (dues.orderDuesPaid && _inRange(tryParseFrDate(dues.orderDuesPaidDate), start, end)) {
+      if (dues.orderDuesPaid &&
+          _inRange(tryParseFrDate(dues.orderDuesPaidDate), start, end)) {
         orderDuesPaidTotal += dues.orderDues;
       }
     }
   }
 
-  final troncTotal = pastSessionsInRange(sessions, start: start, end: end)
-      .fold<num>(0, (sum, s) => sum + s.troncAmount);
+  final troncTotal = pastSessionsInRange(
+    sessions,
+    start: start,
+    end: end,
+  ).fold<num>(0, (sum, s) => sum + s.troncAmount);
 
   return TreasurySection(
     lodgeDuesTotal: lodgeDuesTotal,
@@ -357,14 +379,12 @@ class PlancheEntry {
 }
 
 String _sessionLabel(Session s) {
-  final chronoLabel = s.chrono != null
-      ? '${s.chrono!.toInt()}'
-      : (s.sessionNumber ?? '');
+  final chronoLabel = s.numero?.toString() ?? '';
   final dateLabel = s.dateTime == null
       ? 'date inconnue'
       : '${s.dateTime!.day.toString().padLeft(2, '0')}/'
-          '${s.dateTime!.month.toString().padLeft(2, '0')}/'
-          '${s.dateTime!.year}';
+            '${s.dateTime!.month.toString().padLeft(2, '0')}/'
+            '${s.dateTime!.year}';
   return 'Tenue ${chronoLabel.isEmpty ? '' : 'n°$chronoLabel '}du $dateLabel';
 }
 

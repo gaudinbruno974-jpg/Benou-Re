@@ -781,9 +781,7 @@ Future<Uint8List> buildEmargementPdf(
   final signatures = session.signatures;
   final type = session.type.isNotEmpty ? session.type : 'Ordinaire';
   final degree = session.degree.isNotEmpty ? session.degree : 'Apprenti';
-  final sessionNumber =
-      session.sessionNumber ??
-      (session.chrono != null ? '${session.chrono}' : '');
+  final sessionNumber = session.numero?.toString() ?? '';
   final location = session.location.isNotEmpty
       ? session.location
       : (session.lieuReunionExtra ?? '');
@@ -1054,9 +1052,7 @@ Future<Uint8List> buildAgapePaymentPdf(
   final signatures = session.agapePaymentSignatures;
   final amount = agapeMedailleAmount(session);
   final total = agapeCollectedTotal(session, members, visitors, dignitaries);
-  final sessionNumber =
-      session.sessionNumber ??
-      (session.chrono != null ? '${session.chrono}' : '');
+  final sessionNumber = session.numero?.toString() ?? '';
   final dateStr = session.date.isNotEmpty
       ? session.date
       : (session.dateReprise ?? '');

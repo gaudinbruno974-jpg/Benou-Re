@@ -22,7 +22,7 @@ import '../widgets/br_decor.dart';
 import '../widgets/signature_dialog.dart';
 
 String _sessionLabel(Session s) {
-  final number = s.sessionNumber ?? (s.chrono != null ? '${s.chrono}' : '');
+  final number = s.numero?.toString() ?? '';
   final date = s.dateTime;
   final dateStr = date != null ? DateFormat('dd/MM/yyyy').format(date) : '';
   return 'Tenue $number du $dateStr'.replaceAll(RegExp(r'\s+'), ' ').trim();
@@ -298,12 +298,7 @@ class _GrandeLogeHgAgapePaymentScreenState
       const SnackBar(content: Text('Archivage sur Google Drive...')),
     );
     try {
-      final chrono =
-          session.chrono?.toInt() ??
-          int.tryParse(
-            (session.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
-          ) ??
-          0;
+      final chrono = session.numero ?? 0;
       await archiveHgSessionFiles(widget.body, session, {
         'Paiement Agapes ${widget.body.label} Tenue $chrono'
             '${hgDriveFileSuffix(session)}.pdf': await _buildPdf(

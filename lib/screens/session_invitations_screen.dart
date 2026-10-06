@@ -46,13 +46,7 @@ class _SessionInvitationsScreenState extends State<SessionInvitationsScreen> {
   bool _visitorLinksEnabled = false;
   bool _delegationLinksEnabled = false;
 
-  int _chrono(Session s) {
-    if (s.chrono != null) return s.chrono!.toInt();
-    return int.tryParse(
-          (s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
-        ) ??
-        0;
-  }
+  int _chrono(Session s) => s.numero ?? 0;
 
   Future<void> _copy(String text) async {
     await Clipboard.setData(ClipboardData(text: text));

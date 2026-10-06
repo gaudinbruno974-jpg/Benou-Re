@@ -88,7 +88,7 @@ class AgapePaymentSessionsScreen extends StatelessWidget {
 }
 
 String _sessionLabel(Session s) {
-  final number = s.sessionNumber ?? (s.chrono != null ? '${s.chrono}' : '');
+  final number = s.numero?.toString() ?? '';
   final date = s.dateTime;
   final dateStr = date != null ? DateFormat('dd/MM/yyyy').format(date) : '';
   return 'Tenue $number du $dateStr'.replaceAll(RegExp(r'\s+'), ' ').trim();

@@ -30,13 +30,7 @@ import '../services/url_opener.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 
-int _chronoOf(Session s) {
-  if (s.chrono != null) return s.chrono!.toInt();
-  return int.tryParse(
-        (s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
-      ) ??
-      0;
-}
+int _chronoOf(Session s) => s.numero ?? 0;
 
 String _linkUrl(String token) =>
     '${LodgeConfig.current.webOrigin}/#/reponse-hg/$token';

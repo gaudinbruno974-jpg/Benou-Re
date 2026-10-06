@@ -520,8 +520,7 @@ Future<Uint8List> buildIahMesEmargementPdf(
   final signatures = session.signatures;
   final degree = _sessionDegree(session);
   final degreeName = hgDegreeNamePhrase(body, degree);
-  final sessionNumber =
-      session.chrono?.toInt().toString() ?? session.sessionNumber ?? '';
+  final sessionNumber = session.numero?.toString() ?? '';
   final location = (session.lieuReunionExtra ?? '').trim().isEmpty
       ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
       : session.lieuReunionExtra!.trim();
@@ -1169,8 +1168,7 @@ Future<Uint8List> buildIahMesAgapePaymentPdf(
   final signatures = session.agapePaymentSignatures;
   final amount = agapeMedailleAmount(session);
   final total = agapeCollectedTotal(session, members, visitors, dignitaries);
-  final sessionNumber =
-      session.chrono?.toInt().toString() ?? session.sessionNumber ?? '';
+  final sessionNumber = session.numero?.toString() ?? '';
 
   const headers = [
     'Nom',

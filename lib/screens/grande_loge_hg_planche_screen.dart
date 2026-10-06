@@ -114,13 +114,7 @@ class _GrandeLogeHgPlancheScreenState extends State<GrandeLogeHgPlancheScreen> {
   num _troncValue() =>
       num.tryParse(_tronc.text.trim().replaceAll(',', '.')) ?? 0;
 
-  int _chrono(Session s) {
-    if (s.chrono != null) return s.chrono!.toInt();
-    return int.tryParse(
-          (s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
-        ) ??
-        0;
-  }
+  int _chrono(Session s) => s.numero ?? 0;
 
   @override
   void dispose() {

@@ -154,10 +154,7 @@ class DriveService {
 
   /// Nom du dossier de la tenue : « Tenue {chrono} {jj} {mm} {annee} ».
   static String folderName(Session session) {
-    final numOnly = (session.sessionNumber ?? '').replaceAll(
-      RegExp(r'[^\d]'),
-      '',
-    );
+    final numOnly = session.numero?.toString() ?? '';
     final chrono = numOnly.isNotEmpty ? numOnly.padLeft(2, '0') : '03';
     var jj = '01', mm = '01', annee = '2026';
     final dateValue = session.date.isNotEmpty

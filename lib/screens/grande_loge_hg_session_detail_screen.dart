@@ -39,13 +39,7 @@ String formatHgSessionDate(Session s) {
 
 int _degreeOf(Session s) => int.tryParse(s.degreTravail ?? s.degree) ?? 4;
 
-int _chronoOf(Session s) {
-  if (s.chrono != null) return s.chrono!.toInt();
-  final n = int.tryParse(
-    (s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
-  );
-  return n ?? 0;
-}
+int _chronoOf(Session s) => s.numero ?? 0;
 
 class GrandeLogeHgSessionDetailScreen extends StatelessWidget {
   final HgBody body;

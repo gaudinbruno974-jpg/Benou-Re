@@ -599,7 +599,6 @@ class _GrandeLogeHgSessionEditScreenState
       }
       if (chrono != null) {
         map['chrono'] = chrono;
-        map['sessionNumber'] = '$chrono';
       }
       final session = Session.fromMap(id, map);
       if (existing == null) {

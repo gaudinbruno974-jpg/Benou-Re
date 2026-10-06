@@ -503,10 +503,8 @@ class SessionDetailScreen extends StatelessWidget {
                 label: const Text('Modifier (déverrouillé)'),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => SessionEditScreen(
-                      session: session,
-                      forceUnlock: true,
-                    ),
+                    builder: (_) =>
+                        SessionEditScreen(session: session, forceUnlock: true),
                   ),
                 ),
               ),
@@ -778,12 +776,16 @@ class SessionDetailScreen extends StatelessWidget {
       await DriveService.instance.trashFolder(folderId);
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Tenue annulée, dossier Drive déplacé dans la corbeille.'),
+          content: Text(
+            'Tenue annulée, dossier Drive déplacé dans la corbeille.',
+          ),
         ),
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Tenue annulée. Dossier Drive non supprimé : $e')),
+        SnackBar(
+          content: Text('Tenue annulée. Dossier Drive non supprimé : $e'),
+        ),
       );
     }
   }
@@ -826,11 +828,7 @@ class SessionDetailScreen extends StatelessWidget {
   }
 
   int _chrono(Session s) {
-    if (s.chrono != null) return s.chrono!.toInt();
-    final n = int.tryParse(
-      (s.sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
-    );
-    return n ?? 0;
+    return s.numero ?? 0;
   }
 
   Future<void> _openPdf(
