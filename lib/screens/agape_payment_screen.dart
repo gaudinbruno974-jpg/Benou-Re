@@ -185,10 +185,8 @@ class AgapePaymentScreen extends StatelessWidget {
       final chrono = session.numero ?? 0;
       final email = await DriveService.instance.archivePdfs(session, {
         'Paiement Agapes ${LodgeConfig.current.name} Tenue $chrono'
-            '${session.driveFileDateGradeSuffix}.pdf': await _buildPdf(
-          state,
-          session,
-        ),
+                '${session.driveFileDateGradeSuffix}.pdf':
+            await _buildPdf(state, session),
       });
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
@@ -245,7 +243,10 @@ class _PayerTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     [obedience, lodge].where((e) => e.isNotEmpty).join(' — '),
-                    style: const TextStyle(color: BrColors.muted, fontSize: 12),
+                    style: const TextStyle(
+                      color: BrColors.muted,
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(

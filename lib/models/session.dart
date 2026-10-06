@@ -106,43 +106,14 @@ class Session {
   });
 
   static const Set<String> _knownKeys = {
-    'id',
-    'date',
-    'degree',
-    'type',
-    'title',
-    'description',
-    'location',
-    'dateReprise',
-    'lieuReunion',
-    'presentIds',
-    'excusedIds',
-    'visitorIds',
-    'troncAmount',
-    'signatures',
-    'closingTime',
-    'agenda1',
-    'agenda2',
-    'agenda3',
-    'agenda4',
-    'hasAgape',
-    'agapeTime',
-    'agapeType',
-    'agapePrice',
-    'sessionNumber',
-    'deityName',
-    'egyptianYear',
-    'vmName',
-    'customLines',
-    'plancheDraftText',
-    'plancheValidated',
-    'isValidated',
-    'visitorRoles',
-    'dignitaryIds',
-    'dignitaryRoles',
-    'driveFolderId',
-    'driveFolderUrl',
-    'chrono',
+    'id', 'date', 'degree', 'type', 'title', 'description', 'location',
+    'dateReprise', 'lieuReunion', 'presentIds', 'excusedIds', 'visitorIds',
+    'troncAmount', 'signatures', 'closingTime', 'agenda1', 'agenda2',
+    'agenda3', 'agenda4', 'hasAgape', 'agapeTime', 'agapeType', 'agapePrice',
+    'sessionNumber', 'deityName', 'egyptianYear', 'vmName', 'customLines',
+    'plancheDraftText', 'plancheValidated', 'isValidated', 'visitorRoles',
+    'dignitaryIds', 'dignitaryRoles',
+    'driveFolderId', 'driveFolderUrl', 'chrono',
   };
 
   factory Session.fromMap(String id, Map<String, dynamic> map) {
@@ -248,7 +219,9 @@ class Session {
   /// son numéro dans l'ancien champ texte `sessionNumber`.
   int? get numero {
     if (chrono != null) return chrono!.toInt();
-    return int.tryParse((sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''));
+    return int.tryParse(
+      (sessionNumber ?? '').replaceAll(RegExp(r'[^\d]'), ''),
+    );
   }
 
   /// Tenue « suspendue » : sa date est antérieure au jour courant
@@ -295,9 +268,7 @@ class Session {
     }
     return ordresJour.map((t) => AgendaItem(text: t)).toList();
   }
-
-  List<String> get plancheTravauxNotes =>
-      _stringList(extra['plancheTravauxNotes']);
+  List<String> get plancheTravauxNotes => _stringList(extra['plancheTravauxNotes']);
 
   /// Membres annoncés présents aux agapes (réponses au sondage WhatsApp).
   List<String> get agapeIds => _stringList(extra['agapeIds']);
@@ -349,16 +320,16 @@ class Session {
     final dateLabel = dt == null
         ? ''
         : '${dt.day.toString().padLeft(2, '0')} '
-              '${dt.month.toString().padLeft(2, '0')} '
-              '${(dt.year % 100).toString().padLeft(2, '0')}';
+            '${dt.month.toString().padLeft(2, '0')} '
+            '${(dt.year % 100).toString().padLeft(2, '0')}';
     final grade = normalizeGrade(degree);
     final gradeLetter = grade == kMaitre
         ? 'M'
         : grade == kCompagnon
-        ? 'C'
-        : grade == kApprenti
-        ? 'A'
-        : '';
+            ? 'C'
+            : grade == kApprenti
+                ? 'A'
+                : '';
     final parts = [
       if (dateLabel.isNotEmpty) dateLabel,
       if (gradeLetter.isNotEmpty) gradeLetter,
