@@ -24,6 +24,7 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import '../widgets/directory_filter.dart';
+import '../widgets/signature_dialog.dart';
 
 // Liste des offices pouvant être pris pendant la tenue par un visiteur ou un
 // dignitaire, partagée entre les deux (voir _officePlacement dans
@@ -70,13 +71,14 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
   late List<String> _agapeIds;
   late List<String> _visitorAgapeIds;
   late List<String> _dignitaryAgapeIds;
+  late Map<String, String> _signatures;
   bool _initialized = false;
   bool _saving = false;
 
   final _visitorSearch = TextEditingController();
-  DirectoryGroupMode _visitorMode = DirectoryGroupMode.all;
+  DirectoryGroupMode _visitorMode = DirectoryGroupMode.byLodge;
   final _dignitarySearch = TextEditingController();
-  DirectoryGroupMode _dignitaryMode = DirectoryGroupMode.all;
+  DirectoryGroupMode _dignitaryMode = DirectoryGroupMode.byLodge;
 
   @override
   void initState() {
@@ -102,7 +104,15 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     _agapeIds = List<String>.from(session.agapeIds);
     _visitorAgapeIds = List<String>.from(session.visitorAgapeIds);
     _dignitaryAgapeIds = List<String>.from(session.dignitaryAgapeIds);
+    _signatures = Map<String, String>.from(session.signatures);
     _initialized = true;
+  }
+
+  Future<void> _signOnPresent(String id, String name) async {
+    if (_signatures.containsKey(id)) return;
+    final dataUrl = await captureSignature(context, name);
+    if (dataUrl == null || !mounted) return;
+    setState(() => _signatures[id] = dataUrl);
   }
 
   void _togglePresent(String memberId) {
@@ -151,6 +161,11 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     });
   }
 
+  void _toggleVisitorAndSign(Visitor v) {
+    _toggleVisitor(v.id);
+    if (_visitorIds.contains(v.id)) _signOnPresent(v.id, v.fullName);
+  }
+
   void _toggleVisitorAgape(String visitorId) {
     setState(() {
       if (_visitorAgapeIds.contains(visitorId)) {
@@ -181,6 +196,11 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         _dignitaryIds.add(dignitaryId);
       }
     });
+  }
+
+  void _toggleDignitaryAndSign(Dignitary d) {
+    _toggleDignitary(d.id);
+    if (_dignitaryIds.contains(d.id)) _signOnPresent(d.id, d.fullName);
   }
 
   void _toggleDignitaryAgape(String dignitaryId) {
@@ -216,6 +236,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     map['agapeIds'] = _agapeIds;
     map['visitorAgapeIds'] = _visitorAgapeIds;
     map['dignitaryAgapeIds'] = _dignitaryAgapeIds;
+    map['signatures'] = _signatures;
     try {
       await state.updateSession(Session.fromMap(session.id, map));
       if (mounted) {
@@ -323,16 +344,30 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                 style: TextStyle(color: BrColors.muted),
               ),
             ),
-          for (final m in eligibleMembers)
-            _MemberTile(
-              name: m.fullName,
-              role: m.function.isNotEmpty ? m.function : 'Membre',
-              isPresent: _presentIds.contains(m.id),
-              isExcused: _excusedIds.contains(m.id),
-              isAgape: _agapeIds.contains(m.id),
-              onPresent: allowEdit ? () => _togglePresent(m.id) : null,
-              onExcused: allowEdit ? () => _toggleExcused(m.id) : null,
-              onAgape: allowEdit ? () => _toggleAgape(m.id) : null,
+          if (eligibleMembers.isNotEmpty)
+            DirectoryGroupSection(
+              title: 'Membres de la loge',
+              count: eligibleMembers.length,
+              children: [
+                for (final m in eligibleMembers)
+                  _MemberTile(
+                    name: m.fullName,
+                    role: m.function.isNotEmpty ? m.function : 'Membre',
+                    isPresent: _presentIds.contains(m.id),
+                    isExcused: _excusedIds.contains(m.id),
+                    isAgape: _agapeIds.contains(m.id),
+                    onPresent: allowEdit
+                        ? () {
+                            _togglePresent(m.id);
+                            if (_presentIds.contains(m.id)) {
+                              _signOnPresent(m.id, m.fullName);
+                            }
+                          }
+                        : null,
+                    onExcused: allowEdit ? () => _toggleExcused(m.id) : null,
+                    onAgape: allowEdit ? () => _toggleAgape(m.id) : null,
+                  ),
+              ],
             ),
           const SizedBox(height: 16),
           const _SectionTitle('VISITEURS — PRÉSENTS'),
@@ -426,7 +461,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       isPresent: _visitorIds.contains(v.id),
       isAgape: _visitorAgapeIds.contains(v.id),
       role: _visitorRoles[v.id] ?? '',
-      onToggle: allowEdit ? () => _toggleVisitor(v.id) : null,
+      onToggle: allowEdit ? () => _toggleVisitorAndSign(v) : null,
       onAgape: allowEdit ? () => _toggleVisitorAgape(v.id) : null,
       onRoleChanged: allowEdit ? (r) => _updateVisitorRole(v.id, r) : null,
     );
@@ -485,7 +520,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       isPresent: _dignitaryIds.contains(d.id),
       isAgape: _dignitaryAgapeIds.contains(d.id),
       role: _dignitaryRoles[d.id] ?? '',
-      onToggle: allowEdit ? () => _toggleDignitary(d.id) : null,
+      onToggle: allowEdit ? () => _toggleDignitaryAndSign(d) : null,
       onAgape: allowEdit ? () => _toggleDignitaryAgape(d.id) : null,
       onRoleChanged: allowEdit ? (r) => _updateDignitaryRole(d.id, r) : null,
     );

@@ -13,6 +13,7 @@ import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 import '../widgets/signature_dialog.dart';
 
 class _Signer {
@@ -20,7 +21,18 @@ class _Signer {
   final String name;
   final String role;
   final String? current; // data URL existante
-  const _Signer(this.id, this.name, this.role, this.current);
+  final String lastName;
+  final String lodge;
+  final String obedience;
+  const _Signer(
+    this.id,
+    this.name,
+    this.role,
+    this.current, {
+    this.lastName = '',
+    this.lodge = '',
+    this.obedience = '',
+  });
 }
 
 class EmargementScreen extends StatelessWidget {
@@ -65,6 +77,9 @@ class EmargementScreen extends StatelessWidget {
           session.visitorRoles[v.id] ??
               (v.function.isNotEmpty ? v.function : 'Visiteur'),
           sigs[v.id],
+          lastName: v.lastName,
+          lodge: v.lodge,
+          obedience: v.obedience,
         ),
     ];
     final dignitarySigners = <_Signer>[
@@ -75,6 +90,9 @@ class EmargementScreen extends StatelessWidget {
           session.dignitaryRoles[d.id] ??
               (d.title.isNotEmpty ? d.title : 'Dignitaire'),
           sigs[d.id],
+          lastName: d.lastName,
+          lodge: d.lodge,
+          obedience: d.obedience,
         ),
     ];
     final attendees = <_Signer>[
@@ -170,10 +188,18 @@ class EmargementScreen extends StatelessWidget {
                   style: TextStyle(color: BrColors.muted),
                 ),
               ),
-            for (final a in memberSigners)
-              _SignerTile(
-                signer: a,
-                onSign: () => _sign(context, session, a, isPlanche: false),
+            if (memberSigners.isNotEmpty)
+              DirectoryGroupSection(
+                title: 'Membres de la loge',
+                count: memberSigners.length,
+                children: [
+                  for (final a in memberSigners)
+                    _SignerTile(
+                      signer: a,
+                      onSign: () =>
+                          _sign(context, session, a, isPlanche: false),
+                    ),
+                ],
               ),
             const SizedBox(height: 12),
             const _SectionTitle('VISITEURS PRÉSENTS'),
@@ -185,10 +211,13 @@ class EmargementScreen extends StatelessWidget {
                   style: TextStyle(color: BrColors.muted),
                 ),
               ),
-            for (final a in visitorSigners)
-              _SignerTile(
-                signer: a,
-                onSign: () => _sign(context, session, a, isPlanche: false),
+            if (visitorSigners.isNotEmpty)
+              _GroupedSignersSection(
+                signers: visitorSigners,
+                tileBuilder: (a) => _SignerTile(
+                  signer: a,
+                  onSign: () => _sign(context, session, a, isPlanche: false),
+                ),
               ),
             const SizedBox(height: 12),
             const _SectionTitle('DIGNITAIRES PRÉSENTS'),
@@ -200,10 +229,13 @@ class EmargementScreen extends StatelessWidget {
                   style: TextStyle(color: BrColors.muted),
                 ),
               ),
-            for (final a in dignitarySigners)
-              _SignerTile(
-                signer: a,
-                onSign: () => _sign(context, session, a, isPlanche: false),
+            if (dignitarySigners.isNotEmpty)
+              _GroupedSignersSection(
+                signers: dignitarySigners,
+                tileBuilder: (a) => _SignerTile(
+                  signer: a,
+                  onSign: () => _sign(context, session, a, isPlanche: false),
+                ),
               ),
             const SizedBox(height: 12),
           ],
@@ -251,6 +283,86 @@ class _SectionTitle extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: BrSectionTitle(text, icon: Icons.draw_outlined),
+    );
+  }
+}
+
+class _GroupedSignersSection extends StatefulWidget {
+  final List<_Signer> signers;
+  final Widget Function(_Signer) tileBuilder;
+
+  const _GroupedSignersSection({
+    required this.signers,
+    required this.tileBuilder,
+  });
+
+  @override
+  State<_GroupedSignersSection> createState() => _GroupedSignersSectionState();
+}
+
+class _GroupedSignersSectionState extends State<_GroupedSignersSection> {
+  final _search = TextEditingController();
+  DirectoryGroupMode _mode = DirectoryGroupMode.byLodge;
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final filtered =
+        widget.signers
+            .where(
+              (s) => directoryMatches(_search.text, [
+                s.name,
+                s.lodge,
+                s.obedience,
+              ]),
+            )
+            .toList()
+          ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+
+    final List<Widget> sections;
+    if (_mode == DirectoryGroupMode.all) {
+      sections = [for (final s in filtered) widget.tileBuilder(s)];
+    } else {
+      final groups = groupDirectory(
+        filtered,
+        (s) => _mode == DirectoryGroupMode.byLodge ? s.lodge : s.obedience,
+      );
+      sections = [
+        for (final g in groups)
+          DirectoryGroupSection(
+            title: g.key,
+            count: g.value.length,
+            initiallyExpanded: groups.length == 1,
+            children: [for (final s in g.value) widget.tileBuilder(s)],
+          ),
+      ];
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DirectoryFilterBar(
+          controller: _search,
+          mode: _mode,
+          onModeChanged: (m) => setState(() => _mode = m),
+        ),
+        const SizedBox(height: 12),
+        if (filtered.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text(
+              'Aucun résultat.',
+              style: TextStyle(color: BrColors.muted),
+            ),
+          )
+        else
+          ...sections,
+      ],
     );
   }
 }
