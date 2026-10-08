@@ -184,11 +184,16 @@ class DirectoryAutocompleteField extends StatefulWidget {
   final TextEditingController controller;
   final String label;
   final List<String> suggestions;
+
+  /// Appelé quand une valeur est choisie dans la liste (pas lors d'une
+  /// saisie libre) — utile par exemple pour déduire l'obédience d'une loge.
+  final ValueChanged<String>? onSelected;
   const DirectoryAutocompleteField({
     super.key,
     required this.controller,
     required this.label,
     required this.suggestions,
+    this.onSelected,
   });
 
   @override
@@ -204,13 +209,25 @@ class _DirectoryAutocompleteFieldState
   void initState() {
     super.initState();
     _menuController = TextEditingController(text: widget.controller.text);
-    _menuController.addListener(
-      () => widget.controller.text = _menuController.text,
-    );
+    _menuController.addListener(() {
+      if (widget.controller.text != _menuController.text) {
+        widget.controller.text = _menuController.text;
+      }
+    });
+    widget.controller.addListener(_syncFromOuterController);
+  }
+
+  // Synchronise le champ quand sa valeur est modifiée depuis l'extérieur
+  // (ex. l'obédience pré-remplie automatiquement quand on choisit une loge).
+  void _syncFromOuterController() {
+    if (_menuController.text != widget.controller.text) {
+      _menuController.text = widget.controller.text;
+    }
   }
 
   @override
   void dispose() {
+    widget.controller.removeListener(_syncFromOuterController);
     _menuController.dispose();
     super.dispose();
   }
@@ -236,7 +253,9 @@ class _DirectoryAutocompleteFieldState
                 DropdownMenuEntry(value: s, label: s),
             ],
             onSelected: (v) {
-              if (v != null) _menuController.text = v;
+              if (v == null) return;
+              _menuController.text = v;
+              widget.onSelected?.call(v);
             },
           );
         },

@@ -1,8 +1,8 @@
-// Émargement : capture des signatures (porté depuis
-// src/components/SessionEmargementScreen.tsx + SignaturePad.tsx).
-// Chaque présent signe ; les signatures (data URL base64) sont enregistrées
-// dans session.signatures. Les signatures de la planche (Orateur / V∴M∴ /
-// Secrétaire) sont enregistrées dans les champs planche* de la tenue.
+// Émargement Planche Tracée : signature des trois officiers qui
+// authentifient la planche tracée (Orateur / V∴M∴ / Secrétaire), enregistrée
+// dans les champs planche* de la tenue. Les présents (membres, visiteurs,
+// dignitaires) signent désormais au moment du pointage, sur l'écran
+// Présence — voir session_presence_screen.dart.
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,7 +13,6 @@ import '../services/pdf_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
-import '../widgets/directory_filter.dart';
 import '../widgets/signature_dialog.dart';
 
 class _Signer {
@@ -21,18 +20,7 @@ class _Signer {
   final String name;
   final String role;
   final String? current; // data URL existante
-  final String lastName;
-  final String lodge;
-  final String obedience;
-  const _Signer(
-    this.id,
-    this.name,
-    this.role,
-    this.current, {
-    this.lastName = '',
-    this.lodge = '',
-    this.obedience = '',
-  });
+  const _Signer(this.id, this.name, this.role, this.current);
 }
 
 class EmargementScreen extends StatelessWidget {
@@ -46,61 +34,6 @@ class EmargementScreen extends StatelessWidget {
       (s) => s.id == sessionId,
       orElse: () => Session(id: sessionId),
     );
-    final sigs = session.signatures;
-
-    final presentMembers = state.members
-        .where((m) => session.presentIds.contains(m.id))
-        .toList();
-    final presentVisitors = state.visitors
-        .where((v) => session.visitorIds.contains(v.id))
-        .toList();
-    final presentDignitaries = state.dignitaries
-        .where((d) => session.dignitaryIds.contains(d.id))
-        .toList();
-
-    final memberSigners = <_Signer>[
-      for (final m in presentMembers)
-        _Signer(
-          m.id,
-          m.fullName,
-          m.function != 'Aucun' && m.function.isNotEmpty
-              ? m.function
-              : 'Membre',
-          sigs[m.id],
-        ),
-    ];
-    final visitorSigners = <_Signer>[
-      for (final v in presentVisitors)
-        _Signer(
-          v.id,
-          v.fullName,
-          session.visitorRoles[v.id] ??
-              (v.function.isNotEmpty ? v.function : 'Visiteur'),
-          sigs[v.id],
-          lastName: v.lastName,
-          lodge: v.lodge,
-          obedience: v.obedience,
-        ),
-    ];
-    final dignitarySigners = <_Signer>[
-      for (final d in presentDignitaries)
-        _Signer(
-          d.id,
-          d.fullName,
-          session.dignitaryRoles[d.id] ??
-              (d.title.isNotEmpty ? d.title : 'Dignitaire'),
-          sigs[d.id],
-          lastName: d.lastName,
-          lodge: d.lodge,
-          obedience: d.obedience,
-        ),
-    ];
-    final attendees = <_Signer>[
-      ...memberSigners,
-      ...visitorSigners,
-      ...dignitarySigners,
-    ];
-
     // Signatures officielles de la planche tracée.
     final vmName = plancheVmName(
       session,
@@ -142,15 +75,13 @@ class EmargementScreen extends StatelessWidget {
       ),
     ];
 
-    // Tenue suspendue : seules les signatures de la planche tracée restent
-    // affichées et signables.
-    final isSuspended = session.isSuspended;
-    final signers = isSuspended ? plancheSigners : attendees;
-    final missing = signers.where((a) => (a.current ?? '').isEmpty).length;
+    final missing = plancheSigners
+        .where((a) => (a.current ?? '').isEmpty)
+        .length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Emargement'),
+        title: const Text('Émargement Planche Tracée'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(28),
           child: Padding(
@@ -158,9 +89,7 @@ class EmargementScreen extends StatelessWidget {
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                isSuspended
-                    ? '$missing signature(s) manquante(s) sur ${signers.length} signataire(s) de la planche tracée'
-                    : '$missing signature(s) manquante(s) sur ${signers.length} présent(s)',
+                '$missing signature(s) manquante(s) sur ${plancheSigners.length} signataire(s)',
                 style: const TextStyle(color: BrColors.muted, fontSize: 12),
               ),
             ),
@@ -170,81 +99,8 @@ class EmargementScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(14, 18, 14, 28),
         children: [
-          if (isSuspended)
-            const Padding(
-              padding: EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Tenue suspendue : seules les signatures de la planche tracée restent disponibles.',
-                style: TextStyle(color: BrColors.muted, fontSize: 12),
-              ),
-            ),
-          if (!isSuspended) ...[
-            const _SectionTitle('MEMBRES PRÉSENTS'),
-            if (memberSigners.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Aucun membre présent enregistré.',
-                  style: TextStyle(color: BrColors.muted),
-                ),
-              ),
-            if (memberSigners.isNotEmpty)
-              DirectoryGroupSection(
-                title: 'Membres de la loge',
-                count: memberSigners.length,
-                children: [
-                  for (final a in memberSigners)
-                    _SignerTile(
-                      signer: a,
-                      onSign: () =>
-                          _sign(context, session, a, isPlanche: false),
-                    ),
-                ],
-              ),
-            const SizedBox(height: 12),
-            const _SectionTitle('VISITEURS PRÉSENTS'),
-            if (visitorSigners.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Aucun visiteur présent enregistré.',
-                  style: TextStyle(color: BrColors.muted),
-                ),
-              ),
-            if (visitorSigners.isNotEmpty)
-              _GroupedSignersSection(
-                signers: visitorSigners,
-                tileBuilder: (a) => _SignerTile(
-                  signer: a,
-                  onSign: () => _sign(context, session, a, isPlanche: false),
-                ),
-              ),
-            const SizedBox(height: 12),
-            const _SectionTitle('DIGNITAIRES PRÉSENTS'),
-            if (dignitarySigners.isEmpty)
-              const Padding(
-                padding: EdgeInsets.all(12),
-                child: Text(
-                  'Aucun dignitaire présent enregistré.',
-                  style: TextStyle(color: BrColors.muted),
-                ),
-              ),
-            if (dignitarySigners.isNotEmpty)
-              _GroupedSignersSection(
-                signers: dignitarySigners,
-                tileBuilder: (a) => _SignerTile(
-                  signer: a,
-                  onSign: () => _sign(context, session, a, isPlanche: false),
-                ),
-              ),
-            const SizedBox(height: 12),
-          ],
-          const _SectionTitle('SIGNATURES DE LA PLANCHE TRACÉE'),
           for (final s in plancheSigners)
-            _SignerTile(
-              signer: s,
-              onSign: () => _sign(context, session, s, isPlanche: true),
-            ),
+            _SignerTile(signer: s, onSign: () => _sign(context, session, s)),
         ],
       ),
     );
@@ -253,117 +109,15 @@ class EmargementScreen extends StatelessWidget {
   Future<void> _sign(
     BuildContext context,
     Session session,
-    _Signer signer, {
-    required bool isPlanche,
-  }) async {
+    _Signer signer,
+  ) async {
     final state = context.read<AppState>();
     final dataUrl = await captureSignature(context, signer.name);
     if (dataUrl == null) return;
 
     final map = Map<String, dynamic>.from(session.toMap());
-    if (isPlanche) {
-      map[signer.id] = dataUrl;
-    } else {
-      final sigs = Map<String, dynamic>.from(
-        (map['signatures'] as Map?) ?? <String, dynamic>{},
-      );
-      sigs[signer.id] = dataUrl;
-      map['signatures'] = sigs;
-    }
+    map[signer.id] = dataUrl;
     await state.updateSession(Session.fromMap(session.id, map));
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: BrSectionTitle(text, icon: Icons.draw_outlined),
-    );
-  }
-}
-
-class _GroupedSignersSection extends StatefulWidget {
-  final List<_Signer> signers;
-  final Widget Function(_Signer) tileBuilder;
-
-  const _GroupedSignersSection({
-    required this.signers,
-    required this.tileBuilder,
-  });
-
-  @override
-  State<_GroupedSignersSection> createState() => _GroupedSignersSectionState();
-}
-
-class _GroupedSignersSectionState extends State<_GroupedSignersSection> {
-  final _search = TextEditingController();
-  DirectoryGroupMode _mode = DirectoryGroupMode.byLodge;
-
-  @override
-  void dispose() {
-    _search.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered =
-        widget.signers
-            .where(
-              (s) => directoryMatches(_search.text, [
-                s.name,
-                s.lodge,
-                s.obedience,
-              ]),
-            )
-            .toList()
-          ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
-
-    final List<Widget> sections;
-    if (_mode == DirectoryGroupMode.all) {
-      sections = [for (final s in filtered) widget.tileBuilder(s)];
-    } else {
-      final groups = groupDirectory(
-        filtered,
-        (s) => _mode == DirectoryGroupMode.byLodge ? s.lodge : s.obedience,
-      );
-      sections = [
-        for (final g in groups)
-          DirectoryGroupSection(
-            title: g.key,
-            count: g.value.length,
-            initiallyExpanded: groups.length == 1,
-            children: [for (final s in g.value) widget.tileBuilder(s)],
-          ),
-      ];
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        DirectoryFilterBar(
-          controller: _search,
-          mode: _mode,
-          onModeChanged: (m) => setState(() => _mode = m),
-        ),
-        const SizedBox(height: 12),
-        if (filtered.isEmpty)
-          const Padding(
-            padding: EdgeInsets.all(12),
-            child: Text(
-              'Aucun résultat.',
-              style: TextStyle(color: BrColors.muted),
-            ),
-          )
-        else
-          ...sections,
-      ],
-    );
   }
 }
 

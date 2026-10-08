@@ -45,7 +45,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     'Honoraire',
     'En sommeil',
     'Démissionnaire',
-    'Radié'
+    'Radié',
   ];
 
   @override
@@ -66,8 +66,9 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
       'entryDate': TextEditingController(text: m?.entryDate ?? ''),
       'lodgeDues': TextEditingController(text: '${m?.lodgeDues ?? 0}'),
       'orderDues': TextEditingController(text: '${m?.orderDues ?? 0}'),
-      'hautsGradesDegree':
-          TextEditingController(text: m?.hautsGradesDegree ?? ''),
+      'hautsGradesDegree': TextEditingController(
+        text: m?.hautsGradesDegree ?? '',
+      ),
     };
     _grade = normalizeGrade(m?.grade ?? kApprenti);
     _status = m?.status ?? 'Actif';
@@ -96,17 +97,15 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     setState(() => _saving = true);
     final state = context.read<AppState>();
     final existing = widget.member;
-    final id = existing?.id ??
-        'm_${DateTime.now().millisecondsSinceEpoch}';
+    final id = existing?.id ?? 'm_${DateTime.now().millisecondsSinceEpoch}';
     final base = existing ?? Member(id: id);
     final lodgeDues = num.tryParse(_ctrls['lodgeDues']!.text) ?? 0;
     final orderDues = num.tryParse(_ctrls['orderDues']!.text) ?? 0;
     // Les montants saisis ici concernent l'année courante.
     final year = DateTime.now().year;
-    final currentDues = base.duesFor(year).copyWith(
-          lodgeDues: lodgeDues,
-          orderDues: orderDues,
-        );
+    final currentDues = base
+        .duesFor(year)
+        .copyWith(lodgeDues: lodgeDues, orderDues: orderDues);
     final member = base
         .copyWith(
           firstName: _ctrls['firstName']!.text.trim(),
@@ -139,12 +138,15 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
         // l'enregistrement de la fiche.
         if (member.email.isNotEmpty) {
           try {
-            final result =
-                await MemberAccountService.instance.invite(member.email);
-            await state.updateMember(member.copyWith(
-              loginEmail: member.email,
-              authUid: result.uid ?? member.authUid,
-            ));
+            final result = await MemberAccountService.instance.invite(
+              member.email,
+            );
+            await state.updateMember(
+              member.copyWith(
+                loginEmail: member.email,
+                authUid: result.uid ?? member.authUid,
+              ),
+            );
             messenger.showSnackBar(
               SnackBar(
                 content: Text(
@@ -167,7 +169,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
       } else {
         await state.updateMember(member);
       }
-      if (mounted) navigator.pop();
+      if (mounted) navigator.pop(member);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -176,8 +178,10 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
   /// Envoie (ou renvoie) l'invitation à l'adresse de connexion. Quand
   /// [newLoginEmail] est vrai, cette adresse devient le nouvel identifiant de
   /// connexion du membre.
-  Future<void> _sendInvitation(String email,
-      {bool newLoginEmail = false}) async {
+  Future<void> _sendInvitation(
+    String email, {
+    bool newLoginEmail = false,
+  }) async {
     final messenger = ScaffoldMessenger.of(context);
     final state = context.read<AppState>();
     final member = widget.member;
@@ -185,10 +189,9 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     try {
       final result = await MemberAccountService.instance.invite(email);
       if (newLoginEmail && member != null) {
-        await state.updateMember(member.copyWith(
-          loginEmail: email,
-          authUid: result.uid ?? '',
-        ));
+        await state.updateMember(
+          member.copyWith(loginEmail: email, authUid: result.uid ?? ''),
+        );
       }
       messenger.showSnackBar(
         SnackBar(
@@ -277,7 +280,8 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           lodgeVmName: state.lodgeVmName,
         ),
       );
-      final fileName = 'Passeport GLDB ${LodgeConfig.current.name} - '
+      final fileName =
+          'Passeport GLDB ${LodgeConfig.current.name} - '
           '${member.lastName} ${member.firstName}.pdf';
       try {
         await DriveService.instance.archivePassportDocument(
@@ -285,9 +289,7 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
           bytes: bytes,
         );
       } catch (e) {
-        messenger.showSnackBar(
-          SnackBar(content: Text('Archivage Drive : $e')),
-        );
+        messenger.showSnackBar(SnackBar(content: Text('Archivage Drive : $e')));
       }
       await Printing.sharePdf(bytes: bytes, filename: fileName);
     } catch (e) {
@@ -311,7 +313,8 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     final canSeeHautsGrades = canViewHautsGrades(currentUser);
     return Scaffold(
       appBar: AppBar(
-          title: Text(isNew ? 'Nouveau membre' : 'Modifier le membre')),
+        title: Text(isNew ? 'Nouveau membre' : 'Modifier le membre'),
+      ),
       body: Form(
         key: _formKey,
         child: ListView(
@@ -324,8 +327,11 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                 children: [
                   _field('firstName', 'Prénom', required: true),
                   _field('lastName', 'Nom', required: true),
-                  _field('email', 'Email de contact',
-                      keyboard: TextInputType.emailAddress),
+                  _field(
+                    'email',
+                    'Email de contact',
+                    keyboard: TextInputType.emailAddress,
+                  ),
                   _field('phone', 'Téléphone', keyboard: TextInputType.phone),
                   _field('address', 'Adresse'),
                   _dateField('birthDate', 'Date de naissance', last: true),
@@ -374,8 +380,10 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
             ],
             if (!isNew && canGeneratePassportPdf) ...[
               const SizedBox(height: 24),
-              const BrSectionTitle('PASSEPORT MAÇONNIQUE',
-                  icon: Icons.badge_outlined),
+              const BrSectionTitle(
+                'PASSEPORT MAÇONNIQUE',
+                icon: Icons.badge_outlined,
+              ),
               const SizedBox(height: 14),
               BrCard(
                 child: Column(
@@ -398,8 +406,10 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            const BrSectionTitle('PARCOURS MAÇONNIQUE',
-                icon: Icons.auto_awesome),
+            const BrSectionTitle(
+              'PARCOURS MAÇONNIQUE',
+              icon: Icons.auto_awesome,
+            ),
             const SizedBox(height: 14),
             BrCard(
               child: Column(
@@ -410,8 +420,12 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                   _dateField('initiationDate', "Date d'initiation"),
                   _dateField('entryDate', "Date d'entrée", last: true),
                   const SizedBox(height: 14),
-                  _dropdown('Office / Fonction', _function, _functions,
-                      (v) => setState(() => _function = v)),
+                  _dropdown(
+                    'Office / Fonction',
+                    _function,
+                    _functions,
+                    (v) => setState(() => _function = v),
+                  ),
                   const SizedBox(height: 14),
                   _dropdown(
                     'Civilité',
@@ -421,11 +435,19 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                     labelBuilder: (c) => c.isEmpty ? 'Non renseignée' : c,
                   ),
                   const SizedBox(height: 14),
-                  _dropdown('Grade', _grade, _grades,
-                      (v) => setState(() => _grade = v)),
+                  _dropdown(
+                    'Grade',
+                    _grade,
+                    _grades,
+                    (v) => setState(() => _grade = v),
+                  ),
                   const SizedBox(height: 14),
-                  _dropdown('Statut', _status, _statuses,
-                      (v) => setState(() => _status = v)),
+                  _dropdown(
+                    'Statut',
+                    _status,
+                    _statuses,
+                    (v) => setState(() => _status = v),
+                  ),
                 ],
               ),
             ),
@@ -460,16 +482,25 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
               ),
             ],
             const SizedBox(height: 24),
-            const BrSectionTitle('COTISATIONS',
-                icon: Icons.account_balance_wallet_outlined),
+            const BrSectionTitle(
+              'COTISATIONS',
+              icon: Icons.account_balance_wallet_outlined,
+            ),
             const SizedBox(height: 14),
             BrCard(
               child: Column(
                 children: [
-                  _field('lodgeDues', 'Cotisation Loge (€)',
-                      keyboard: TextInputType.number),
-                  _field('orderDues', 'Cotisation Ordre (€)',
-                      keyboard: TextInputType.number, last: true),
+                  _field(
+                    'lodgeDues',
+                    'Cotisation Loge (€)',
+                    keyboard: TextInputType.number,
+                  ),
+                  _field(
+                    'orderDues',
+                    'Cotisation Ordre (€)',
+                    keyboard: TextInputType.number,
+                    last: true,
+                  ),
                 ],
               ),
             ),
@@ -481,7 +512,10 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                       height: 18,
                       width: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: BrColors.text))
+                        strokeWidth: 2,
+                        color: BrColors.text,
+                      ),
+                    )
                   : const Icon(Icons.save),
               label: const Text('Enregistrer'),
             ),
@@ -494,7 +528,10 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
                         height: 18,
                         width: 18,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: BrColors.text))
+                          strokeWidth: 2,
+                          color: BrColors.text,
+                        ),
+                      )
                     : const Icon(Icons.mail_outline),
                 label: const Text("Renvoyer l'invitation"),
               ),
@@ -512,8 +549,13 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
     );
   }
 
-  Widget _field(String key, String label,
-      {bool required = false, TextInputType? keyboard, bool last = false}) {
+  Widget _field(
+    String key,
+    String label, {
+    bool required = false,
+    TextInputType? keyboard,
+    bool last = false,
+  }) {
     return Padding(
       padding: EdgeInsets.only(bottom: last ? 0 : 14),
       child: TextFormField(
@@ -545,9 +587,9 @@ class _MemberEditScreenState extends State<MemberEditScreen> {
             onPressed: () async {
               DateTime initial;
               try {
-                initial = DateFormat('dd/MM/yyyy').parseStrict(
-                  ctrl.text.trim(),
-                );
+                initial = DateFormat(
+                  'dd/MM/yyyy',
+                ).parseStrict(ctrl.text.trim());
               } catch (_) {
                 initial = DateTime.now();
               }

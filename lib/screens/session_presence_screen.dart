@@ -25,6 +25,7 @@ import '../theme.dart';
 import '../widgets/br_decor.dart';
 import '../widgets/directory_filter.dart';
 import '../widgets/signature_dialog.dart';
+import 'member_edit_screen.dart';
 
 // Liste des offices pouvant être pris pendant la tenue par un visiteur ou un
 // dignitaire, partagée entre les deux (voir _officePlacement dans
@@ -108,11 +109,214 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     _initialized = true;
   }
 
+  // Préfixe proposé pour une nouvelle loge, à compléter manuellement —
+  // laissé tel quel, il est traité comme un champ vide.
+  static const _kLodgeDefault = 'R∴L∴ ';
+
+  Widget _dialogField(TextEditingController c, String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: c,
+        style: const TextStyle(color: BrColors.text),
+        decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
+
+  Future<Map<String, String>?> _quickPersonForm(
+    String heading, {
+    required bool withTitle,
+  }) async {
+    final state = context.read<AppState>();
+    final lodgeSuggestions = distinctSuggestions([
+      for (final v in state.visitors) v.lodge,
+      for (final d in state.dignitaries) d.lodge,
+      for (final e in state.externalSessions) e.organizingLodge,
+    ]);
+    final obedienceSuggestions = distinctSuggestions([
+      for (final v in state.visitors) v.obedience,
+      for (final d in state.dignitaries) d.obedience,
+      for (final e in state.externalSessions) e.obedience,
+    ]);
+    final orientSuggestions = distinctSuggestions([
+      for (final v in state.visitors) v.orient,
+      for (final d in state.dignitaries) d.orient,
+    ]);
+    // Une loge connue appartient à une seule obédience : on la déduit des
+    // fiches existantes pour la proposer automatiquement.
+    final lodgeToObedience = <String, String>{};
+    for (final v in state.visitors) {
+      if (v.lodge.trim().isNotEmpty && v.obedience.trim().isNotEmpty) {
+        lodgeToObedience[v.lodge.trim()] = v.obedience.trim();
+      }
+    }
+    for (final d in state.dignitaries) {
+      if (d.lodge.trim().isNotEmpty && d.obedience.trim().isNotEmpty) {
+        lodgeToObedience[d.lodge.trim()] = d.obedience.trim();
+      }
+    }
+    for (final e in state.externalSessions) {
+      if (e.organizingLodge.trim().isNotEmpty &&
+          e.obedience.trim().isNotEmpty) {
+        lodgeToObedience[e.organizingLodge.trim()] = e.obedience.trim();
+      }
+    }
+
+    final first = TextEditingController();
+    final last = TextEditingController();
+    final title = TextEditingController();
+    final lodge = TextEditingController(text: _kLodgeDefault);
+    final orient = TextEditingController();
+    final obedience = TextEditingController();
+    final email = TextEditingController();
+    final phone = TextEditingController();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: BrColors.surface,
+        title: Text(heading, style: const TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _dialogField(first, 'Prénom'),
+              _dialogField(last, 'Nom'),
+              if (withTitle) _dialogField(title, 'Titre'),
+              DirectoryAutocompleteField(
+                controller: lodge,
+                label: 'Loge',
+                suggestions: lodgeSuggestions,
+                onSelected: (v) {
+                  final ob = lodgeToObedience[v.trim()];
+                  if (ob != null) obedience.text = ob;
+                },
+              ),
+              DirectoryAutocompleteField(
+                controller: orient,
+                label: 'Orient',
+                suggestions: orientSuggestions,
+              ),
+              DirectoryAutocompleteField(
+                controller: obedience,
+                label: 'Obédience',
+                suggestions: obedienceSuggestions,
+              ),
+              _dialogField(email, 'Email'),
+              _dialogField(phone, 'Téléphone'),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Annuler'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Enregistrer'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return null;
+    final lodgeValue = lodge.text.trim();
+    return {
+      'Prénom': first.text.trim(),
+      'Nom': last.text.trim(),
+      if (withTitle) 'Titre': title.text.trim(),
+      'Loge': lodgeValue == _kLodgeDefault.trim() ? '' : lodgeValue,
+      'Orient': orient.text.trim(),
+      'Obédience': obedience.text.trim(),
+      'Email': email.text.trim(),
+      'Téléphone': phone.text.trim(),
+    };
+  }
+
+  Future<void> _addVisitor(Session session) async {
+    final state = context.read<AppState>();
+    final f = await _quickPersonForm('Nouveau visiteur', withTitle: false);
+    if (f == null || (f['Prénom']!.isEmpty && f['Nom']!.isEmpty)) return;
+    final id = 'v_${DateTime.now().millisecondsSinceEpoch}';
+    await state.addVisitor(
+      Visitor(
+        id: id,
+        firstName: f['Prénom']!,
+        lastName: f['Nom']!,
+        lodge: f['Loge']!,
+        orient: f['Orient']!,
+        obedience: f['Obédience']!,
+        email: f['Email']!,
+        phone: f['Téléphone']!,
+        function: '',
+        civilite: '',
+        grade: '',
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _visitorIds.add(id));
+    await _persist(session);
+    if (!mounted) return;
+    await _signOnPresent(id, '${f['Prénom']} ${f['Nom']}'.trim());
+    if (mounted) await _persist(session);
+  }
+
+  Future<void> _addDignitary(Session session) async {
+    final state = context.read<AppState>();
+    final f = await _quickPersonForm('Nouveau dignitaire', withTitle: true);
+    if (f == null || (f['Prénom']!.isEmpty && f['Nom']!.isEmpty)) return;
+    final id = 'd_${DateTime.now().millisecondsSinceEpoch}';
+    await state.addDignitary(
+      Dignitary(
+        id: id,
+        firstName: f['Prénom']!,
+        lastName: f['Nom']!,
+        title: f['Titre']!,
+        lodge: f['Loge']!,
+        orient: f['Orient']!,
+        obedience: f['Obédience']!,
+        email: f['Email']!,
+        phone: f['Téléphone']!,
+      ),
+    );
+    if (!mounted) return;
+    setState(() => _dignitaryIds.add(id));
+    await _persist(session);
+    if (!mounted) return;
+    await _signOnPresent(id, '${f['Prénom']} ${f['Nom']}'.trim());
+    if (mounted) await _persist(session);
+  }
+
+  Future<void> _addMember(Session session) async {
+    final member = await Navigator.of(context).push<Member>(
+      MaterialPageRoute<Member>(builder: (_) => const MemberEditScreen()),
+    );
+    if (member == null || !mounted) return;
+    setState(() => _presentIds.add(member.id));
+    await _persist(session);
+    if (!mounted) return;
+    await _signOnPresent(member.id, member.fullName);
+    if (mounted) await _persist(session);
+  }
+
   Future<void> _signOnPresent(String id, String name) async {
     if (_signatures.containsKey(id)) return;
     final dataUrl = await captureSignature(context, name);
     if (dataUrl == null || !mounted) return;
     setState(() => _signatures[id] = dataUrl);
+  }
+
+  // Signature demandée explicitement (badge « Signature en attente » /
+  // « Signé » sur une personne déjà présente) — contrairement à
+  // [_signOnPresent], toujours proposée (y compris pour la modifier), et
+  // enregistrée tout de suite : utile notamment pour les présences
+  // déclarées par le lien de convocation, qui n'ont jamais de signature.
+  Future<void> _openSignature(Session session, String id, String name) async {
+    final dataUrl = await captureSignature(context, name);
+    if (dataUrl == null || !mounted) return;
+    setState(() => _signatures[id] = dataUrl);
+    await _persist(session);
   }
 
   void _togglePresent(String memberId) {
@@ -223,8 +427,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     });
   }
 
-  Future<void> _save(Session session) async {
-    setState(() => _saving = true);
+  Future<void> _persist(Session session) async {
     final state = context.read<AppState>();
     final map = Map<String, dynamic>.from(session.toMap());
     map['presentIds'] = _presentIds;
@@ -237,8 +440,13 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
     map['visitorAgapeIds'] = _visitorAgapeIds;
     map['dignitaryAgapeIds'] = _dignitaryAgapeIds;
     map['signatures'] = _signatures;
+    await state.updateSession(Session.fromMap(session.id, map));
+  }
+
+  Future<void> _save(Session session) async {
+    setState(() => _saving = true);
     try {
-      await state.updateSession(Session.fromMap(session.id, map));
+      await _persist(session);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -335,7 +543,26 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                 style: TextStyle(color: BrColors.muted, fontSize: 12),
               ),
             ),
-          const _SectionTitle('MEMBRES — PRÉSENTS / EXCUSÉS / AGAPES'),
+          Row(
+            children: [
+              const Expanded(
+                child: _SectionTitle('MEMBRES — PRÉSENTS / EXCUSÉS / AGAPES'),
+              ),
+              if (allowEdit)
+                TextButton.icon(
+                  onPressed: () => _addMember(session),
+                  icon: const Icon(
+                    Icons.person_add_alt_1,
+                    size: 16,
+                    color: BrColors.teal,
+                  ),
+                  label: const Text(
+                    'Ajouter',
+                    style: TextStyle(color: BrColors.teal, fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
           if (eligibleMembers.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
@@ -356,6 +583,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                     isPresent: _presentIds.contains(m.id),
                     isExcused: _excusedIds.contains(m.id),
                     isAgape: _agapeIds.contains(m.id),
+                    signed: _signatures.containsKey(m.id),
                     onPresent: allowEdit
                         ? () {
                             _togglePresent(m.id);
@@ -366,11 +594,31 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
                         : null,
                     onExcused: allowEdit ? () => _toggleExcused(m.id) : null,
                     onAgape: allowEdit ? () => _toggleAgape(m.id) : null,
+                    onSign: allowEdit
+                        ? () => _openSignature(session, m.id, m.fullName)
+                        : null,
                   ),
               ],
             ),
           const SizedBox(height: 16),
-          const _SectionTitle('VISITEURS — PRÉSENTS'),
+          Row(
+            children: [
+              const Expanded(child: _SectionTitle('VISITEURS — PRÉSENTS')),
+              if (allowEdit)
+                TextButton.icon(
+                  onPressed: () => _addVisitor(session),
+                  icon: const Icon(
+                    Icons.person_add_alt_1,
+                    size: 16,
+                    color: BrColors.teal,
+                  ),
+                  label: const Text(
+                    'Ajouter',
+                    style: TextStyle(color: BrColors.teal, fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
           if (state.visitors.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
@@ -386,10 +634,27 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               onModeChanged: (m) => setState(() => _visitorMode = m),
             ),
             const SizedBox(height: 12),
-            ..._visitorSections(state.visitors, allowEdit),
+            ..._visitorSections(state.visitors, allowEdit, session),
           ],
           const SizedBox(height: 16),
-          const _SectionTitle('DIGNITAIRES — PRÉSENTS'),
+          Row(
+            children: [
+              const Expanded(child: _SectionTitle('DIGNITAIRES — PRÉSENTS')),
+              if (allowEdit)
+                TextButton.icon(
+                  onPressed: () => _addDignitary(session),
+                  icon: const Icon(
+                    Icons.person_add_alt_1,
+                    size: 16,
+                    color: BrColors.teal,
+                  ),
+                  label: const Text(
+                    'Ajouter',
+                    style: TextStyle(color: BrColors.teal, fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
           if (state.dignitaries.isEmpty)
             const Padding(
               padding: EdgeInsets.all(12),
@@ -405,14 +670,18 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
               onModeChanged: (m) => setState(() => _dignitaryMode = m),
             ),
             const SizedBox(height: 12),
-            ..._dignitarySections(state.dignitaries, allowEdit),
+            ..._dignitarySections(state.dignitaries, allowEdit, session),
           ],
         ],
       ),
     );
   }
 
-  List<Widget> _visitorSections(List<Visitor> visitors, bool allowEdit) {
+  List<Widget> _visitorSections(
+    List<Visitor> visitors,
+    bool allowEdit,
+    Session session,
+  ) {
     final filtered =
         visitors
             .where(
@@ -437,7 +706,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       ];
     }
     if (_visitorMode == DirectoryGroupMode.all) {
-      return [for (final v in filtered) _visitorTile(v, allowEdit)];
+      return [for (final v in filtered) _visitorTile(v, allowEdit, session)];
     }
     final groups = groupDirectory(
       filtered,
@@ -449,25 +718,35 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
           title: g.key,
           count: g.value.length,
           initiallyExpanded: groups.length == 1,
-          children: [for (final v in g.value) _visitorTile(v, allowEdit)],
+          children: [
+            for (final v in g.value) _visitorTile(v, allowEdit, session),
+          ],
         ),
     ];
   }
 
-  Widget _visitorTile(Visitor v, bool allowEdit) {
+  Widget _visitorTile(Visitor v, bool allowEdit, Session session) {
     return _VisitorTile(
       name: v.fullName,
       subtitle: [v.lodge, v.orient].where((e) => e.isNotEmpty).join(' — '),
       isPresent: _visitorIds.contains(v.id),
       isAgape: _visitorAgapeIds.contains(v.id),
+      signed: _signatures.containsKey(v.id),
       role: _visitorRoles[v.id] ?? '',
       onToggle: allowEdit ? () => _toggleVisitorAndSign(v) : null,
       onAgape: allowEdit ? () => _toggleVisitorAgape(v.id) : null,
       onRoleChanged: allowEdit ? (r) => _updateVisitorRole(v.id, r) : null,
+      onSign: allowEdit
+          ? () => _openSignature(session, v.id, v.fullName)
+          : null,
     );
   }
 
-  List<Widget> _dignitarySections(List<Dignitary> dignitaries, bool allowEdit) {
+  List<Widget> _dignitarySections(
+    List<Dignitary> dignitaries,
+    bool allowEdit,
+    Session session,
+  ) {
     final filtered =
         dignitaries
             .where(
@@ -492,7 +771,7 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       ];
     }
     if (_dignitaryMode == DirectoryGroupMode.all) {
-      return [for (final d in filtered) _dignitaryTile(d, allowEdit)];
+      return [for (final d in filtered) _dignitaryTile(d, allowEdit, session)];
     }
     final groups = groupDirectory(
       filtered,
@@ -505,12 +784,14 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
           title: g.key,
           count: g.value.length,
           initiallyExpanded: groups.length == 1,
-          children: [for (final d in g.value) _dignitaryTile(d, allowEdit)],
+          children: [
+            for (final d in g.value) _dignitaryTile(d, allowEdit, session),
+          ],
         ),
     ];
   }
 
-  Widget _dignitaryTile(Dignitary d, bool allowEdit) {
+  Widget _dignitaryTile(Dignitary d, bool allowEdit, Session session) {
     return _VisitorTile(
       name: d.fullName,
       subtitle: [
@@ -519,10 +800,14 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
       ].where((e) => e.isNotEmpty).join(' — '),
       isPresent: _dignitaryIds.contains(d.id),
       isAgape: _dignitaryAgapeIds.contains(d.id),
+      signed: _signatures.containsKey(d.id),
       role: _dignitaryRoles[d.id] ?? '',
       onToggle: allowEdit ? () => _toggleDignitaryAndSign(d) : null,
       onAgape: allowEdit ? () => _toggleDignitaryAgape(d.id) : null,
       onRoleChanged: allowEdit ? (r) => _updateDignitaryRole(d.id, r) : null,
+      onSign: allowEdit
+          ? () => _openSignature(session, d.id, d.fullName)
+          : null,
     );
   }
 }
@@ -546,18 +831,22 @@ class _MemberTile extends StatelessWidget {
   final bool isPresent;
   final bool isExcused;
   final bool isAgape;
+  final bool signed;
   final VoidCallback? onPresent;
   final VoidCallback? onExcused;
   final VoidCallback? onAgape;
+  final VoidCallback? onSign;
   const _MemberTile({
     required this.name,
     required this.role,
     required this.isPresent,
     required this.isExcused,
     required this.isAgape,
+    required this.signed,
     required this.onPresent,
     required this.onExcused,
     required this.onAgape,
+    required this.onSign,
   });
 
   @override
@@ -624,8 +913,9 @@ class _MemberTile extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    _SignatureBadge(signed: signed, onTap: onSign),
                     _PresenceButton(
                       label: 'Agapes',
                       selected: isAgape,
@@ -647,18 +937,22 @@ class _VisitorTile extends StatelessWidget {
   final String subtitle;
   final bool isPresent;
   final bool isAgape;
+  final bool signed;
   final String role;
   final VoidCallback? onToggle;
   final VoidCallback? onAgape;
+  final VoidCallback? onSign;
   final ValueChanged<String?>? onRoleChanged;
   const _VisitorTile({
     required this.name,
     required this.subtitle,
     required this.isPresent,
     required this.isAgape,
+    required this.signed,
     required this.role,
     required this.onToggle,
     required this.onAgape,
+    required this.onSign,
     required this.onRoleChanged,
   });
 
@@ -740,8 +1034,9 @@ class _VisitorTile extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  _SignatureBadge(signed: signed, onTap: onSign),
                   _PresenceButton(
                     label: 'Agapes',
                     selected: isAgape,
@@ -751,6 +1046,48 @@ class _VisitorTile extends StatelessWidget {
                 ],
               ),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SignatureBadge extends StatelessWidget {
+  final bool signed;
+  final VoidCallback? onTap;
+  const _SignatureBadge({required this.signed, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = signed ? const Color(0xFF34D399) : BrColors.gold;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              signed ? Icons.check_circle_outline : Icons.schedule,
+              size: 13,
+              color: color,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              signed ? 'Signé' : 'Signature en attente',
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ],
         ),
       ),

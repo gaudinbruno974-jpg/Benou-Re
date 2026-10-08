@@ -250,7 +250,7 @@ class _SessionCard extends StatelessWidget {
                 _action(
                   context,
                   Icons.groups_outlined,
-                  'Emargement',
+                  'Émargement Planche Tracée',
                   () => Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => EmargementScreen(sessionId: s.id),
@@ -503,10 +503,8 @@ class SessionDetailScreen extends StatelessWidget {
                 label: const Text('Modifier (déverrouillé)'),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => SessionEditScreen(
-                      session: session,
-                      forceUnlock: true,
-                    ),
+                    builder: (_) =>
+                        SessionEditScreen(session: session, forceUnlock: true),
                   ),
                 ),
               ),
@@ -552,7 +550,7 @@ class SessionDetailScreen extends StatelessWidget {
                 side: const BorderSide(color: BrColors.gold),
               ),
               icon: const Icon(Icons.draw_outlined, size: 18),
-              label: const Text('Emargement Présence'),
+              label: const Text('Émargement Planche Tracée'),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => EmargementScreen(sessionId: session.id),
@@ -778,12 +776,16 @@ class SessionDetailScreen extends StatelessWidget {
       await DriveService.instance.trashFolder(folderId);
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Tenue annulée, dossier Drive déplacé dans la corbeille.'),
+          content: Text(
+            'Tenue annulée, dossier Drive déplacé dans la corbeille.',
+          ),
         ),
       );
     } catch (e) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Tenue annulée. Dossier Drive non supprimé : $e')),
+        SnackBar(
+          content: Text('Tenue annulée. Dossier Drive non supprimé : $e'),
+        ),
       );
     }
   }
