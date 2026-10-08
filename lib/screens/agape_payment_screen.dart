@@ -75,24 +75,33 @@ class AgapePaymentScreen extends StatelessWidget {
             icon: Icons.restaurant_outlined,
           ),
           const SizedBox(height: 12),
-          if (payers.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(12),
-              child: Text(
-                'Personne n\'est annoncé aux agapes : cochez « Agapes » dans « Présents en tenue ».',
-                style: TextStyle(color: BrColors.muted),
-              ),
-            ),
-          for (final p in payers)
-            _PayerTile(
-              lastName: p.lastName,
-              firstName: p.firstName,
-              obedience: p.obedience,
-              lodge: p.lodge,
-              amount: amount,
-              signed: (signatures[p.id] ?? '').isNotEmpty,
-              onSign: () => _sign(context, session, p.id, p.fullName),
-            ),
+          ..._payerSection(
+            context,
+            session,
+            'MEMBRES',
+            'Aucun membre annoncé aux agapes.',
+            payers.where((p) => p.kind == 'Membre').toList(),
+            amount,
+            signatures,
+          ),
+          ..._payerSection(
+            context,
+            session,
+            'VISITEURS',
+            'Aucun visiteur annoncé aux agapes.',
+            payers.where((p) => p.kind == 'Visiteur').toList(),
+            amount,
+            signatures,
+          ),
+          ..._payerSection(
+            context,
+            session,
+            'DIGNITAIRES',
+            'Aucun dignitaire annoncé aux agapes.',
+            payers.where((p) => p.kind == 'Dignitaire').toList(),
+            amount,
+            signatures,
+          ),
           const SizedBox(height: 8),
           BrCard(
             accent: BrColors.menuTresorerie,
@@ -133,6 +142,37 @@ class AgapePaymentScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  List<Widget> _payerSection(
+    BuildContext context,
+    Session session,
+    String title,
+    String emptyText,
+    List<AgapePayer> payers,
+    num amount,
+    Map<String, String> signatures,
+  ) {
+    return [
+      BrSectionTitle(title, icon: Icons.restaurant_outlined),
+      const SizedBox(height: 12),
+      if (payers.isEmpty)
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: Text(emptyText, style: const TextStyle(color: BrColors.muted)),
+        ),
+      for (final p in payers)
+        _PayerTile(
+          lastName: p.lastName,
+          firstName: p.firstName,
+          obedience: p.obedience,
+          lodge: p.lodge,
+          amount: amount,
+          signed: (signatures[p.id] ?? '').isNotEmpty,
+          onSign: () => _sign(context, session, p.id, p.fullName),
+        ),
+      const SizedBox(height: 16),
+    ];
   }
 
   Future<void> _sign(
@@ -185,8 +225,10 @@ class AgapePaymentScreen extends StatelessWidget {
       final chrono = session.numero ?? 0;
       final email = await DriveService.instance.archivePdfs(session, {
         'Paiement Agapes ${LodgeConfig.current.name} Tenue $chrono'
-                '${session.driveFileDateGradeSuffix}.pdf':
-            await _buildPdf(state, session),
+            '${session.driveFileDateGradeSuffix}.pdf': await _buildPdf(
+          state,
+          session,
+        ),
       });
       messenger.hideCurrentSnackBar();
       messenger.showSnackBar(
@@ -243,10 +285,7 @@ class _PayerTile extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     [obedience, lodge].where((e) => e.isNotEmpty).join(' — '),
-                    style: const TextStyle(
-                      color: BrColors.muted,
-                      fontSize: 12,
-                    ),
+                    style: const TextStyle(color: BrColors.muted, fontSize: 12),
                   ),
                   const SizedBox(height: 4),
                   Text(

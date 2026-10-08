@@ -17,12 +17,17 @@ class AgapePayer {
   final String obedience;
   final String lodge;
 
+  /// « Membre », « Visiteur » ou « Dignitaire » — permet de classer la
+  /// liste comme sur les écrans Présence et Émargement.
+  final String kind;
+
   const AgapePayer({
     required this.id,
     required this.lastName,
     required this.firstName,
     required this.obedience,
     required this.lodge,
+    required this.kind,
   });
 
   String get fullName => '$firstName $lastName'.trim();
@@ -70,6 +75,7 @@ List<AgapePayer> agapePayers(
           // colonne « Loge » du PDF.
           obedience: obedience,
           lodge: lodge,
+          kind: 'Membre',
         ),
     for (final v in visitors)
       if (session.visitorAgapeIds.contains(v.id))
@@ -79,6 +85,7 @@ List<AgapePayer> agapePayers(
           firstName: v.firstName,
           obedience: v.obedience,
           lodge: v.lodge,
+          kind: 'Visiteur',
         ),
     for (final d in dignitaries)
       if (session.dignitaryAgapeIds.contains(d.id))
@@ -88,6 +95,7 @@ List<AgapePayer> agapePayers(
           firstName: d.firstName,
           obedience: d.obedience,
           lodge: d.lodge,
+          kind: 'Dignitaire',
         ),
   ];
 }
