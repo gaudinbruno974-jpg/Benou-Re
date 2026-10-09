@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../config/flavor.dart';
 import '../config/lodge_config.dart';
 import '../models/member.dart' show kHiddenTechnicalRoles;
 import '../services/drive_access_sync_service.dart';
@@ -14,6 +15,13 @@ import '../services/drive_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'member_directory_sync_actions.dart';
+
+// Compte depuis lequel la synchronisation des membres entre les 4 loges
+// bleues peut être lancée — voir _DriveAccessSyncScreenState.build. Outil
+// technique partagé entre les loges (lodge_reader_service.dart), réservé à
+// ce seul compte tant qu'il n'a pas été ouvert plus largement.
+const String _memberSyncOwnerEmail = 'gaudin.bruno974@gmail.com';
 
 /// « Éditeur », « Propriétaire »… plutôt que les rôles techniques Drive.
 const Map<String, String> _roleLabels = {
@@ -38,6 +46,23 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
   String? _error;
   List<FolderAccessSummary>? _access;
   String? _accessError;
+
+  bool _memberSyncRunning = false;
+  MemberSyncReport? _memberSyncReport;
+
+  Future<void> _runMemberSync() async {
+    setState(() {
+      _memberSyncRunning = true;
+      _memberSyncReport = null;
+    });
+    final report = await runMemberSync(context);
+    if (mounted) {
+      setState(() {
+        _memberSyncRunning = false;
+        _memberSyncReport = report;
+      });
+    }
+  }
 
   Future<void> _run() async {
     final members = context
@@ -115,6 +140,9 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final currentEmail = context.watch<AppState>().currentUser?.email ?? '';
+    final showMemberSync =
+        currentFlavor == 'benoure' && currentEmail == _memberSyncOwnerEmail;
     return Scaffold(
       appBar: AppBar(title: const Text('Accès Drive')),
       body: ListView(
@@ -150,6 +178,27 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
                       : const Icon(Icons.sync),
                   label: const Text('Synchroniser les accès Drive'),
                 ),
+                if (showMemberSync) ...[
+                  const SizedBox(height: 10),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: BrColors.gold,
+                      foregroundColor: const Color(0xFF0C2A3E),
+                    ),
+                    onPressed: _memberSyncRunning ? null : _runMemberSync,
+                    icon: _memberSyncRunning
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Color(0xFF0C2A3E),
+                            ),
+                          )
+                        : const Icon(Icons.groups_outlined),
+                    label: const Text('Synchroniser les membres'),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 OutlinedButton.icon(
                   onPressed: _exporting ? null : _exportReport,
@@ -205,6 +254,39 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
                 _resultCard('Rôle corrigé', _result!.roleFixed, BrColors.teal),
               if (_result!.failed.isNotEmpty)
                 _resultCard('Échecs', _result!.failed, BrColors.error),
+            ],
+          ],
+          if (_memberSyncReport != null) ...[
+            const SizedBox(height: 24),
+            const BrSectionTitle(
+              'SYNCHRONISATION DES MEMBRES',
+              icon: Icons.fact_check_outlined,
+            ),
+            const SizedBox(height: 14),
+            if (_memberSyncReport!.creationsCount == 0 &&
+                _memberSyncReport!.fixesCount == 0 &&
+                _memberSyncReport!.manualReview.isEmpty)
+              const BrCard(
+                child: Text(
+                  'Aucun changement : les membres des 4 loges étaient déjà partagés.',
+                  style: TextStyle(color: BrColors.muted),
+                ),
+              )
+            else ...[
+              if (_memberSyncReport!.creationsCount > 0 ||
+                  _memberSyncReport!.fixesCount > 0)
+                _resultCard('Fiches ajoutées ou corrigées', [
+                  '${_memberSyncReport!.creationsCount} fiche(s) ajoutée(s) '
+                      '(Visiteurs/Dignitaires)',
+                  '${_memberSyncReport!.fixesCount} fiche(s) corrigée(s) '
+                      '(téléphone/nom)',
+                ], const Color(0xFF34D399)),
+              if (_memberSyncReport!.manualReview.isNotEmpty)
+                _resultCard(
+                  'À corriger à la main',
+                  _memberSyncReport!.manualReview,
+                  BrColors.gold,
+                ),
             ],
           ],
           if (_accessError != null) ...[
