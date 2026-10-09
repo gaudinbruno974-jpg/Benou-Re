@@ -317,7 +317,16 @@ class DriveAccessSyncService {
         current.remove(email);
         revoked.add('$email — $name');
       } catch (e) {
-        failed.add('$email — $name (retrait) : $e');
+        if ('$e'.contains('cannotDeletePermission')) {
+          // Même logique que cannotModifyInheritedPermission : la
+          // permission suivie n'est plus un accès direct sur ce dossier
+          // (elle vient d'un parent, ou a déjà disparu autrement), donc
+          // rien à supprimer ici — on arrête juste de la suivre.
+          current.remove(email);
+          driftCorrected.add('$email — $name');
+        } else {
+          failed.add('$email — $name (retrait) : $e');
+        }
       }
     }
 
