@@ -35,7 +35,9 @@ class _LibraryTarget {
   });
 }
 
-List<_LibraryTarget> _libraryTargets(Map<String, Map<String, String>> libraryFolders) {
+List<_LibraryTarget> _libraryTargets(
+  Map<String, Map<String, String>> libraryFolders,
+) {
   final targets = <_LibraryTarget>[];
   for (final category in libraryFolders.entries) {
     for (final grade in category.value.entries) {
@@ -44,7 +46,8 @@ List<_LibraryTarget> _libraryTargets(Map<String, Map<String, String>> libraryFol
       targets.add(
         _LibraryTarget(
           folderId: folderId,
-          name: 'Bibliothèque — '
+          name:
+              'Bibliothèque — '
               '${_libraryCategoryLabels[category.key] ?? category.key} — '
               '${grade.key}',
           minGradeRank: Session.degreeRank(grade.key),
@@ -76,25 +79,42 @@ const List<String> kDriveAccessReportHeaders = [
   'Accès réels',
 ];
 
-/// Classeur (1 feuille) listant, dossier par dossier, les rôles prévus et
-/// les accès réellement constatés sur Drive — même contenu que la section
-/// « Accès existants » de l'écran, archivé pour garder une trace datée.
-List<int> buildDriveAccessReportWorkbook(List<FolderAccessSummary> access) {
-  return buildXlsx({
+const List<String> kDriveAccessIncidentHeaders = ['Type', 'Détail'];
+
+/// Classeur listant, dossier par dossier, les rôles prévus et les accès
+/// réellement constatés sur Drive (même contenu que la section « Accès
+/// existants » de l'écran), et, si [result] est fourni, une seconde feuille
+/// « Incidents » avec tout ce que la dernière synchronisation a accordé,
+/// retiré ou échoué — jusque-là visible seulement à l'écran, jamais dans le
+/// fichier archivé.
+List<int> buildDriveAccessReportWorkbook(
+  List<FolderAccessSummary> access, {
+  DriveAccessSyncResult? result,
+}) {
+  final sheets = <String, List<List<String>>>{
     'Accès Drive': [
       kDriveAccessReportHeaders,
       for (final folder in access)
         [
           folder.folderName,
-          folder.expectedRoles
-              .map((r) => _roleFolderLabels[r] ?? r)
-              .join(', '),
+          folder.expectedRoles.map((r) => _roleFolderLabels[r] ?? r).join(', '),
           folder.entries
               .map((e) => '${e.email} (${_driveRoleLabels[e.role] ?? e.role})')
               .join('; '),
         ],
     ],
-  });
+  };
+  if (result != null) {
+    sheets['Incidents'] = [
+      kDriveAccessIncidentHeaders,
+      for (final line in result.granted) ['Accès accordé', line],
+      for (final line in result.revoked) ['Accès retiré', line],
+      for (final line in result.driftCorrected) ['Dérive corrigée', line],
+      for (final line in result.roleFixed) ['Rôle corrigé', line],
+      for (final line in result.failed) ['Échec', line],
+    ];
+  }
+  return buildXlsx(sheets);
 }
 
 /// Fonctions autorisées d'un membre, déduites de son office — mêmes
@@ -146,11 +166,9 @@ class FolderAccessSummary {
 }
 
 class DriveAccessSyncService {
-  DriveAccessSyncService({
-    FirestoreRepository? repo,
-    DriveService? drive,
-  })  : _repo = repo ?? FirestoreRepository(),
-        _drive = drive ?? DriveService.instance;
+  DriveAccessSyncService({FirestoreRepository? repo, DriveService? drive})
+    : _repo = repo ?? FirestoreRepository(),
+      _drive = drive ?? DriveService.instance;
 
   final FirestoreRepository _repo;
   final DriveService _drive;
@@ -273,7 +291,15 @@ class DriveAccessSyncService {
           );
           roleFixed.add('$email — $name ($actualRole → $role)');
         } catch (e) {
-          failed.add('$email — $name (correction du rôle) : $e');
+          // « cannotModifyInheritedPermission » : $email a déjà un accès
+          // plus large hérité d'un dossier parent (ex. propriétaire de
+          // l'arborescence, ou Éditeur sur un dossier du Bureau englobant) —
+          // Drive refuse de poser un rôle plus restreint sur ce sous-dossier
+          // précisément parce que l'accès réel est déjà suffisant. Rien à
+          // corriger : ce n'est pas un échec.
+          if (!'$e'.contains('cannotModifyInheritedPermission')) {
+            failed.add('$email — $name (correction du rôle) : $e');
+          }
         }
       }
     }
@@ -307,7 +333,15 @@ class DriveAccessSyncService {
         current[email] = permissionId;
         granted.add('$email — $name');
       } catch (e) {
-        failed.add('$email — $name (ajout) : $e');
+        if ('$e'.contains('cannotInviteNonGoogleUser')) {
+          failed.add(
+            '$email — $name (ajout) : adresse non reconnue par Google — '
+            'il faut un compte Gmail/Google Workspace sur cette adresse '
+            'pour accorder un accès Drive (fiche à corriger).',
+          );
+        } else {
+          failed.add('$email — $name (ajout) : $e');
+        }
       }
     }
 

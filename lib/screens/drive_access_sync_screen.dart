@@ -48,6 +48,7 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
   String? _accessError;
 
   bool _memberSyncRunning = false;
+  bool _memberSyncExporting = false;
   MemberSyncReport? _memberSyncReport;
 
   Future<void> _runMemberSync() async {
@@ -62,6 +63,33 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
         _memberSyncReport = report;
       });
     }
+  }
+
+  Future<void> _exportMemberSyncReport() async {
+    final report = _memberSyncReport;
+    if (report == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    setState(() => _memberSyncExporting = true);
+    try {
+      final bytes = buildMemberSyncReportWorkbook(report);
+      final loge = LodgeConfig.current.name;
+      final driveDate = DateFormat('dd MM yy').format(DateTime.now());
+      await DriveService.instance.archiveDirectoryDocument(
+        namePrefix: 'Synchro Membres $loge',
+        fileName: 'Synchro Membres $loge $driveDate.xlsx',
+        bytes: Uint8List.fromList(bytes),
+      );
+      if (mounted) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Rapport archivé sur Drive.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        messenger.showSnackBar(SnackBar(content: Text('Erreur export : $e')));
+      }
+    }
+    if (mounted) setState(() => _memberSyncExporting = false);
   }
 
   Future<void> _run() async {
@@ -117,7 +145,7 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
     setState(() => _exporting = true);
     try {
       final access = _access ?? await _service.currentAccess();
-      final bytes = buildDriveAccessReportWorkbook(access);
+      final bytes = buildDriveAccessReportWorkbook(access, result: _result);
       final loge = LodgeConfig.current.name;
       final driveDate = DateFormat('dd MM yy').format(DateTime.now());
       await DriveService.instance.archiveDirectoryDocument(
@@ -288,6 +316,18 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
                   BrColors.gold,
                 ),
             ],
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: _memberSyncExporting ? null : _exportMemberSyncReport,
+              icon: _memberSyncExporting
+                  ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.grid_on_outlined),
+              label: const Text('Exporter le rapport (xlsx)'),
+            ),
           ],
           if (_accessError != null) ...[
             const SizedBox(height: 20),

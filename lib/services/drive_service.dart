@@ -311,7 +311,13 @@ class DriveService {
     final headers = await _authHeaders();
     final existing = await _findFilesByPrefix(headers, folderId, namePrefix);
     for (final id in existing) {
-      await trashFolder(id);
+      // Au mieux : un ancien fichier qu'on ne peut pas supprimer (droits
+      // insuffisants, propriétaire différent...) ne doit jamais empêcher le
+      // dépôt du nouveau — le nom de fichier est déjà daté, donc l'ancien
+      // reste simplement à côté au lieu d'être remplacé.
+      try {
+        await trashFolder(id);
+      } catch (_) {}
     }
     await _uploadFile(
       headers,
