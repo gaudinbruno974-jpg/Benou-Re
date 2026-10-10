@@ -132,6 +132,18 @@ String hgDegreeOrdinalPhrase(HgBody body, int degree) =>
 String hgDegreeNamePhrase(HgBody body, int degree) =>
     body.key == kMaaKherou.key ? 'Maître' : (kIahMesDegreeNames[degree] ?? '');
 
+/// Titre du chef, signataire des tenues — « Très Respectable Maître » pour
+/// MAA-Kherou, « Trois Fois Puissant Maître » pour IAH-MES (demande
+/// explicite de l'utilisateur, 2026-10-10).
+String hgLeaderTitle(HgBody body) =>
+    body.key == kMaaKherou.key ? 'T∴R∴M∴' : 'Trois Fois Puissant Maître';
+
+/// Nom par défaut du signataire quand la tenue ne le précise pas
+/// (session.vmName vide) — David Bourban pour MAA-Kherou ; comportement
+/// IAH-MES inchangé (le titre sert de nom de repli).
+String hgDefaultSignerName(HgBody body) =>
+    body.key == kMaaKherou.key ? 'David BOURBAN' : hgLeaderTitle(body);
+
 String _degreeObjectPhrase(HgBody body, int degree, String degreeName) =>
     body.key == kMaaKherou.key
     ? 'au grade de Maître'
@@ -170,7 +182,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
       ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
       : session.lieuReunionExtra!.trim();
   final signerName = (session.vmName ?? '').trim().isEmpty
-      ? 'Trois Fois Puissant Maître'
+      ? hgDefaultSignerName(body)
       : session.vmName!.trim();
   final masonicDate = getMasonicDate(session.dateTime);
   final sothiacDate = getSothiacDate(session.dateTime);
@@ -334,7 +346,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
         ),
         pw.SizedBox(height: 1.5 * _mm),
         pw.Text(
-          'Correspondance : Trois Fois Puissant Maître $signerName\n'
+          'Correspondance : ${hgLeaderTitle(body)} $signerName\n'
           '${_correspondenceEmail(body)}',
           style: pw.TextStyle(
             font: fonts.base,
@@ -425,7 +437,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               pw.Text(
-                'Trois Fois Puissant Maître',
+                hgLeaderTitle(body),
                 style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
               ),
               pw.Text(
@@ -764,7 +776,7 @@ String buildIahMesPlancheTraceeText(
   // maskPersonName ici (à la différence des loges bleues, où le nom du
   // V∴M∴ vient en clair d'une fiche Membre).
   final signerName = (session.vmName ?? '').trim().isEmpty
-      ? 'Trois Fois Puissant Maître'
+      ? hgDefaultSignerName(body)
       : session.vmName!.trim();
   final dateFR = formatDateFR(session.dateReprise ?? session.date);
   final degree = int.tryParse(session.degreTravail ?? session.degree) ?? 4;
@@ -777,7 +789,7 @@ String buildIahMesPlancheTraceeText(
   paras.add('Planche Tracée de la Tenue Régulière N°$chrono du $dateFR');
   paras.add('De $institution, au $lieu');
   paras.add(
-    'Trois Fois Puissant Maître en chaire et vous tous mes Frères et Sœurs '
+    '${hgLeaderTitle(body)} en chaire et vous tous mes Frères et Sœurs '
     'en vos grades et qualités.',
   );
   paras.add(
@@ -989,7 +1001,7 @@ String buildIahMesPlancheTraceeText(
     plancheTroncSentence(
       troncAmount ?? session.troncAmount,
       sacPropositions ?? session.sacPropositions ?? '',
-      officerTitle: 'Trois Fois Puissant Maître',
+      officerTitle: hgLeaderTitle(body),
     ),
   );
 
@@ -999,7 +1011,7 @@ String buildIahMesPlancheTraceeText(
     'Fraternelle, selon le Rite, puis se séparent en jurant de garder le '
     'Silence sur les Travaux de ce Jour.',
   );
-  paras.add('J’ai dit Trois Fois Puissant Maître,');
+  paras.add('J’ai dit ${hgLeaderTitle(body)},');
 
   return paras.join('\n\n');
 }
@@ -1019,7 +1031,7 @@ Future<Uint8List> buildIahMesPlancheTraceePdf(
   );
 
   final signerName = (session.vmName ?? '').trim().isEmpty
-      ? 'Trois Fois Puissant Maître'
+      ? hgDefaultSignerName(body)
       : session.vmName!.trim();
   // Le texte édité et enregistré prime sur le texte généré automatiquement
   // (même principe que plancheBodyText, pdf_service.dart, loges bleues).
@@ -1100,7 +1112,7 @@ Future<Uint8List> buildIahMesPlancheTraceePdf(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
               pw.Text(
-                'Trois Fois Puissant Maître',
+                hgLeaderTitle(body),
                 style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
               ),
               pw.Text(

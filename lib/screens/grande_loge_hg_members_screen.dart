@@ -15,20 +15,37 @@ import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import 'grande_loge_hg_directory_import_screen.dart';
+import 'grande_loge_hg_maakherou_member_sync_actions.dart';
 import 'hg_directory_export_actions.dart';
 
 class GrandeLogeHgMembersScreen extends StatelessWidget {
   final HgBody body;
   const GrandeLogeHgMembersScreen({super.key, required this.body});
 
+  // Synchro des membres MAA-Kherou (Maîtres des 4 loges bleues) : réservée
+  // à ce seul compte, comme la synchro équivalente sur Bénou Ré — voir
+  // drive_access_sync_screen.dart.
+  static const _memberSyncOwnerEmail = 'gaudin.bruno974@gmail.com';
+
   @override
   Widget build(BuildContext context) {
-    final canEdit = canEditHgBody(context.watch<AppState>().currentUser, body);
+    final currentUser = context.watch<AppState>().currentUser;
+    final canEdit = canEditHgBody(currentUser, body);
+    final showMemberSync =
+        body.key == kMaaKherou.key &&
+        currentUser?.email == _memberSyncOwnerEmail;
     return Scaffold(
       appBar: AppBar(
         title: Text('Membres — ${body.label}'),
         actions: canEdit
             ? [
+                if (showMemberSync)
+                  IconButton(
+                    tooltip:
+                        'Synchroniser les membres (Maîtres des 4 loges bleues)',
+                    icon: const Icon(Icons.group_add_outlined),
+                    onPressed: () => runMaaKherouMemberSync(context),
+                  ),
                 IconButton(
                   tooltip: 'Exporter (Membres/Visiteurs/Dignitaires) en .xlsx',
                   icon: const Icon(Icons.file_upload_outlined),
@@ -261,7 +278,7 @@ class _GrandeLogeHgMemberEditScreenState
     setState(() => _saving = true);
     try {
       final m = Member(
-        id: widget.member?.id ?? '',
+        id: widget.member?.id ?? 'm_${DateTime.now().millisecondsSinceEpoch}',
         firstName: _firstNameCtrl.text.trim(),
         lastName: _lastNameCtrl.text.trim(),
         civilite: _civilite,
@@ -276,7 +293,7 @@ class _GrandeLogeHgMemberEditScreenState
         hautsGradesDegree: _degreeCtrl.text.trim(),
       );
       await HgBodyService.instance.saveMember(widget.body, m);
-      if (mounted) Navigator.of(context).pop();
+      if (mounted) Navigator.of(context).pop(m);
     } finally {
       if (mounted) setState(() => _saving = false);
     }

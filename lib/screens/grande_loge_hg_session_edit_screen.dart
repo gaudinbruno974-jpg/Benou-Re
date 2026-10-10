@@ -179,7 +179,15 @@ class _GrandeLogeHgSessionEditScreenState
           ? s!.location
           : 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre',
     );
-    _signerCtrl = TextEditingController(text: s?.vmName ?? 'Jean-Pierre T∴');
+    // MAA-Kherou : David Bourban par défaut. IAH-MES : nom d'exemple
+    // inchangé (demande explicite de l'utilisateur, 2026-10-10).
+    _signerCtrl = TextEditingController(
+      text:
+          s?.vmName ??
+          (widget.body.key == kMaaKherou.key
+              ? 'David BOURBAN'
+              : 'Jean-Pierre T∴'),
+    );
     if (s?.chrono != null) {
       _chronoController = TextEditingController(text: '${s!.chrono!.toInt()}');
       _autoChronoValue = s.chrono!.toInt();

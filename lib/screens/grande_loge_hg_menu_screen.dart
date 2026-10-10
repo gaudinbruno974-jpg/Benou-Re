@@ -56,6 +56,7 @@ const List<_HgMenuItem> _kMaaKherouMenuItems = [
   ),
   _HgMenuItem('Membres', Icons.people_outline, BrColors.gold),
   _HgMenuItem('Visiteurs', Icons.shield_outlined, BrColors.menuVisiteurs),
+  _HgMenuItem('Dignitaires', Icons.workspace_premium_outlined, BrColors.violet),
   _HgMenuItem(
     "Morceaux d'architecture",
     Icons.history_edu,
@@ -99,7 +100,7 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                   'Dignitaires' => 'Répertoire',
                   'Paiement des Agapes' => 'Médailles & signatures',
                   'Rituels' || 'Matériel' => 'Par grade',
-                  'Accès Drive' when body.key == kIahMes.key => 'Vérifier',
+                  'Accès Drive' => 'Vérifier',
                   _ when _hasSessionsScreen(item.title, body) => 'Convocations',
                   _ => 'À venir',
                 },
@@ -124,8 +125,8 @@ class GrandeLogeHgMenuScreen extends StatelessWidget {
                             body: body,
                             section: item.title,
                           );
-                        case 'Accès Drive' when body.key == kIahMes.key:
-                          return const GrandeLogeHgDriveAccessScreen();
+                        case 'Accès Drive':
+                          return GrandeLogeHgDriveAccessScreen(body: body);
                       }
                       if (_hasSessionsScreen(item.title, body)) {
                         return GrandeLogeHgSessionsScreen(body: body);

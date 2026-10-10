@@ -1,15 +1,18 @@
-// Vérification de l'accès Drive IAH-MES — pas de synchronisation
-// automatique par fonction/degré (confirmé par l'utilisateur, à la
-// différence des loges bleues) : seuls deux comptes doivent avoir accès à
-// tous les dossiers, gaudin.bruno974@gmail.com et iahmes.sstr@gmail.com.
-// Cet écran se contente de vérifier et, si besoin, de corriger.
+// Vérification de l'accès Drive d'un corps de Hauts Grades (IAH-MES,
+// MAA-Kherou) — pas de synchronisation automatique par fonction/degré
+// (confirmé par l'utilisateur, à la différence des loges bleues) : seuls
+// les comptes de [kHgDriveRequiredEmails] doivent avoir accès à tous les
+// dossiers. Cet écran se contente de vérifier et, si besoin, de corriger —
+// et crée au passage les 14 sous-dossiers au premier chargement, dans le
+// dossier [body.label] du Drive.
 import 'package:flutter/material.dart';
 
+import '../models/hg_body.dart';
 import '../services/drive_service.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 
-const List<String> kIahMesDriveFolders = [
+const List<String> kHgDriveFolders = [
   '01 Association',
   '02 Banque',
   '03 Dossier Membres',
@@ -26,10 +29,10 @@ const List<String> kIahMesDriveFolders = [
   "14 Rapports d'activité",
 ];
 
-const List<String> kIahMesDriveRequiredEmails = [
-  'gaudin.bruno974@gmail.com',
-  'iahmes.sstr@gmail.com',
-];
+const Map<String, List<String>> kHgDriveRequiredEmails = {
+  'iahmes': ['gaudin.bruno974@gmail.com', 'iahmes.sstr@gmail.com'],
+  'maakherou': ['gaudin.bruno974@gmail.com', 'david.bourban78@gmail.com'],
+};
 
 class _FolderAccessState {
   final String name;
@@ -43,7 +46,8 @@ class _FolderAccessState {
 }
 
 class GrandeLogeHgDriveAccessScreen extends StatefulWidget {
-  const GrandeLogeHgDriveAccessScreen({super.key});
+  final HgBody body;
+  const GrandeLogeHgDriveAccessScreen({super.key, required this.body});
 
   @override
   State<GrandeLogeHgDriveAccessScreen> createState() =>
@@ -57,6 +61,9 @@ class _GrandeLogeHgDriveAccessScreenState
   List<_FolderAccessState> _folders = [];
   final Set<String> _fixing = {};
 
+  List<String> get _requiredEmails =>
+      kHgDriveRequiredEmails[widget.body.key] ?? const [];
+
   @override
   void initState() {
     super.initState();
@@ -69,11 +76,11 @@ class _GrandeLogeHgDriveAccessScreenState
       _error = null;
     });
     try {
-      final ids = await DriveService.instance.ensureFolderTree(const [
-        'IAH-MES',
-      ], kIahMesDriveFolders);
+      final ids = await DriveService.instance.ensureFolderTree([
+        widget.body.label,
+      ], kHgDriveFolders);
       final folders = <_FolderAccessState>[];
-      for (final name in kIahMesDriveFolders) {
+      for (final name in kHgDriveFolders) {
         final folderId = ids[name];
         if (folderId == null) continue;
         final entries = await DriveService.instance.listFolderAccess(
@@ -85,7 +92,7 @@ class _GrandeLogeHgDriveAccessScreenState
             name: name,
             folderId: folderId,
             hasAccess: {
-              for (final email in kIahMesDriveRequiredEmails)
+              for (final email in _requiredEmails)
                 email: emails.contains(email.toLowerCase()),
             },
           ),
@@ -128,7 +135,7 @@ class _GrandeLogeHgDriveAccessScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Accès Drive'),
+        title: Text('Accès Drive — ${widget.body.label}'),
         actions: [
           IconButton(
             tooltip: 'Actualiser',
@@ -153,13 +160,13 @@ class _GrandeLogeHgDriveAccessScreenState
           : ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 12),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
                   child: Text(
-                    'Vérifie que ces deux comptes ont accès à chaque '
-                    'dossier IAH-MES. Aucun autre accès automatique '
+                    'Vérifie que ces comptes ont accès à chaque dossier '
+                    '${widget.body.label}. Aucun autre accès automatique '
                     "n'est géré ici.",
-                    style: TextStyle(color: BrColors.muted, fontSize: 12),
+                    style: const TextStyle(color: BrColors.muted, fontSize: 12),
                   ),
                 ),
                 for (final folder in _folders)
@@ -177,7 +184,7 @@ class _GrandeLogeHgDriveAccessScreenState
                           ),
                         ),
                         const SizedBox(height: 8),
-                        for (final email in kIahMesDriveRequiredEmails)
+                        for (final email in _requiredEmails)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 4),
                             child: Row(

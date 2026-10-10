@@ -356,14 +356,14 @@ String _foldName(String first, String last) => foldLabel('$first $last');
 // même loge, comme constaté le 2026-10-09 sur AL-KHEMIA). Pas de formule
 // générique : chaque loge a sa propre irrégularité historique (l'absence
 // d'espace après « R∴L∴ » pour AL-KHEMIA notamment).
-const Map<String, String> _kBlueLodgeDisplayName = {
+const Map<String, String> kBlueLodgeDisplayName = {
   'benoure': 'R∴L∴ Bénou Ré',
   'petitprince': 'R∴L∴ Le Petit Prince',
   'templehorus': "R∴L∴ Le Temple d'Horus",
   'alkhemia': 'R∴L∴Al-Khémia',
 };
-const String _kBlueLodgeObedience = 'Grande Loge De Bourbon';
-const String _kBlueLodgeOrient = 'Saint-Pierre';
+const String kBlueLodgeObedience = 'Grande Loge De Bourbon';
+const String kBlueLodgeOrient = 'Saint-Pierre';
 
 /// Calcule le plan à partir des répertoires déjà lus des 4 loges ([lodges],
 /// même ordre que [targets]) — voir [MemberSyncPlan].
@@ -426,9 +426,9 @@ MemberSyncPlan computeMemberSyncPlan(
                 firstName: m.firstName,
                 lastName: m.lastName,
                 title: 'Vénérable Maître',
-                lodge: _kBlueLodgeDisplayName[source.key] ?? source.label,
-                orient: _kBlueLodgeOrient,
-                obedience: _kBlueLodgeObedience,
+                lodge: kBlueLodgeDisplayName[source.key] ?? source.label,
+                orient: kBlueLodgeOrient,
+                obedience: kBlueLodgeObedience,
                 email: m.email,
                 phone: m.phone,
               ),
@@ -464,9 +464,9 @@ MemberSyncPlan computeMemberSyncPlan(
                 lastName: m.lastName,
                 grade: m.grade,
                 function: m.function,
-                lodge: _kBlueLodgeDisplayName[source.key] ?? source.label,
-                orient: _kBlueLodgeOrient,
-                obedience: _kBlueLodgeObedience,
+                lodge: kBlueLodgeDisplayName[source.key] ?? source.label,
+                orient: kBlueLodgeOrient,
+                obedience: kBlueLodgeObedience,
                 email: m.email,
                 phone: m.phone,
               ),

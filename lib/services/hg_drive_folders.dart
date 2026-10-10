@@ -11,15 +11,16 @@ import '../models/session.dart';
 import 'drive_service.dart';
 import 'hg_body_service.dart';
 
-/// Dossier parent (sous la racine SSTR) qui contient un dossier par tenue.
-List<String> hgTenuesDrivePath(HgBody body) => body.key == kIahMes.key
-    ? const ['IAH-MES', '09 Tenues et PV']
-    : ['Tenues ${body.label}'];
+/// Dossier parent (sous la racine SSTR) qui contient un dossier par tenue —
+/// même arborescence à 14 dossiers pour chaque corps (IAH-MES, MAA-Kherou),
+/// voir kHgDriveFolders dans grande_loge_hg_drive_access_screen.dart.
+List<String> hgTenuesDrivePath(HgBody body) => [body.label, '09 Tenues et PV'];
 
 /// Dossier (sous la racine SSTR) des exports Excel des répertoires.
-List<String> hgRepertoiresDrivePath(HgBody body) => body.key == kIahMes.key
-    ? const ['IAH-MES', '03 Dossier Membres']
-    : ['Repertoires ${body.label}'];
+List<String> hgRepertoiresDrivePath(HgBody body) => [
+  body.label,
+  '03 Dossier Membres',
+];
 
 int _degreeOf(Session s) => int.tryParse(s.degreTravail ?? s.degree) ?? 4;
 
