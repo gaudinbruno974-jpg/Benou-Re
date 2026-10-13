@@ -27,14 +27,13 @@
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!--
-    TODO(web templehorus) : pas de client OAuth « Web » pour temple-horus-loge
-    pour l'instant (fournisseur Google Sign-In pas encore activé, voir README,
-    section Web multi-loges). Sans cette balise, google_sign_in_web ne
-    s'initialise pas et l'archivage Google Drive reste indisponible sur ce
-    site ; Auth email/mot de passe et Firestore ne sont pas affectés. À
-    ajouter une fois le client OAuth Web provisionné :
-    <meta name="google-signin-client_id" content="...apps.googleusercontent.com">
+    Identifiant client OAuth « Web » du projet Firebase temple-horus-loge
+    (fournisseur Google Sign-In, auto-créé par Firebase Authentication).
+    Sans cette balise, google_sign_in_web échoue à l'initialisation : l'archivage
+    Google Drive devient impossible.
   -->
+  <meta name="google-signin-client_id"
+        content="735474234992-rpd2ssc2q7p1em3ar3g8k5g0q8ro2a1s.apps.googleusercontent.com">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
