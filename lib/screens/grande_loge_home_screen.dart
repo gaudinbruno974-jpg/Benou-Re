@@ -40,12 +40,15 @@ class GrandeLogeHomeScreen extends StatelessWidget {
     // Le Responsable de l'Atelier 4°-14° voit toutes les tuiles mais n'entre
     // que dans IAH-MES, Suggestions et la liste des Loges Bleues (dont les
     // 4 loges sont elles-mêmes fermées, voir grande_loge_lodges_list_screen)
-    // — demande explicite de l'utilisateur. Un administrateur garde tout.
+    // — demande explicite de l'utilisateur. Même principe, symétrique, pour
+    // le Responsable de la Loge de Perfection : MAA-Kherou seulement. Un
+    // administrateur garde tout.
     final user = context.watch<AppState>().currentUser;
     final iahMesOnly = user?.role == 'atelier_4_14' && user?.isAdmin != true;
+    final maaKherouOnly = user?.role == 'perfection' && user?.isAdmin != true;
 
-    Widget lockable(Widget tile) =>
-        iahMesOnly ? Opacity(opacity: 0.4, child: tile) : tile;
+    Widget lockable(Widget tile, {bool locked = true}) =>
+        locked ? Opacity(opacity: 0.4, child: tile) : tile;
     VoidCallback openOrDeny(WidgetBuilder builder, {bool denied = false}) {
       if (!denied) {
         return () =>
@@ -85,15 +88,17 @@ class GrandeLogeHomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          BrImageMenuTile(
-            title: 'IAH-MES',
-            subtitle: 'Atelier 4°-14°',
-            imageAsset: 'assets/Iah-Mes.jfif',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const GrandeLogeHgMenuScreen(body: kIahMes),
+          lockable(
+            BrImageMenuTile(
+              title: 'IAH-MES',
+              subtitle: 'Atelier 4°-14°',
+              imageAsset: 'assets/Iah-Mes.jfif',
+              onTap: openOrDeny(
+                (_) => const GrandeLogeHgMenuScreen(body: kIahMes),
+                denied: maaKherouOnly,
               ),
             ),
+            locked: maaKherouOnly,
           ),
           lockable(
             BrImageMenuTile(
@@ -105,6 +110,7 @@ class GrandeLogeHomeScreen extends StatelessWidget {
                 denied: iahMesOnly,
               ),
             ),
+            locked: iahMesOnly,
           ),
           lockable(
             BrImageMenuTile(
@@ -113,9 +119,10 @@ class GrandeLogeHomeScreen extends StatelessWidget {
               imageAsset: 'assets/Souverain-Sanctuaire.jfif',
               onTap: openOrDeny(
                 (_) => const GrandeLogeSstRepertoireScreen(),
-                denied: iahMesOnly,
+                denied: iahMesOnly || maaKherouOnly,
               ),
             ),
+            locked: iahMesOnly || maaKherouOnly,
           ),
           BrImageMenuTile(
             title: 'Suggestions',
