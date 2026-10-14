@@ -501,18 +501,22 @@ Future<Uint8List> buildIahMesConvocationPdf(
             ],
           ),
         ],
-        pw.SizedBox(height: body.key == kMaaKherou.key ? 4 * _mm : 7 * _mm),
-        pw.Text(
-          hgInstitutionHeaderBlock(body),
-          style: pw.TextStyle(font: fonts.bold, fontSize: 9),
+        pw.SizedBox(height: 7 * _mm),
+        pw.Container(
+          width: double.infinity,
+          child: pw.Text(
+            hgInstitutionHeaderBlock(body),
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 9),
+          ),
         ),
-        pw.SizedBox(height: 1.5 * _mm),
+        pw.SizedBox(height: 6 * _mm),
         pw.Text(
           'Correspondance : ${hgLeaderTitle(body)} $signerName — '
           '${_correspondenceEmail(body)}',
           style: pw.TextStyle(
             font: fonts.base,
-            fontSize: 8.5,
+            fontSize: 10,
             color: PdfColors.grey700,
           ),
         ),

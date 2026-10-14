@@ -51,10 +51,13 @@ class _OrdreRow {
 /// _travauxFixes/_ligneCloture (session_edit_screen.dart), avec la
 /// terminologie du Collège de Perfection à la place de celle d'une loge
 /// bleue (pas de « V∴M∴ », pas de « Degré symbolique du R∴A∴P∴M∴M∴ »).
-/// « au 8e degré, Maître Parfait » (IAH-MES) ou « au grade de Maître »
-/// (MAA-Kherou, sans ladder ni numéro — confirmé par l'utilisateur).
+/// « au 8e degré, Maître Parfait » (IAH-MES) ou « au 3° Degré Symbolique du
+/// R∴A∴P∴M∴M∴ » (MAA-Kherou — demande explicite de l'utilisateur, calqué
+/// sur l'ancien modèle papier de la loge).
 String _degreePhraseForBody(HgBody body, int degree) {
-  if (body.key == kMaaKherou.key) return 'au grade de Maître';
+  if (body.key == kMaaKherou.key) {
+    return 'au 3° Degré Symbolique du R∴A∴P∴M∴M∴';
+  }
   final degreeName = kIahMesDegreeNames[degree] ?? '';
   return 'au $degree'
       'e degré, $degreeName';
@@ -76,10 +79,15 @@ Map<String, String> _travauxFixes(
       ? hgDefaultSignerName(body)
       : (body.key == kMaaKherou.key ? maskPersonName(signerName) : signerName);
   return {
-    't1':
-        '$h Ouverture des Travaux ${_degreePhraseForBody(body, degree)}, '
-        'selon les usages et traditions de notre Ordre, par '
-        'le ${hgLeaderTitle(body)} $signer.',
+    // MAA-Kherou : pas de « selon les usages et traditions de notre Ordre »
+    // (demande explicite de l'utilisateur, calqué sur l'ancien modèle
+    // papier de la loge) ; IAH-MES inchangé.
+    't1': body.key == kMaaKherou.key
+        ? '$h Ouverture des Travaux ${_degreePhraseForBody(body, degree)} '
+              'par le ${hgLeaderTitle(body)} $signer.'
+        : '$h Ouverture des Travaux ${_degreePhraseForBody(body, degree)}, '
+              'selon les usages et traditions de notre Ordre, par '
+              'le ${hgLeaderTitle(body)} $signer.',
     't2': 'Lecture de l\'Ordre du Jour',
     't3': 'Appel des FF∴ et SS∴ du Collège',
     // MAA-Kherou : « Lecture et adoption du protocole des derniers Travaux »,
@@ -126,7 +134,7 @@ String _ligneCloture(
       ? hgDefaultSignerName(body)
       : (body.key == kMaaKherou.key ? maskPersonName(signerName) : signerName);
   final degreePhrase = body.key == kMaaKherou.key
-      ? 'au grade de Maître'
+      ? 'au 3° Degré Symbolique du R∴A∴P∴M∴M∴'
       : 'au $degree'
             'e degré';
   return '$n. Fermeture des Travaux $degreePhrase par le ${hgLeaderTitle(body)} '
