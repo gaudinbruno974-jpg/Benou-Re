@@ -56,10 +56,13 @@ class _GrandeLogeLodgesListScreenState
 
   @override
   Widget build(BuildContext context) {
-    // Le Responsable de l'Atelier 4°-14° voit la liste et les effectifs des
-    // 4 loges mais n'entre dans aucune — demande explicite de l'utilisateur.
+    // Le Responsable de l'Atelier 4°-14° et le Responsable de la Loge de
+    // Perfection voient la liste et les effectifs des 4 loges mais n'entrent
+    // dans aucune — demande explicite de l'utilisateur.
     final user = context.watch<AppState>().currentUser;
-    final denied = user?.role == 'atelier_4_14' && user?.isAdmin != true;
+    final denied =
+        (user?.role == 'atelier_4_14' || user?.role == 'perfection') &&
+        user?.isAdmin != true;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Grande Loge de Bourbon'),

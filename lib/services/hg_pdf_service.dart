@@ -45,6 +45,24 @@ const _navy = PdfColor.fromInt(0xFF0C235C);
 const _violet = PdfColor.fromInt(0xFF701A75);
 const _grey = PdfColor.fromInt(0xFFD9D9D9);
 
+// En-tête « Grande Loge de Bourbon » (rites historiques + filiations) —
+// MAA-Kherou uniquement (demande explicite de l'utilisateur, remplace
+// l'en-tête « Souverain Sanctuaire »), repris tel quel de _lodgeHeader
+// (pdf_service.dart, loges bleues) : communs à toute l'obédience, donc
+// recopiés ici plutôt qu'exposés publiquement depuis ce fichier partagé.
+const _hgRites = [
+  ['Rite Primitif', 'Paris 1721'],
+  ['Rite Primitif des Philadelphes', 'Narbonne 1779'],
+  ['Rite de Memphis', 'Montauban 1815'],
+  ['Rite de Misraïm', 'Venise 1788'],
+  ['Rite Ancien et Primitif', 'Manchester 1876'],
+];
+const _hgFiliations = [
+  'Filiation directe Robert Ambelain',
+  'Filiation Directe Gérard Kloppel',
+  'Filiation Directe Joseph Tsang Mang Kin',
+];
+
 class _PdfFonts {
   final pw.Font base;
   final pw.Font bold;
@@ -159,6 +177,16 @@ String _sessionHeure(Session session) {
       '${dt.minute.toString().padLeft(2, '0')}';
 }
 
+/// Heure d'accueil (30 minutes avant l'ouverture des Travaux) — MAA-Kherou
+/// uniquement, calculée depuis l'heure réelle de la tenue (pas de valeur
+/// fixe, demande explicite de l'utilisateur).
+String _heureMoinsTrenteMinutes(DateTime? dt) {
+  if (dt == null || (dt.hour == 0 && dt.minute == 0)) return 'xxhxx';
+  final before = dt.subtract(const Duration(minutes: 30));
+  return '${before.hour.toString().padLeft(2, '0')}h'
+      '${before.minute.toString().padLeft(2, '0')}';
+}
+
 /// Convocation d'une tenue du Collège de Perfection IAH-MES — gabarit visuel
 /// fixe (voir hg_session.dart pour la nomenclature des degrés), contenu de
 /// l'ordre du jour piloté par la tenue (travaux fixes + ordres du jour
@@ -170,12 +198,13 @@ Future<Uint8List> buildIahMesConvocationPdf(
   final fonts = await _loadFonts();
   final logoIahMes = await _loadImage(_logoAsset(body));
   // Logo de droite : aigle bicéphale du Souverain Sanctuaire pour IAH-MES
-  // (demande de l'utilisateur), logo Souverain Sanctuaire d'origine pour
-  // MAA-Kherou, inchangé.
+  // (demande de l'utilisateur), logo Grande Loge de Bourbon pour MAA-Kherou
+  // (demande explicite de l'utilisateur, remplace l'ancien logo Souverain
+  // Sanctuaire).
   final logoSouverainSanctuaire = await _loadImage(
     body.key == kIahMes.key
         ? 'assets/pdf/Logo-SSTR-IAH-MES.jpg'
-        : 'assets/pdf/Souverain-Sanctuaire.jpg',
+        : 'assets/pdf/GLDB.jpg',
   );
   final degree = _sessionDegree(session);
   final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
@@ -254,7 +283,6 @@ Future<Uint8List> buildIahMesConvocationPdf(
     ),
   );
   pw.Widget numberedLine(int n, String text) => markerLine('$n.', text);
-  pw.Widget bulletLine(String text) => markerLine('•', text);
 
   // La ligne de clôture porte déjà son numéro dans le texte (voir
   // _ligneCloture) — on l'extrait pour la faire passer par numberedLine et
@@ -270,12 +298,13 @@ Future<Uint8List> buildIahMesConvocationPdf(
         )
       : numberedLine(int.parse(clotureMatch.group(1)!), clotureMatch.group(2)!);
 
-  // MAA-Kherou : « ordre du jour commun » à puces, sans la ligne « Lecture
+  // MAA-Kherou : « ordre du jour commun » numéroté, sans la ligne « Lecture
   // de l'Ordre du Jour » (travail2, non imprimée pour ce corps — demande
   // explicite de l'utilisateur), suivi de la clôture ; « ordre du jour
-  // particulier » pour les points complémentaires (thème de tenue,
-  // Questions diverses...), aussi à puces — gabarit repris de l'ancien
-  // modèle papier de la loge.
+  // particulier » pour les points complémentaires (thème de tenue...),
+  // avec toujours « Questions diverses » en dernier point même si la tenue
+  // ne l'a pas dans ses points complémentaires enregistrés — gabarit repris
+  // de l'ancien modèle papier de la loge.
   final clotureText = clotureMatch == null ? cloture : clotureMatch.group(2)!;
   final maaCommonItems = [
     session.travail1,
@@ -283,6 +312,14 @@ Future<Uint8List> buildIahMesConvocationPdf(
     lecturePlanche,
     if (cloture.isNotEmpty) clotureText,
   ].whereType<String>().where((t) => t.trim().isNotEmpty).toList();
+  final hasQuestionsDiverses = complementary.any(
+    (t) => t.trim().toLowerCase() == 'questions diverses',
+  );
+  final maaParticularItems = [
+    ...complementary,
+    if (!hasQuestionsDiverses) 'Questions diverses',
+  ];
+  final accueilHeureMaa = _heureMoinsTrenteMinutes(session.dateTime);
 
   doc.addPage(
     pw.MultiPage(
@@ -307,59 +344,129 @@ Future<Uint8List> buildIahMesConvocationPdf(
           ),
           pw.SizedBox(height: 7 * _mm),
         ],
-        pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.center,
-          children: [
-            logoBox(logoIahMes),
-            pw.Expanded(
-              child: pw.Column(
-                children: [
-                  pw.Text(
-                    'Souverain Sanctuaire',
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(
-                      font: fonts.bold,
-                      fontSize: 17,
-                      color: _navy,
+        if (body.key == kMaaKherou.key) ...[
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              logoBox(logoSouverainSanctuaire),
+              pw.Expanded(
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      'GRANDE LOGE DE BOURBON',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 16,
+                        color: _navy,
+                      ),
                     ),
-                  ),
-                  pw.Text(
-                    'Traditionnel de la Réunion',
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(
-                      font: fonts.base,
-                      fontSize: 13,
-                      color: _navy,
+                    pw.SizedBox(height: 2 * _mm),
+                    pw.Text(
+                      'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF '
+                      'DE MEMPHIS MISRAÏM',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(font: fonts.base, fontSize: 7.5),
                     ),
+                  ],
+                ),
+              ),
+              logoBox(logoIahMes),
+            ],
+          ),
+          pw.SizedBox(height: 4 * _mm),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              for (final r in _hgRites)
+                pw.Expanded(
+                  child: pw.Column(
+                    children: [
+                      pw.Text(
+                        r[0],
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(font: fonts.bold, fontSize: 7.5),
+                      ),
+                      pw.SizedBox(height: 1 * _mm),
+                      pw.Text(
+                        r[1],
+                        textAlign: pw.TextAlign.center,
+                        style: pw.TextStyle(font: fonts.base, fontSize: 7),
+                      ),
+                    ],
                   ),
-                  pw.SizedBox(height: 2 * _mm),
-                  pw.Text(
-                    'GRANDE LOGE DE BOURBON',
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(font: fonts.bold, fontSize: 10),
-                  ),
-                  pw.Text(
-                    'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE '
-                    'MEMPHIS-MISRAÏM',
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(font: fonts.base, fontSize: 6.5),
-                  ),
-                ],
+                ),
+            ],
+          ),
+          pw.SizedBox(height: 3 * _mm),
+          for (final f in _hgFiliations)
+            pw.Padding(
+              padding: pw.EdgeInsets.only(bottom: 1 * _mm),
+              child: pw.Text(
+                f,
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  font: fonts.base,
+                  fontSize: 8,
+                  color: const PdfColor.fromInt(0xFF505050),
+                ),
               ),
             ),
-            pw.Column(
-              children: [
-                pw.Text(
-                  'A∴L∴G∴D∴S∴A∴D∴M∴',
-                  textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(font: fonts.bold, fontSize: 9),
+        ] else ...[
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              logoBox(logoIahMes),
+              pw.Expanded(
+                child: pw.Column(
+                  children: [
+                    pw.Text(
+                      'Souverain Sanctuaire',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        font: fonts.bold,
+                        fontSize: 17,
+                        color: _navy,
+                      ),
+                    ),
+                    pw.Text(
+                      'Traditionnel de la Réunion',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        font: fonts.base,
+                        fontSize: 13,
+                        color: _navy,
+                      ),
+                    ),
+                    pw.SizedBox(height: 2 * _mm),
+                    pw.Text(
+                      'GRANDE LOGE DE BOURBON',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+                    ),
+                    pw.Text(
+                      'FRANCS-MAÇONS TRAVAILLANT AU RITE ANCIEN ET PRIMITIF DE '
+                      'MEMPHIS-MISRAÏM',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(font: fonts.base, fontSize: 6.5),
+                    ),
+                  ],
                 ),
-                pw.SizedBox(height: 2 * _mm),
-                logoBox(logoSouverainSanctuaire),
-              ],
-            ),
-          ],
-        ),
+              ),
+              pw.Column(
+                children: [
+                  pw.Text(
+                    'A∴L∴G∴D∴S∴A∴D∴M∴',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(font: fonts.bold, fontSize: 9),
+                  ),
+                  pw.SizedBox(height: 2 * _mm),
+                  logoBox(logoSouverainSanctuaire),
+                ],
+              ),
+            ],
+          ),
+        ],
         pw.SizedBox(height: 7 * _mm),
         pw.Text(
           hgInstitutionHeaderBlock(body),
@@ -425,16 +532,27 @@ Future<Uint8List> buildIahMesConvocationPdf(
             style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
           ),
           pw.SizedBox(height: 3 * _mm),
-          for (final item in maaCommonItems) bulletLine(item),
-          if (complementary.isNotEmpty) ...[
-            pw.SizedBox(height: 4 * _mm),
-            pw.Text(
-              "L'ordre du jour particulier appellera :",
-              style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
+          for (int i = 0; i < maaCommonItems.length; i++)
+            numberedLine(i + 1, maaCommonItems[i]),
+          pw.SizedBox(height: 4 * _mm),
+          pw.Text(
+            "L'ordre du jour particulier appellera :",
+            style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
+          ),
+          pw.SizedBox(height: 3 * _mm),
+          for (int i = 0; i < maaParticularItems.length; i++)
+            numberedLine(i + 1, maaParticularItems[i]),
+          pw.SizedBox(height: 6 * _mm),
+          pw.Text(
+            '► Je remercie tous les FF∴ et SS∴ d\'arriver à $accueilHeureMaa '
+            'pour aider à la mise en place du Temple, le temps que notre '
+            'organisation se stabilise.',
+            style: pw.TextStyle(
+              font: fonts.base,
+              fontSize: 9.5,
+              color: PdfColors.red800,
             ),
-            pw.SizedBox(height: 3 * _mm),
-            for (final item in complementary) bulletLine(item),
-          ],
+          ),
         ] else ...[
           pw.Text(
             'ORDRE DU JOUR',
@@ -448,25 +566,39 @@ Future<Uint8List> buildIahMesConvocationPdf(
           if (cloture.isNotEmpty) clotureLine,
         ],
         if (session.suitAgapes) ...[
-          pw.SizedBox(height: 8 * _mm),
-          pw.Divider(color: PdfColors.grey400),
-          pw.SizedBox(height: 2 * _mm),
-          pw.Text(
-            'AGAPES FRATERNELLES',
-            style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
-          ),
-          pw.SizedBox(height: 3 * _mm),
-          pw.Text(
-            'À l\'issue de nos travaux, des agapes fraternelles nous '
-            'réuniront dans la convivialité et le partage.',
-            style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
-          ),
-          if ((session.montantMedaille ?? 0) > 0) ...[
-            pw.SizedBox(height: 1.5 * _mm),
+          if (body.key == kMaaKherou.key) ...[
+            pw.SizedBox(height: 2 * _mm),
             pw.Text(
-              'Participation aux agapes : ${session.montantMedaille} €',
-              style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+              '► Les Travaux seront suivis d\'Agapes au nom de la '
+              'Fraternité en Salle Humide.'
+              '${(session.montantMedaille ?? 0) > 0 ? ' La médaille est de ${session.montantMedaille} €.' : ''}',
+              style: pw.TextStyle(
+                font: fonts.base,
+                fontSize: 9.5,
+                color: PdfColors.red800,
+              ),
             ),
+          ] else ...[
+            pw.SizedBox(height: 8 * _mm),
+            pw.Divider(color: PdfColors.grey400),
+            pw.SizedBox(height: 2 * _mm),
+            pw.Text(
+              'AGAPES FRATERNELLES',
+              style: pw.TextStyle(font: fonts.bold, fontSize: 11, color: _navy),
+            ),
+            pw.SizedBox(height: 3 * _mm),
+            pw.Text(
+              'À l\'issue de nos travaux, des agapes fraternelles nous '
+              'réuniront dans la convivialité et le partage.',
+              style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
+            ),
+            if ((session.montantMedaille ?? 0) > 0) ...[
+              pw.SizedBox(height: 1.5 * _mm),
+              pw.Text(
+                'Participation aux agapes : ${session.montantMedaille} €',
+                style: pw.TextStyle(font: fonts.bold, fontSize: 10),
+              ),
+            ],
           ],
         ],
         pw.SizedBox(height: 14 * _mm),
