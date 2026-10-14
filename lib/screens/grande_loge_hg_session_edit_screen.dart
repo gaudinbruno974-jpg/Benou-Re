@@ -69,12 +69,17 @@ Map<String, String> _travauxFixes(
   final h = heure != null
       ? '${heure.hour.toString().padLeft(2, '0')}h${heure.minute.toString().padLeft(2, '0')}'
       : 'xxhxx';
-  final signer = signerName.isEmpty ? 'Trois Fois Puissant Maître' : signerName;
+  // MAA-Kherou : titre T∴R∴M∴ et nom toujours abrégé à la maçonnique, même
+  // saisi en toutes lettres (demande explicite de l'utilisateur) ; IAH-MES
+  // inchangé.
+  final signer = signerName.isEmpty
+      ? hgDefaultSignerName(body)
+      : (body.key == kMaaKherou.key ? maskPersonName(signerName) : signerName);
   return {
     't1':
         '$h Ouverture des Travaux ${_degreePhraseForBody(body, degree)}, '
         'selon les usages et traditions de notre Ordre, par '
-        'le Trois Fois Puissant Maître $signer.',
+        'le ${hgLeaderTitle(body)} $signer.',
     't2': 'Lecture de l\'Ordre du Jour',
     't3': 'Appel des FF∴ et SS∴ du Collège',
     // MAA-Kherou : « Lecture et adoption du protocole des derniers Travaux »,
@@ -117,13 +122,15 @@ String _ligneCloture(
   String signerName,
 ) {
   final n = 4 + ordresCount + 1;
-  final signer = signerName.isEmpty ? 'Trois Fois Puissant Maître' : signerName;
+  final signer = signerName.isEmpty
+      ? hgDefaultSignerName(body)
+      : (body.key == kMaaKherou.key ? maskPersonName(signerName) : signerName);
   final degreePhrase = body.key == kMaaKherou.key
       ? 'au grade de Maître'
       : 'au $degree'
             'e degré';
-  return '$n. Fermeture des Travaux $degreePhrase par le Trois Fois '
-      'Puissant Maître $signer.';
+  return '$n. Fermeture des Travaux $degreePhrase par le ${hgLeaderTitle(body)} '
+      '$signer.';
 }
 
 class GrandeLogeHgSessionEditScreen extends StatefulWidget {

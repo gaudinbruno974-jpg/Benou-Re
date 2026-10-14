@@ -430,16 +430,13 @@ Future<Uint8List> buildIahMesConvocationPdf(
           ),
           pw.SizedBox(height: 3 * _mm),
           for (final f in _hgFiliations)
-            pw.Padding(
-              padding: pw.EdgeInsets.only(bottom: 1 * _mm),
-              child: pw.Text(
-                f,
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
-                  font: fonts.base,
-                  fontSize: 8,
-                  color: const PdfColor.fromInt(0xFF505050),
-                ),
+            pw.Text(
+              f,
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(
+                font: fonts.bold,
+                fontSize: 8,
+                color: const PdfColor.fromInt(0xFF505050),
               ),
             ),
         ] else ...[
@@ -532,12 +529,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
                 ),
                 pw.SizedBox(height: 2 * _mm),
                 pw.Text(
-                  '${_formatDateLong(session.date)} de l\'E∴V∴',
-                  textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-                ),
-                pw.SizedBox(height: 2 * _mm),
-                pw.Text(
+                  '${_formatDateLong(session.date)} de l\'E∴V∴ '
                   'A ${_sessionHeure(session).toUpperCase()} précises',
                   textAlign: pw.TextAlign.center,
                   style: pw.TextStyle(font: fonts.bold, fontSize: 11),
@@ -554,11 +546,10 @@ Future<Uint8List> buildIahMesConvocationPdf(
           // que la convocation tienne sur une seule page (demande explicite
           // de l'utilisateur).
           pw.Text(
-            'La ${hgInstitutionHeaderBlock(body).split('\n').first} a la '
-            'grande joie de vous convier fraternellement à participer aux '
-            'Travaux de sa TENUE RÉGULIÈRE au ${hgDegreeOrdinalPhrase(body, degree)} '
-            'qui se déroulera au $lieu :',
-            textAlign: pw.TextAlign.center,
+            'La R∴L∴ MAA KHEROU - LA PAROLE JUSTE N°3 a la grande joie de '
+            'vous convier fraternellement à participer aux Travaux de sa '
+            'TENUE RÉGULIÈRE au ${hgDegreeOrdinalPhrase(body, degree)} qui '
+            'se déroulera au $lieu :',
             style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
           ),
           pw.SizedBox(height: 4 * _mm),
@@ -638,8 +629,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
           pw.SizedBox(height: 6 * _mm),
           pw.Text(
             'Je remercie tous les FF∴ et SS∴ d\'arriver à $accueilHeureMaa '
-            'pour aider à la mise en place du Temple, le temps que notre '
-            'organisation se stabilise.',
+            'pour aider à la mise en place du Temple.',
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
               font: fonts.base,
