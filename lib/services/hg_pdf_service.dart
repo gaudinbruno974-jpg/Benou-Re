@@ -507,7 +507,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
           child: pw.Text(
             hgInstitutionHeaderBlock(body),
             textAlign: pw.TextAlign.center,
-            style: pw.TextStyle(font: fonts.bold, fontSize: 9),
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10),
           ),
         ),
         pw.SizedBox(height: 6 * _mm),
@@ -559,8 +559,8 @@ Future<Uint8List> buildIahMesConvocationPdf(
           pw.Text(
             'La R∴L∴ MAA KHEROU - LA PAROLE JUSTE N°3 a la grande joie de '
             'vous convier fraternellement à participer aux Travaux de sa '
-            'TENUE RÉGULIÈRE au ${hgDegreeOrdinalPhrase(body, degree)} qui '
-            'se déroulera au $lieu :',
+            'TENUE RÉGULIÈRE au 3° Degré Symbolique qui se déroulera au '
+            '$lieu :',
             style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
           ),
           pw.SizedBox(height: 4 * _mm),
