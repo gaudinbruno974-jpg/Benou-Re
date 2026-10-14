@@ -429,16 +429,23 @@ Future<Uint8List> buildIahMesConvocationPdf(
             ],
           ),
           pw.SizedBox(height: 3 * _mm),
-          for (final f in _hgFiliations)
-            pw.Text(
-              f,
-              textAlign: pw.TextAlign.center,
-              style: pw.TextStyle(
-                font: fonts.bold,
-                fontSize: 8,
-                color: const PdfColor.fromInt(0xFF505050),
-              ),
+          pw.Container(
+            width: double.infinity,
+            child: pw.Column(
+              children: [
+                for (final f in _hgFiliations)
+                  pw.Text(
+                    f,
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(
+                      font: fonts.bold,
+                      fontSize: 8,
+                      color: const PdfColor.fromInt(0xFF505050),
+                    ),
+                  ),
+              ],
             ),
+          ),
         ] else ...[
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
