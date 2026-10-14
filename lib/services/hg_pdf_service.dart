@@ -30,6 +30,7 @@ import '../models/visitor.dart';
 import '../utils/name_mask.dart';
 import '../models/civilite.dart' show civiliteArticleAbbrev;
 import 'agape_payment_service.dart';
+import 'hg_body_service.dart';
 import 'pdf_service.dart'
     show
         getMasonicDate,
@@ -135,8 +136,8 @@ String hgInstitutionHeader(HgBody body) => body.key == kMaaKherou.key
     : 'Collège de Perfection ${body.label}';
 
 String hgInstitutionHeaderBlock(HgBody body) => body.key == kMaaKherou.key
-    ? 'ATELIER ${body.label.toUpperCase()}\n'
-          'Vallée de Saint-Pierre — Temple Thérèse Eliseman'
+    ? 'R∴L∴ LA PAROLE JUSTE N°3\n'
+          'O∴ DE SAINT PIERRE — ÎLE DE LA RÉUNION'
     : 'COLLÈGE DE PERFECTION ${body.label.toUpperCase()} N°1\n'
           'Vallée de Saint-Pierre — Temple Thérèse Eliseman';
 
@@ -159,8 +160,9 @@ String hgLeaderTitle(HgBody body) =>
 /// Nom par défaut du signataire quand la tenue ne le précise pas
 /// (session.vmName vide) — David Bourban pour MAA-Kherou ; comportement
 /// IAH-MES inchangé (le titre sert de nom de repli).
-String hgDefaultSignerName(HgBody body) =>
-    body.key == kMaaKherou.key ? 'David BOURBAN' : hgLeaderTitle(body);
+String hgDefaultSignerName(HgBody body) => body.key == kMaaKherou.key
+    ? maskPersonName('David BOURBAN')
+    : hgLeaderTitle(body);
 
 String _degreeObjectPhrase(HgBody body, int degree, String degreeName) =>
     body.key == kMaaKherou.key
@@ -210,11 +212,37 @@ Future<Uint8List> buildIahMesConvocationPdf(
   final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
       ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
       : session.lieuReunionExtra!.trim();
-  final signerName = (session.vmName ?? '').trim().isEmpty
+  final signerNameRaw = (session.vmName ?? '').trim().isEmpty
       ? hgDefaultSignerName(body)
       : session.vmName!.trim();
+  // MAA-Kherou : le nom du signataire est toujours abrégé à la maçonnique
+  // (« comme pour les autres » noms du document), même saisi en toutes
+  // lettres sur la tenue.
+  final signerName = body.key == kMaaKherou.key
+      ? maskPersonName(signerNameRaw)
+      : signerNameRaw;
   final masonicDate = getMasonicDate(session.dateTime);
   final sothiacDate = getSothiacDate(session.dateTime);
+
+  // MAA-Kherou : la convocation est signée par le·la Secrétaire « par
+  // mandatement » du T∴R∴M∴ — recherche du membre dont la fonction contient
+  // « Secrétaire » (texte libre, pas d'office dédié pour ce corps), civilité
+  // F∴/S∴ si renseignée, repli F∴/S∴ générique sinon (demande explicite de
+  // l'utilisateur).
+  Member? secretary;
+  if (body.key == kMaaKherou.key) {
+    final members = await HgBodyService.instance.membersOnce(body);
+    for (final m in members) {
+      if (foldLabel(m.function).contains('secretaire')) {
+        secretary = m;
+        break;
+      }
+    }
+  }
+  final secretaryLine = secretary == null
+      ? '${civiliteArticleAbbrev('', capitalize: true)} Sec∴'
+      : '${civiliteArticleAbbrev(secretary.civilite, capitalize: true)} '
+            'Sec∴ ${maskPersonName(secretary.fullName)}';
 
   final lecturePlanche = session.extra['lecturePlancheText'] as String?;
   final fixedWorks = [
@@ -324,7 +352,9 @@ Future<Uint8List> buildIahMesConvocationPdf(
   doc.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
-      margin: pw.EdgeInsets.all(16 * _mm),
+      margin: pw.EdgeInsets.all(
+        body.key == kMaaKherou.key ? 12 * _mm : 16 * _mm,
+      ),
       footer: _footer,
       build: (context) => [
         // Citation en en-tête : retirée pour MAA-Kherou (demande explicite
@@ -467,14 +497,14 @@ Future<Uint8List> buildIahMesConvocationPdf(
             ],
           ),
         ],
-        pw.SizedBox(height: 7 * _mm),
+        pw.SizedBox(height: body.key == kMaaKherou.key ? 4 * _mm : 7 * _mm),
         pw.Text(
           hgInstitutionHeaderBlock(body),
           style: pw.TextStyle(font: fonts.bold, fontSize: 9),
         ),
         pw.SizedBox(height: 1.5 * _mm),
         pw.Text(
-          'Correspondance : ${hgLeaderTitle(body)} $signerName\n'
+          'Correspondance : ${hgLeaderTitle(body)} $signerName — '
           '${_correspondenceEmail(body)}',
           style: pw.TextStyle(
             font: fonts.base,
@@ -482,50 +512,113 @@ Future<Uint8List> buildIahMesConvocationPdf(
             color: PdfColors.grey700,
           ),
         ),
-        pw.SizedBox(height: 7 * _mm),
-        pw.Text(
-          'CONVOCATION',
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: _navy),
-        ),
-        pw.SizedBox(height: 6 * _mm),
-        pw.Text(
-          'Mes Très Chers FF∴ et Bien-Aimées SS∴,',
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
-        ),
-        pw.SizedBox(height: 2 * _mm),
-        pw.Text(
-          'J\'ai le plaisir de vous faire savoir que vous êtes fraternellement '
-          'convoqués à la prochaine rencontre de notre '
-          '${hgInstitutionHeader(body)}, au ${hgDegreeOrdinalPhrase(body, degree)}, '
-          'qui se tiendra :',
-          style: pw.TextStyle(font: fonts.base, fontSize: 10.5, height: 1.4),
-        ),
-        pw.SizedBox(height: 4 * _mm),
-        pw.Text(
-          'Le ${_formatDateLong(session.date)} à ${_sessionHeure(session)}',
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
-        ),
-        pw.SizedBox(height: 1.5 * _mm),
-        pw.Text(
-          masonicDate,
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
-        ),
-        pw.SizedBox(height: 1 * _mm),
-        pw.Text(
-          sothiacDate,
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
-        ),
-        pw.SizedBox(height: 5 * _mm),
-        pw.Text(
-          'Au $lieu',
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
-        ),
-        pw.SizedBox(height: 6 * _mm),
+        pw.SizedBox(height: body.key == kMaaKherou.key ? 4 * _mm : 7 * _mm),
+        if (body.key == kMaaKherou.key) ...[
+          pw.Container(
+            width: double.infinity,
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.black, width: 0.4),
+            ),
+            padding: pw.EdgeInsets.symmetric(
+              vertical: 3 * _mm,
+              horizontal: 4 * _mm,
+            ),
+            child: pw.Column(
+              children: [
+                pw.Text(
+                  'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+                ),
+                pw.SizedBox(height: 2 * _mm),
+                pw.Text(
+                  '${_formatDateLong(session.date)} de l\'E∴V∴',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+                ),
+                pw.SizedBox(height: 2 * _mm),
+                pw.Text(
+                  'A ${_sessionHeure(session).toUpperCase()} précises',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 6 * _mm),
+        ],
+        if (body.key == kMaaKherou.key) ...[
+          // Pas de titre « CONVOCATION » / formule de politesse distincte :
+          // la date et l'heure sont déjà dans le cadre ci-dessus — phrase
+          // unique, au plus près de l'ancien modèle papier de la loge, pour
+          // que la convocation tienne sur une seule page (demande explicite
+          // de l'utilisateur).
+          pw.Text(
+            'La ${hgInstitutionHeaderBlock(body).split('\n').first} a la '
+            'grande joie de vous convier fraternellement à participer aux '
+            'Travaux de sa TENUE RÉGULIÈRE au ${hgDegreeOrdinalPhrase(body, degree)} '
+            'qui se déroulera au $lieu :',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.base, fontSize: 10, height: 1.35),
+          ),
+          pw.SizedBox(height: 4 * _mm),
+          pw.Text(
+            masonicDate,
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
+          ),
+          pw.SizedBox(height: 1 * _mm),
+          pw.Text(
+            sothiacDate,
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
+          ),
+          pw.SizedBox(height: 4 * _mm),
+        ] else ...[
+          pw.Text(
+            'CONVOCATION',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 13, color: _navy),
+          ),
+          pw.SizedBox(height: 6 * _mm),
+          pw.Text(
+            'Mes Très Chers FF∴ et Bien-Aimées SS∴,',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+          ),
+          pw.SizedBox(height: 2 * _mm),
+          pw.Text(
+            'J\'ai le plaisir de vous faire savoir que vous êtes fraternellement '
+            'convoqués à la prochaine rencontre de notre '
+            '${hgInstitutionHeader(body)}, au ${hgDegreeOrdinalPhrase(body, degree)}, '
+            'qui se tiendra :',
+            style: pw.TextStyle(font: fonts.base, fontSize: 10.5, height: 1.4),
+          ),
+          pw.SizedBox(height: 4 * _mm),
+          pw.Text(
+            'Le ${_formatDateLong(session.date)} à ${_sessionHeure(session)}',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
+          ),
+          pw.SizedBox(height: 1.5 * _mm),
+          pw.Text(
+            masonicDate,
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
+          ),
+          pw.SizedBox(height: 1 * _mm),
+          pw.Text(
+            sothiacDate,
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5, color: _navy),
+          ),
+          pw.SizedBox(height: 5 * _mm),
+          pw.Text(
+            'Au $lieu',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
+          ),
+          pw.SizedBox(height: 6 * _mm),
+        ],
         if (body.key == kMaaKherou.key) ...[
           pw.Text(
             "L'ordre du jour commun appellera :",
@@ -544,9 +637,10 @@ Future<Uint8List> buildIahMesConvocationPdf(
             numberedLine(i + 1, maaParticularItems[i]),
           pw.SizedBox(height: 6 * _mm),
           pw.Text(
-            '► Je remercie tous les FF∴ et SS∴ d\'arriver à $accueilHeureMaa '
+            'Je remercie tous les FF∴ et SS∴ d\'arriver à $accueilHeureMaa '
             'pour aider à la mise en place du Temple, le temps que notre '
             'organisation se stabilise.',
+            textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
               font: fonts.base,
               fontSize: 9.5,
@@ -569,9 +663,10 @@ Future<Uint8List> buildIahMesConvocationPdf(
           if (body.key == kMaaKherou.key) ...[
             pw.SizedBox(height: 2 * _mm),
             pw.Text(
-              '► Les Travaux seront suivis d\'Agapes au nom de la '
-              'Fraternité en Salle Humide.'
+              'Les Travaux seront suivis d\'Agapes au nom de la Fraternité '
+              'en Salle Humide.'
               '${(session.montantMedaille ?? 0) > 0 ? ' La médaille est de ${session.montantMedaille} €.' : ''}',
+              textAlign: pw.TextAlign.center,
               style: pw.TextStyle(
                 font: fonts.base,
                 fontSize: 9.5,
@@ -601,23 +696,42 @@ Future<Uint8List> buildIahMesConvocationPdf(
             ],
           ],
         ],
-        pw.SizedBox(height: 14 * _mm),
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.end,
-            children: [
-              pw.Text(
-                hgLeaderTitle(body),
-                style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
-              ),
-              pw.Text(
-                signerName,
-                style: pw.TextStyle(font: fonts.bold, fontSize: 11),
-              ),
-            ],
+        pw.SizedBox(height: body.key == kMaaKherou.key ? 8 * _mm : 14 * _mm),
+        if (body.key == kMaaKherou.key) ...[
+          pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text(
+                  'Par mandatement du ${hgLeaderTitle(body)} $signerName',
+                  style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
+                ),
+                pw.Text(
+                  secretaryLine,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+                ),
+              ],
+            ),
           ),
-        ),
+        ] else ...[
+          pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: [
+                pw.Text(
+                  hgLeaderTitle(body),
+                  style: pw.TextStyle(font: fonts.base, fontSize: 9.5),
+                ),
+                pw.Text(
+                  signerName,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     ),
   );
