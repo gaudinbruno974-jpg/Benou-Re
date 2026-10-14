@@ -163,8 +163,12 @@ class _GrandeLogeHgPlancheScreenState extends State<GrandeLogeHgPlancheScreen> {
       await HgBodyService.instance.updateSession(widget.body, updated);
       if (!mounted) return;
       messenger.showSnackBar(
-        const SnackBar(
-          content: Text('Planche tracée enregistrée.'),
+        SnackBar(
+          content: Text(
+            widget.body.key == kMaaKherou.key
+                ? 'Protocole de la Tenue enregistré.'
+                : 'Planche tracée enregistrée.',
+          ),
           backgroundColor: BrColors.teal,
         ),
       );
@@ -189,7 +193,11 @@ class _GrandeLogeHgPlancheScreenState extends State<GrandeLogeHgPlancheScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Planche tracée'),
+        title: Text(
+          widget.body.key == kMaaKherou.key
+              ? 'Protocole de la Tenue'
+              : 'Planche tracée',
+        ),
         actions: [
           IconButton(
             tooltip: 'Enregistrer',

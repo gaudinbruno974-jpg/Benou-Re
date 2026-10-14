@@ -210,10 +210,11 @@ Future<Uint8List> buildIahMesConvocationPdf(
     child: img == null ? pw.SizedBox() : pw.Image(img, fit: pw.BoxFit.contain),
   );
 
-  // Ligne numérotée de l'ordre du jour — le libellé « Thème de la Tenue : »
-  // (inséré automatiquement par _travailCollectifText) est mis en gras,
-  // le reste du texte du point reste en style normal.
-  pw.Widget numberedLine(int n, String text) => pw.Padding(
+  // Ligne d'ordre du jour (repère numéroté ou à puce selon le corps) — le
+  // libellé « Thème de la Tenue : » (inséré automatiquement par
+  // _travailCollectifText) est mis en gras, le reste du texte du point
+  // reste en style normal.
+  pw.Widget markerLine(String marker, String text) => pw.Padding(
     padding: pw.EdgeInsets.only(bottom: 5 * _mm),
     child: pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -221,7 +222,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
         pw.SizedBox(
           width: 7 * _mm,
           child: pw.Text(
-            '$n.',
+            marker,
             style: pw.TextStyle(font: fonts.bold, fontSize: 10, color: _navy),
           ),
         ),
@@ -252,6 +253,8 @@ Future<Uint8List> buildIahMesConvocationPdf(
       ],
     ),
   );
+  pw.Widget numberedLine(int n, String text) => markerLine('$n.', text);
+  pw.Widget bulletLine(String text) => markerLine('•', text);
 
   // La ligne de clôture porte déjà son numéro dans le texte (voir
   // _ligneCloture) — on l'extrait pour la faire passer par numberedLine et
@@ -267,25 +270,43 @@ Future<Uint8List> buildIahMesConvocationPdf(
         )
       : numberedLine(int.parse(clotureMatch.group(1)!), clotureMatch.group(2)!);
 
+  // MAA-Kherou : « ordre du jour commun » à puces, sans la ligne « Lecture
+  // de l'Ordre du Jour » (travail2, non imprimée pour ce corps — demande
+  // explicite de l'utilisateur), suivi de la clôture ; « ordre du jour
+  // particulier » pour les points complémentaires (thème de tenue,
+  // Questions diverses...), aussi à puces — gabarit repris de l'ancien
+  // modèle papier de la loge.
+  final clotureText = clotureMatch == null ? cloture : clotureMatch.group(2)!;
+  final maaCommonItems = [
+    session.travail1,
+    session.travail3,
+    lecturePlanche,
+    if (cloture.isNotEmpty) clotureText,
+  ].whereType<String>().where((t) => t.trim().isNotEmpty).toList();
+
   doc.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
       margin: pw.EdgeInsets.all(16 * _mm),
       footer: _footer,
       build: (context) => [
-        pw.Text(
-          '« la vie de l\'esprit est une aventure merveilleuse mais aussi '
-          'déconcertante, il s\'agit d\'avancer sans but ni projet, aucun '
-          'itinéraire tracé à l\'avance » Maître Eckhart',
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(
-            font: fonts.base,
-            fontStyle: pw.FontStyle.italic,
-            fontSize: 9.5,
-            color: PdfColors.grey800,
+        // Citation en en-tête : retirée pour MAA-Kherou (demande explicite
+        // de l'utilisateur), conservée pour IAH-MES.
+        if (body.key != kMaaKherou.key) ...[
+          pw.Text(
+            '« la vie de l\'esprit est une aventure merveilleuse mais aussi '
+            'déconcertante, il s\'agit d\'avancer sans but ni projet, aucun '
+            'itinéraire tracé à l\'avance » Maître Eckhart',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(
+              font: fonts.base,
+              fontStyle: pw.FontStyle.italic,
+              fontSize: 9.5,
+              color: PdfColors.grey800,
+            ),
           ),
-        ),
-        pw.SizedBox(height: 7 * _mm),
+          pw.SizedBox(height: 7 * _mm),
+        ],
         pw.Row(
           crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
@@ -398,16 +419,34 @@ Future<Uint8List> buildIahMesConvocationPdf(
           style: pw.TextStyle(font: fonts.bold, fontSize: 10.5),
         ),
         pw.SizedBox(height: 6 * _mm),
-        pw.Text(
-          'ORDRE DU JOUR',
-          style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
-        ),
-        pw.Divider(color: PdfColors.grey400),
-        for (int i = 0; i < fixedWorks.length; i++)
-          numberedLine(i + 1, fixedWorks[i]),
-        for (int i = 0; i < complementary.length; i++)
-          numberedLine(fixedWorks.length + i + 1, complementary[i]),
-        if (cloture.isNotEmpty) clotureLine,
+        if (body.key == kMaaKherou.key) ...[
+          pw.Text(
+            "L'ordre du jour commun appellera :",
+            style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
+          ),
+          pw.SizedBox(height: 3 * _mm),
+          for (final item in maaCommonItems) bulletLine(item),
+          if (complementary.isNotEmpty) ...[
+            pw.SizedBox(height: 4 * _mm),
+            pw.Text(
+              "L'ordre du jour particulier appellera :",
+              style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
+            ),
+            pw.SizedBox(height: 3 * _mm),
+            for (final item in complementary) bulletLine(item),
+          ],
+        ] else ...[
+          pw.Text(
+            'ORDRE DU JOUR',
+            style: pw.TextStyle(font: fonts.bold, fontSize: 12, color: _navy),
+          ),
+          pw.Divider(color: PdfColors.grey400),
+          for (int i = 0; i < fixedWorks.length; i++)
+            numberedLine(i + 1, fixedWorks[i]),
+          for (int i = 0; i < complementary.length; i++)
+            numberedLine(fixedWorks.length + i + 1, complementary[i]),
+          if (cloture.isNotEmpty) clotureLine,
+        ],
         if (session.suitAgapes) ...[
           pw.SizedBox(height: 8 * _mm),
           pw.Divider(color: PdfColors.grey400),

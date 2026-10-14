@@ -318,7 +318,11 @@ class _DetailBodyState extends State<_DetailBody> {
                   side: const BorderSide(color: BrColors.gold),
                 ),
                 icon: const Icon(Icons.lock_open_outlined, size: 18),
-                label: const Text('Planche tracée (déverrouillée)'),
+                label: Text(
+                  widget.body.key == kMaaKherou.key
+                      ? 'Protocole de la Tenue (déverrouillée)'
+                      : 'Planche tracée (déverrouillée)',
+                ),
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => GrandeLogeHgPlancheScreen(
@@ -354,7 +358,11 @@ class _DetailBodyState extends State<_DetailBody> {
                 side: const BorderSide(color: BrColors.gold),
               ),
               icon: const Icon(Icons.history_edu_outlined, size: 18),
-              label: const Text('Edition Planche Tracée'),
+              label: Text(
+                widget.body.key == kMaaKherou.key
+                    ? 'Edition Protocole de la Tenue'
+                    : 'Edition Planche Tracée',
+              ),
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => GrandeLogeHgPlancheScreen(
@@ -400,7 +408,11 @@ class _DetailBodyState extends State<_DetailBody> {
                 backgroundColor: const Color(0xFF701A75),
               ),
               icon: const Icon(Icons.history_edu, size: 18),
-              label: const Text('Planche tracée (PDF)'),
+              label: Text(
+                widget.body.key == kMaaKherou.key
+                    ? 'Protocole de la Tenue (PDF)'
+                    : 'Planche tracée (PDF)',
+              ),
               onPressed: () => _openPdf(
                 context,
                 'PlancheTracee',

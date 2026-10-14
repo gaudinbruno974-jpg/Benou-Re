@@ -77,9 +77,13 @@ Map<String, String> _travauxFixes(
         'le Trois Fois Puissant Maître $signer.',
     't2': 'Lecture de l\'Ordre du Jour',
     't3': 'Appel des FF∴ et SS∴ du Collège',
-    't3b':
-        'Lecture de la planche tracée de nos derniers travaux '
-        '${_degreePhraseForBody(body, degree)}.',
+    // MAA-Kherou : « Lecture et adoption du protocole des derniers Travaux »,
+    // sans mention de degré (demande explicite de l'utilisateur, calqué sur
+    // l'ancien modèle papier de la loge) ; IAH-MES inchangé.
+    't3b': body.key == kMaaKherou.key
+        ? 'Lecture et adoption du protocole des derniers Travaux'
+        : 'Lecture de la planche tracée de nos derniers travaux '
+              '${_degreePhraseForBody(body, degree)}.',
   };
 }
 
