@@ -14,6 +14,7 @@ import '../models/visitor.dart';
 import '../services/hg_body_service.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 import '../widgets/signature_dialog.dart';
 import 'grande_loge_hg_members_screen.dart';
 
@@ -49,6 +50,16 @@ class _GrandeLogeHgPresenceScreenState
   late Map<String, String> _signatures;
   bool _saving = false;
 
+  // Recherche + regroupement Tous / Par Loge / Par Obédience, comme les
+  // écrans Membres/Visiteurs/Dignitaires (demande explicite de
+  // l'utilisateur).
+  final _memberSearch = TextEditingController();
+  DirectoryGroupMode _memberMode = DirectoryGroupMode.all;
+  final _visitorSearch = TextEditingController();
+  DirectoryGroupMode _visitorMode = DirectoryGroupMode.all;
+  final _dignitarySearch = TextEditingController();
+  DirectoryGroupMode _dignitaryMode = DirectoryGroupMode.all;
+
   @override
   void initState() {
     super.initState();
@@ -61,6 +72,17 @@ class _GrandeLogeHgPresenceScreenState
     _dignitaryIds = List.from(s.dignitaryIds);
     _dignitaryAgapeIds = List.from(s.dignitaryAgapeIds);
     _signatures = Map.from(s.signatures);
+    _memberSearch.addListener(() => setState(() {}));
+    _visitorSearch.addListener(() => setState(() {}));
+    _dignitarySearch.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _memberSearch.dispose();
+    _visitorSearch.dispose();
+    _dignitarySearch.dispose();
+    super.dispose();
   }
 
   void _togglePresent(String id) {
@@ -411,32 +433,72 @@ class _GrandeLogeHgPresenceScreenState
                   ),
                 );
               }
+              final filtered =
+                  members
+                      .where(
+                        (m) => directoryMatches(_memberSearch.text, [
+                          m.firstName,
+                          m.lastName,
+                          m.motherLodge,
+                          m.obedience,
+                        ]),
+                      )
+                      .toList()
+                    ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+              Widget memberTile(Member m) => _PresenceTile(
+                name: m.fullName,
+                subtitle: m.function.isNotEmpty && m.function != 'Aucun'
+                    ? m.function
+                    : 'Membre',
+                isPresent: _presentIds.contains(m.id),
+                isExcused: _excusedIds.contains(m.id),
+                isAgape: _agapeIds.contains(m.id),
+                signed: _signatures.containsKey(m.id),
+                onPresent: allowEdit
+                    ? () {
+                        _togglePresent(m.id);
+                        if (_presentIds.contains(m.id)) {
+                          _signOnPresent(m.id, m.fullName);
+                        }
+                      }
+                    : null,
+                onExcused: allowEdit ? () => _toggleExcused(m.id) : null,
+                onAgape: allowEdit ? () => _toggleAgape(m.id) : null,
+                onSign: allowEdit
+                    ? () => _openSignature(m.id, m.fullName)
+                    : null,
+              );
               return Column(
                 children: [
-                  for (final m in members)
-                    _PresenceTile(
-                      name: m.fullName,
-                      subtitle: m.function.isNotEmpty && m.function != 'Aucun'
-                          ? m.function
-                          : 'Membre',
-                      isPresent: _presentIds.contains(m.id),
-                      isExcused: _excusedIds.contains(m.id),
-                      isAgape: _agapeIds.contains(m.id),
-                      signed: _signatures.containsKey(m.id),
-                      onPresent: allowEdit
-                          ? () {
-                              _togglePresent(m.id);
-                              if (_presentIds.contains(m.id)) {
-                                _signOnPresent(m.id, m.fullName);
-                              }
-                            }
-                          : null,
-                      onExcused: allowEdit ? () => _toggleExcused(m.id) : null,
-                      onAgape: allowEdit ? () => _toggleAgape(m.id) : null,
-                      onSign: allowEdit
-                          ? () => _openSignature(m.id, m.fullName)
-                          : null,
-                    ),
+                  DirectoryFilterBar(
+                    controller: _memberSearch,
+                    mode: _memberMode,
+                    onModeChanged: (v) => setState(() => _memberMode = v),
+                  ),
+                  const SizedBox(height: 12),
+                  if (filtered.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text(
+                        'Aucun résultat.',
+                        style: TextStyle(color: BrColors.muted),
+                      ),
+                    )
+                  else if (_memberMode == DirectoryGroupMode.all)
+                    for (final m in filtered) memberTile(m)
+                  else
+                    for (final g in groupDirectory(
+                      filtered,
+                      (m) => _memberMode == DirectoryGroupMode.byLodge
+                          ? m.motherLodge
+                          : m.obedience,
+                    ))
+                      DirectoryGroupSection(
+                        title: g.key,
+                        count: g.value.length,
+                        initiallyExpanded: g.value.length == filtered.length,
+                        children: [for (final m in g.value) memberTile(m)],
+                      ),
                 ],
               );
             },
@@ -478,30 +540,66 @@ class _GrandeLogeHgPresenceScreenState
                   ),
                 );
               }
+              final filtered =
+                  visitors
+                      .where(
+                        (v) => directoryMatches(_visitorSearch.text, [
+                          v.firstName,
+                          v.lastName,
+                          v.lodge,
+                          v.obedience,
+                        ]),
+                      )
+                      .toList()
+                    ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+              Widget visitorTile(Visitor v) => _PresenceTile(
+                name: v.fullName,
+                subtitle: [
+                  v.lodge,
+                  v.orient,
+                ].where((e) => e.isNotEmpty).join(' — '),
+                isPresent: _visitorIds.contains(v.id),
+                isExcused: false,
+                isAgape: _visitorAgapeIds.contains(v.id),
+                signed: _signatures.containsKey(v.id),
+                onPresent: allowEdit ? () => _toggleVisitorAndSign(v) : null,
+                onExcused: null,
+                onAgape: allowEdit ? () => _toggleVisitorAgape(v.id) : null,
+                onSign: allowEdit
+                    ? () => _openSignature(v.id, v.fullName)
+                    : null,
+              );
               return Column(
                 children: [
-                  for (final v in visitors)
-                    _PresenceTile(
-                      name: v.fullName,
-                      subtitle: [
-                        v.lodge,
-                        v.orient,
-                      ].where((e) => e.isNotEmpty).join(' — '),
-                      isPresent: _visitorIds.contains(v.id),
-                      isExcused: false,
-                      isAgape: _visitorAgapeIds.contains(v.id),
-                      signed: _signatures.containsKey(v.id),
-                      onPresent: allowEdit
-                          ? () => _toggleVisitorAndSign(v)
-                          : null,
-                      onExcused: null,
-                      onAgape: allowEdit
-                          ? () => _toggleVisitorAgape(v.id)
-                          : null,
-                      onSign: allowEdit
-                          ? () => _openSignature(v.id, v.fullName)
-                          : null,
-                    ),
+                  DirectoryFilterBar(
+                    controller: _visitorSearch,
+                    mode: _visitorMode,
+                    onModeChanged: (v) => setState(() => _visitorMode = v),
+                  ),
+                  const SizedBox(height: 12),
+                  if (filtered.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text(
+                        'Aucun résultat.',
+                        style: TextStyle(color: BrColors.muted),
+                      ),
+                    )
+                  else if (_visitorMode == DirectoryGroupMode.all)
+                    for (final v in filtered) visitorTile(v)
+                  else
+                    for (final g in groupDirectory(
+                      filtered,
+                      (v) => _visitorMode == DirectoryGroupMode.byLodge
+                          ? v.lodge
+                          : v.obedience,
+                    ))
+                      DirectoryGroupSection(
+                        title: g.key,
+                        count: g.value.length,
+                        initiallyExpanded: g.value.length == filtered.length,
+                        children: [for (final v in g.value) visitorTile(v)],
+                      ),
                 ],
               );
             },
@@ -543,30 +641,66 @@ class _GrandeLogeHgPresenceScreenState
                   ),
                 );
               }
+              final filtered =
+                  dignitaries
+                      .where(
+                        (d) => directoryMatches(_dignitarySearch.text, [
+                          d.firstName,
+                          d.lastName,
+                          d.lodge,
+                          d.obedience,
+                        ]),
+                      )
+                      .toList()
+                    ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+              Widget dignitaryTile(Dignitary d) => _PresenceTile(
+                name: d.fullName,
+                subtitle: [
+                  d.title,
+                  d.lodge,
+                ].where((e) => e.isNotEmpty).join(' — '),
+                isPresent: _dignitaryIds.contains(d.id),
+                isExcused: false,
+                isAgape: _dignitaryAgapeIds.contains(d.id),
+                signed: _signatures.containsKey(d.id),
+                onPresent: allowEdit ? () => _toggleDignitaryAndSign(d) : null,
+                onExcused: null,
+                onAgape: allowEdit ? () => _toggleDignitaryAgape(d.id) : null,
+                onSign: allowEdit
+                    ? () => _openSignature(d.id, d.fullName)
+                    : null,
+              );
               return Column(
                 children: [
-                  for (final d in dignitaries)
-                    _PresenceTile(
-                      name: d.fullName,
-                      subtitle: [
-                        d.title,
-                        d.lodge,
-                      ].where((e) => e.isNotEmpty).join(' — '),
-                      isPresent: _dignitaryIds.contains(d.id),
-                      isExcused: false,
-                      isAgape: _dignitaryAgapeIds.contains(d.id),
-                      signed: _signatures.containsKey(d.id),
-                      onPresent: allowEdit
-                          ? () => _toggleDignitaryAndSign(d)
-                          : null,
-                      onExcused: null,
-                      onAgape: allowEdit
-                          ? () => _toggleDignitaryAgape(d.id)
-                          : null,
-                      onSign: allowEdit
-                          ? () => _openSignature(d.id, d.fullName)
-                          : null,
-                    ),
+                  DirectoryFilterBar(
+                    controller: _dignitarySearch,
+                    mode: _dignitaryMode,
+                    onModeChanged: (v) => setState(() => _dignitaryMode = v),
+                  ),
+                  const SizedBox(height: 12),
+                  if (filtered.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(12),
+                      child: Text(
+                        'Aucun résultat.',
+                        style: TextStyle(color: BrColors.muted),
+                      ),
+                    )
+                  else if (_dignitaryMode == DirectoryGroupMode.all)
+                    for (final d in filtered) dignitaryTile(d)
+                  else
+                    for (final g in groupDirectory(
+                      filtered,
+                      (d) => _dignitaryMode == DirectoryGroupMode.byLodge
+                          ? d.lodge
+                          : d.obedience,
+                    ))
+                      DirectoryGroupSection(
+                        title: g.key,
+                        count: g.value.length,
+                        initiallyExpanded: g.value.length == filtered.length,
+                        children: [for (final d in g.value) dignitaryTile(d)],
+                      ),
                 ],
               );
             },
