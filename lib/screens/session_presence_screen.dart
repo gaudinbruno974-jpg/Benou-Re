@@ -77,9 +77,9 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
   bool _saving = false;
 
   final _visitorSearch = TextEditingController();
-  DirectoryGroupMode _visitorMode = DirectoryGroupMode.byLodge;
+  DirectoryGroupMode _visitorMode = DirectoryGroupMode.all;
   final _dignitarySearch = TextEditingController();
-  DirectoryGroupMode _dignitaryMode = DirectoryGroupMode.byLodge;
+  DirectoryGroupMode _dignitaryMode = DirectoryGroupMode.all;
 
   @override
   void initState() {
