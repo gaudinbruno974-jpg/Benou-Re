@@ -705,8 +705,18 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         ),
       ];
     }
+    // Replié par défaut, comme la section Membres (DirectoryGroupSection,
+    // initiallyExpanded laissé à false) — demande explicite de l'utilisateur.
     if (_visitorMode == DirectoryGroupMode.all) {
-      return [for (final v in filtered) _visitorTile(v, allowEdit, session)];
+      return [
+        DirectoryGroupSection(
+          title: 'Visiteurs',
+          count: filtered.length,
+          children: [
+            for (final v in filtered) _visitorTile(v, allowEdit, session),
+          ],
+        ),
+      ];
     }
     final groups = groupDirectory(
       filtered,
@@ -717,7 +727,6 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         DirectoryGroupSection(
           title: g.key,
           count: g.value.length,
-          initiallyExpanded: groups.length == 1,
           children: [
             for (final v in g.value) _visitorTile(v, allowEdit, session),
           ],
@@ -770,8 +779,18 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         ),
       ];
     }
+    // Replié par défaut, comme la section Membres (DirectoryGroupSection,
+    // initiallyExpanded laissé à false) — demande explicite de l'utilisateur.
     if (_dignitaryMode == DirectoryGroupMode.all) {
-      return [for (final d in filtered) _dignitaryTile(d, allowEdit, session)];
+      return [
+        DirectoryGroupSection(
+          title: 'Dignitaires',
+          count: filtered.length,
+          children: [
+            for (final d in filtered) _dignitaryTile(d, allowEdit, session),
+          ],
+        ),
+      ];
     }
     final groups = groupDirectory(
       filtered,
@@ -783,7 +802,6 @@ class _SessionPresenceScreenState extends State<SessionPresenceScreen> {
         DirectoryGroupSection(
           title: g.key,
           count: g.value.length,
-          initiallyExpanded: groups.length == 1,
           children: [
             for (final d in g.value) _dignitaryTile(d, allowEdit, session),
           ],
