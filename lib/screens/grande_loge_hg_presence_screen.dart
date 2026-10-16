@@ -485,7 +485,11 @@ class _GrandeLogeHgPresenceScreenState
                       ),
                     )
                   else if (_memberMode == DirectoryGroupMode.all)
-                    for (final m in filtered) memberTile(m)
+                    DirectoryGroupSection(
+                      title: 'Membres',
+                      count: filtered.length,
+                      children: [for (final m in filtered) memberTile(m)],
+                    )
                   else
                     for (final g in groupDirectory(
                       filtered,
@@ -496,7 +500,6 @@ class _GrandeLogeHgPresenceScreenState
                       DirectoryGroupSection(
                         title: g.key,
                         count: g.value.length,
-                        initiallyExpanded: g.value.length == filtered.length,
                         children: [for (final m in g.value) memberTile(m)],
                       ),
                 ],
@@ -586,7 +589,11 @@ class _GrandeLogeHgPresenceScreenState
                       ),
                     )
                   else if (_visitorMode == DirectoryGroupMode.all)
-                    for (final v in filtered) visitorTile(v)
+                    DirectoryGroupSection(
+                      title: 'Visiteurs',
+                      count: filtered.length,
+                      children: [for (final v in filtered) visitorTile(v)],
+                    )
                   else
                     for (final g in groupDirectory(
                       filtered,
@@ -597,7 +604,6 @@ class _GrandeLogeHgPresenceScreenState
                       DirectoryGroupSection(
                         title: g.key,
                         count: g.value.length,
-                        initiallyExpanded: g.value.length == filtered.length,
                         children: [for (final v in g.value) visitorTile(v)],
                       ),
                 ],
@@ -687,7 +693,11 @@ class _GrandeLogeHgPresenceScreenState
                       ),
                     )
                   else if (_dignitaryMode == DirectoryGroupMode.all)
-                    for (final d in filtered) dignitaryTile(d)
+                    DirectoryGroupSection(
+                      title: 'Dignitaires',
+                      count: filtered.length,
+                      children: [for (final d in filtered) dignitaryTile(d)],
+                    )
                   else
                     for (final g in groupDirectory(
                       filtered,
@@ -698,7 +708,6 @@ class _GrandeLogeHgPresenceScreenState
                       DirectoryGroupSection(
                         title: g.key,
                         count: g.value.length,
-                        initiallyExpanded: g.value.length == filtered.length,
                         children: [for (final d in g.value) dignitaryTile(d)],
                       ),
                 ],
