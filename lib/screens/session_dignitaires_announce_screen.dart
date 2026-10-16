@@ -23,25 +23,73 @@ class SessionDignitairesAnnounceScreen extends StatelessWidget {
     );
 
     final present = dignitariesToAnnounce(session, state.dignitaries);
+    final vmName = state.lodgeVmName.trim();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Annonce des Dignitaires')),
-      body: present.isEmpty
-          ? const Center(
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
+        children: [
+          if (vmName.isNotEmpty) ...[
+            _VmCard(name: vmName),
+            const SizedBox(height: 18),
+          ],
+          if (present.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
               child: Text(
                 'Aucun dignitaire présent pour cette tenue.',
                 style: TextStyle(color: BrColors.muted),
               ),
             )
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 28),
-              itemCount: present.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 14),
-              itemBuilder: (context, i) {
-                final d = present[i];
-                return _AnnounceCard(dignitary: d, order: i + 1);
-              },
+          else
+            for (int i = 0; i < present.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 14),
+                child: _AnnounceCard(dignitary: present[i], order: i + 1),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Rappel du Vénérable Maître de la loge elle-même — distinct des
+/// dignitaires visiteurs annoncés un par un : il n'est pas « annoncé » par
+/// le Maître des Cérémonies de la même façon, c'est une info de référence
+/// (demande explicite de l'utilisateur).
+class _VmCard extends StatelessWidget {
+  final String name;
+  const _VmCard({required this.name});
+
+  @override
+  Widget build(BuildContext context) {
+    return BrCard(
+      accent: BrColors.gold,
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'VÉNÉRABLE MAÎTRE DE LA LOGE',
+            style: TextStyle(
+              color: BrColors.goldBright,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1,
             ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            name,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
