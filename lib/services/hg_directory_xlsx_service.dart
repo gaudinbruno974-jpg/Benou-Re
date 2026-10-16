@@ -7,6 +7,7 @@
 // rien à voir avec le grade symbolique de sa loge bleue d'origine (voir
 // Member.hautsGradesDegree, Member.obedience, Member.orient).
 import '../models/dignitary.dart';
+import '../models/hg_body.dart';
 import '../models/member.dart';
 import '../models/visitor.dart';
 import 'directory_xlsx_service.dart'
@@ -18,7 +19,9 @@ import 'directory_xlsx_service.dart'
         nameKey;
 import 'xlsx_codec.dart';
 
-const List<String> kHgMemberHeaders = [
+// MAA-Kherou : pas de notion de degré/ladder (toujours au grade de Maître,
+// demande explicite de l'utilisateur) — colonne réservée à IAH-MES.
+List<String> hgMemberHeaders(HgBody body) => [
   'Civilité',
   'Prénom',
   'Nom',
@@ -28,7 +31,7 @@ const List<String> kHgMemberHeaders = [
   'Obédience',
   'Loge mère',
   'Orient',
-  'Degré',
+  if (body.key != kMaaKherou.key) 'Degré',
 ];
 
 const List<String> kHgVisitorHeaders = [
@@ -61,8 +64,8 @@ String _cell(List<String> row, int i) => i < row.length ? row[i].trim() : '';
 
 // ─── Export ───────────────────────────────────────────────────────────
 
-List<List<String>> _hgMemberRows(List<Member> members) => [
-  kHgMemberHeaders,
+List<List<String>> _hgMemberRows(HgBody body, List<Member> members) => [
+  hgMemberHeaders(body),
   for (final m in members)
     [
       m.civilite,
@@ -74,7 +77,7 @@ List<List<String>> _hgMemberRows(List<Member> members) => [
       m.obedience,
       m.motherLodge,
       m.orient,
-      m.hautsGradesDegree,
+      if (body.key != kMaaKherou.key) m.hautsGradesDegree,
     ],
 ];
 
@@ -115,21 +118,22 @@ List<List<String>> _hgDignitaryRows(List<Dignitary> dignitaries) => [
 /// Classeur complet (données réelles) des trois répertoires d'un corps de
 /// Hauts Grades.
 List<int> buildHgDirectoryWorkbook({
+  required HgBody body,
   required List<Member> members,
   required List<Visitor> visitors,
   required List<Dignitary> dignitaries,
 }) {
   return buildXlsx({
-    kSheetMembers: _hgMemberRows(members),
+    kSheetMembers: _hgMemberRows(body, members),
     kSheetVisitors: _hgVisitorRows(visitors),
     kSheetDignitaries: _hgDignitaryRows(dignitaries),
   });
 }
 
 /// Classeur modèle : uniquement les en-têtes, aucune ligne de donnée.
-List<int> buildHgDirectoryTemplate() {
+List<int> buildHgDirectoryTemplate(HgBody body) {
   return buildXlsx({
-    kSheetMembers: [kHgMemberHeaders],
+    kSheetMembers: [hgMemberHeaders(body)],
     kSheetVisitors: [kHgVisitorHeaders],
     kSheetDignitaries: [kHgDignitaryHeaders],
   });

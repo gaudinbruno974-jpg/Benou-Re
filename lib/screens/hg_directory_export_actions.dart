@@ -24,6 +24,7 @@ Future<void> exportHgDirectories(BuildContext context, HgBody body) async {
       .dignitariesStream(body)
       .first;
   final bytes = buildHgDirectoryWorkbook(
+    body: body,
     members: members,
     visitors: visitors,
     dignitaries: dignitaries,
@@ -53,7 +54,7 @@ Future<void> exportHgDirectoryTemplate(
   BuildContext context,
   HgBody body,
 ) async {
-  final bytes = buildHgDirectoryTemplate();
+  final bytes = buildHgDirectoryTemplate(body);
   final fileName =
       'Modele_Import_Repertoires_${body.label.replaceAll(' ', '_')}.xlsx';
   await saveFileLocally(context, fileName, bytes);

@@ -14,13 +14,37 @@ import '../services/hg_body_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import '../widgets/directory_filter.dart';
 import 'grande_loge_hg_directory_import_screen.dart';
 import 'grande_loge_hg_maakherou_member_sync_actions.dart';
 import 'hg_directory_export_actions.dart';
 
-class GrandeLogeHgMembersScreen extends StatelessWidget {
+class GrandeLogeHgMembersScreen extends StatefulWidget {
   final HgBody body;
   const GrandeLogeHgMembersScreen({super.key, required this.body});
+
+  @override
+  State<GrandeLogeHgMembersScreen> createState() =>
+      _GrandeLogeHgMembersScreenState();
+}
+
+class _GrandeLogeHgMembersScreenState extends State<GrandeLogeHgMembersScreen> {
+  final _search = TextEditingController();
+  DirectoryGroupMode _mode = DirectoryGroupMode.all;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(() => setState(() {}));
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  HgBody get body => widget.body;
 
   // Synchro des membres MAA-Kherou (Maîtres des 4 loges bleues) : réservée
   // à ce seul compte, comme la synchro équivalente sur Bénou Ré — voir
@@ -95,94 +119,153 @@ class GrandeLogeHgMembersScreen extends StatelessWidget {
               child: CircularProgressIndicator(color: BrColors.gold),
             );
           }
-          if (members.isEmpty) {
-            return const Center(
-              child: Text(
-                'Aucun membre.',
-                style: TextStyle(color: BrColors.muted),
+          final filtered =
+              members
+                  .where(
+                    (m) => directoryMatches(_search.text, [
+                      m.firstName,
+                      m.lastName,
+                      m.motherLodge,
+                      m.obedience,
+                    ]),
+                  )
+                  .toList()
+                ..sort((a, b) => directoryCompare(a.lastName, b.lastName));
+          return Padding(
+            padding: const EdgeInsets.fromLTRB(14, 16, 14, 0),
+            child: Column(
+              children: [
+                DirectoryFilterBar(
+                  controller: _search,
+                  mode: _mode,
+                  onModeChanged: (m) => setState(() => _mode = m),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: members.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Aucun membre.',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                        )
+                      : filtered.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Aucun résultat.',
+                            style: TextStyle(color: BrColors.muted),
+                          ),
+                        )
+                      : _buildList(filtered, canEdit),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildList(List<Member> filtered, bool canEdit) {
+    if (_mode == DirectoryGroupMode.all) {
+      return ListView.separated(
+        padding: const EdgeInsets.only(top: 4, bottom: 90),
+        itemCount: filtered.length,
+        separatorBuilder: (context, i) => const SizedBox(height: 12),
+        itemBuilder: (context, i) => _memberCard(filtered[i], canEdit),
+      );
+    }
+    final groups = groupDirectory(
+      filtered,
+      (m) => _mode == DirectoryGroupMode.byLodge ? m.motherLodge : m.obedience,
+    );
+    return ListView(
+      padding: const EdgeInsets.only(top: 4, bottom: 90),
+      children: [
+        for (final g in groups)
+          DirectoryGroupSection(
+            title: g.key,
+            count: g.value.length,
+            initiallyExpanded: groups.length == 1,
+            children: [
+              for (final m in g.value)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: _memberCard(m, canEdit),
+                ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _memberCard(Member m, bool canEdit) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: canEdit
+          ? () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    GrandeLogeHgMemberEditScreen(body: body, member: m),
               ),
-            );
-          }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(14, 16, 14, 90),
-            itemCount: members.length,
-            separatorBuilder: (context, i) => const SizedBox(height: 12),
-            itemBuilder: (context, i) {
-              final m = members[i];
-              return InkWell(
-                borderRadius: BorderRadius.circular(16),
-                onTap: canEdit
-                    ? () => Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => GrandeLogeHgMemberEditScreen(
-                            body: body,
-                            member: m,
-                          ),
-                        ),
-                      )
-                    : null,
-                child: BrCard(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+            )
+          : null,
+      child: BrCard(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            BrAvatar(firstName: m.firstName, lastName: m.lastName, size: 48),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    m.fullName,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15.5,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
                     children: [
-                      BrAvatar(
-                        firstName: m.firstName,
-                        lastName: m.lastName,
-                        size: 48,
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              m.fullName,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15.5,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 6,
-                              children: [
-                                if (m.hautsGradesDegree.trim().isNotEmpty)
-                                  BrBadge(
-                                    label: m.hautsGradesDegree.trim(),
-                                    color: BrColors.gold,
-                                  ),
-                                if (m.function.isNotEmpty &&
-                                    m.function != 'Aucun')
-                                  BrBadge(
-                                    label: m.function,
-                                    color: BrColors.teal,
-                                    icon: Icons.workspace_premium_outlined,
-                                  ),
-                              ],
-                            ),
-                          ],
+                      // MAA-Kherou : pas de notion de degré/ladder (toujours
+                      // au grade de Maître, demande explicite de
+                      // l'utilisateur) — badge réservé à IAH-MES.
+                      if (body.key != kMaaKherou.key &&
+                          m.hautsGradesDegree.trim().isNotEmpty)
+                        BrBadge(
+                          label: m.hautsGradesDegree.trim(),
+                          color: BrColors.gold,
                         ),
-                      ),
-                      if (canEdit)
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Color(0xFFFB7185),
-                            size: 20,
-                          ),
-                          onPressed: () => _confirmDelete(context, body, m),
+                      if (m.function.isNotEmpty && m.function != 'Aucun')
+                        BrBadge(
+                          label: m.function,
+                          color: BrColors.teal,
+                          icon: Icons.workspace_premium_outlined,
                         ),
                     ],
                   ),
+                ],
+              ),
+            ),
+            if (canEdit)
+              IconButton(
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Color(0xFFFB7185),
+                  size: 20,
                 ),
-              );
-            },
-          );
-        },
+                onPressed: () => _confirmDelete(context, body, m),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -375,15 +458,20 @@ class _GrandeLogeHgMemberEditScreenState
                   style: const TextStyle(color: BrColors.text),
                   decoration: const InputDecoration(labelText: 'Orient'),
                 ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: _degreeCtrl,
-                  style: const TextStyle(color: BrColors.text),
-                  decoration: const InputDecoration(
-                    labelText: 'Degré (Hauts Grades)',
-                    hintText: 'ex : 20',
+                // MAA-Kherou : pas de notion de degré/ladder (toujours au
+                // grade de Maître, demande explicite de l'utilisateur) —
+                // champ réservé à IAH-MES.
+                if (widget.body.key != kMaaKherou.key) ...[
+                  const SizedBox(height: 14),
+                  TextField(
+                    controller: _degreeCtrl,
+                    style: const TextStyle(color: BrColors.text),
+                    decoration: const InputDecoration(
+                      labelText: 'Degré (Hauts Grades)',
+                      hintText: 'ex : 20',
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
