@@ -15,6 +15,8 @@ import '../services/drive_service.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
+import 'directory_export_actions.dart' show saveFileLocally;
+import 'grande_loge_lodges_export_actions.dart';
 import 'member_directory_sync_actions.dart';
 
 // Compte depuis lequel la synchronisation des membres entre les 4 loges
@@ -50,6 +52,13 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
   bool _memberSyncRunning = false;
   bool _memberSyncExporting = false;
   MemberSyncReport? _memberSyncReport;
+  bool _directoryExporting = false;
+
+  Future<void> _exportAllLodgesDirectory() async {
+    setState(() => _directoryExporting = true);
+    await exportAllLodgesDirectories(context);
+    if (mounted) setState(() => _directoryExporting = false);
+  }
 
   Future<void> _runMemberSync() async {
     setState(() {
@@ -70,23 +79,22 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
     if (report == null) return;
     final messenger = ScaffoldMessenger.of(context);
     setState(() => _memberSyncExporting = true);
+    final bytes = buildMemberSyncReportWorkbook(report);
+    final loge = LodgeConfig.current.name;
+    final date = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    await saveFileLocally(context, 'Synchro_Membres_${loge}_$date.xlsx', bytes);
     try {
-      final bytes = buildMemberSyncReportWorkbook(report);
-      final loge = LodgeConfig.current.name;
       final driveDate = DateFormat('dd MM yy').format(DateTime.now());
       await DriveService.instance.archiveDirectoryDocument(
         namePrefix: 'Synchro Membres $loge',
         fileName: 'Synchro Membres $loge $driveDate.xlsx',
         bytes: Uint8List.fromList(bytes),
       );
-      if (mounted) {
-        messenger.showSnackBar(
-          const SnackBar(content: Text('Rapport archivé sur Drive.')),
-        );
-      }
     } catch (e) {
       if (mounted) {
-        messenger.showSnackBar(SnackBar(content: Text('Erreur export : $e')));
+        messenger.showSnackBar(
+          SnackBar(content: Text('Archivage Drive échoué : $e')),
+        );
       }
     }
     if (mounted) setState(() => _memberSyncExporting = false);
@@ -225,6 +233,20 @@ class _DriveAccessSyncScreenState extends State<DriveAccessSyncScreen> {
                           )
                         : const Icon(Icons.groups_outlined),
                     label: const Text('Synchroniser les membres'),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _directoryExporting
+                        ? null
+                        : _exportAllLodgesDirectory,
+                    icon: _directoryExporting
+                        ? const SizedBox(
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.grid_on_outlined),
+                    label: const Text("Exporter l'annuaire des 4 loges (xlsx)"),
                   ),
                 ],
                 const SizedBox(height: 10),

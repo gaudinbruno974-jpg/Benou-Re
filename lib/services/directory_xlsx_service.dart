@@ -31,6 +31,7 @@ const List<String> kMemberHeaders = [
   "Date d'entrée",
   'Cotisation Loge',
   'Cotisation Ordre',
+  'Degré (Hauts Grades)',
 ];
 
 const List<String> kVisitorHeaders = [
@@ -104,6 +105,7 @@ List<List<String>> _memberRows(List<Member> members) => [
       // que ceux affichés par défaut sur l'écran Trésorerie.
       _formatNum(m.duesFor(DateTime.now().year).lodgeDues),
       _formatNum(m.duesFor(DateTime.now().year).orderDues),
+      m.hautsGradesDegree,
     ],
 ];
 
@@ -346,11 +348,12 @@ List<List<String>> _inconsistencyRows(List<LodgeDirectory> lodges) {
 /// triés par loge (dans l'ordre fourni) puis par nom, plus un 4e onglet
 /// « Incohérences » qui relève (sans rien corriger) les téléphones, casses de
 /// nom et doublons probables à vérifier — voir [_inconsistencyRows].
-/// L'onglet Membres ajoute le degré aux Hauts Grades en dernière colonne.
-/// Sens unique : ce classeur n'est pas prévu pour être réimporté.
+/// L'onglet Membres inclut le degré aux Hauts Grades (dernière colonne de
+/// [kMemberHeaders]). Sens unique : ce classeur n'est pas prévu pour être
+/// réimporté.
 List<int> buildMultiLodgeDirectoryWorkbook(List<LodgeDirectory> lodges) {
   final members = <List<String>>[
-    ['Loge bleue', ...kMemberHeaders, 'Degré Hauts Grades'],
+    ['Loge bleue', ...kMemberHeaders],
   ];
   final visitors = <List<String>>[
     ['Loge bleue', ...kVisitorHeaders],
@@ -367,7 +370,6 @@ List<int> buildMultiLodgeDirectoryWorkbook(List<LodgeDirectory> lodges) {
       members.add([
         lodge.lodgeName,
         ..._memberRows([m])[1],
-        m.hautsGradesDegree,
       ]);
     }
     final sortedVisitors = [...lodge.visitors]
@@ -435,6 +437,7 @@ class MemberImportRow {
   final String entryDate;
   final num? lodgeDues;
   final num? orderDues;
+  final String hautsGradesDegree;
   final Member? existing;
   ImportAction action;
 
@@ -457,6 +460,7 @@ class MemberImportRow {
     required this.entryDate,
     required this.lodgeDues,
     required this.orderDues,
+    required this.hautsGradesDegree,
     required this.existing,
     required this.action,
   });
@@ -493,6 +497,7 @@ class MemberImportRow {
           birthDate: birthDate,
           initiationDate: initiationDate,
           entryDate: entryDate,
+          hautsGradesDegree: hautsGradesDegree,
         );
         return hasDues
             ? member.withDuesForYear(
@@ -520,6 +525,9 @@ class MemberImportRow {
           birthDate: birthDate,
           initiationDate: initiationDate,
           entryDate: entryDate,
+          hautsGradesDegree: hautsGradesDegree.isEmpty
+              ? null
+              : hautsGradesDegree,
         );
         if (!hasDues) return updated;
         final dues = updated
@@ -714,6 +722,7 @@ List<MemberImportRow> parseMemberSheet(
         entryDate: _cell(row, 15),
         lodgeDues: _tryParseNum(_cell(row, 16)),
         orderDues: _tryParseNum(_cell(row, 17)),
+        hautsGradesDegree: _cell(row, 18),
         existing: existing,
         action: existing == null ? ImportAction.create : ImportAction.update,
       ),
