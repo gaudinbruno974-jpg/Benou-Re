@@ -380,30 +380,63 @@ List<int> buildMultiLodgeDirectoryWorkbook(List<LodgeDirectory> lodges) {
         ..._memberRows([m])[1],
       ]);
     }
-    final sortedVisitors =
-        [
-          ...lodge.visitors,
-        ].where((v) => v.obedience.trim() != blueLodgeObedience).toList()..sort(
-          (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
-        );
-    for (final v in sortedVisitors) {
-      visitors.add([
-        lodge.lodgeName,
-        ..._visitorRows([v])[1],
-      ]);
+  }
+
+  // Visiteurs/Dignitaires : une même personne externe peut être enregistrée
+  // séparément dans plusieurs des 4 loges (pas via la synchro croisée GLDB,
+  // déjà filtrée ci-dessus) — une seule ligne par personne dans ce classeur
+  // combiné, la colonne « Loge bleue » listant toutes les loges où elle est
+  // enregistrée (demande explicite de l'utilisateur).
+  final visitorLodges = <String, List<String>>{};
+  final visitorByKey = <String, Visitor>{};
+  for (final lodge in lodges) {
+    for (final v in lodge.visitors) {
+      if (v.obedience.trim() == blueLodgeObedience) continue;
+      final key = nameKey(v.firstName, v.lastName);
+      visitorByKey.putIfAbsent(key, () => v);
+      (visitorLodges[key] ??= []).add(lodge.lodgeName);
     }
-    final sortedDignitaries =
-        [
-          ...lodge.dignitaries,
-        ].where((d) => d.obedience.trim() != blueLodgeObedience).toList()..sort(
-          (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
-        );
-    for (final d in sortedDignitaries) {
-      dignitaries.add([
-        lodge.lodgeName,
-        ..._dignitaryRows([d])[1],
-      ]);
+  }
+  final sortedVisitorKeys = visitorByKey.keys.toList()
+    ..sort(
+      (a, b) => _byName(
+        visitorByKey[a]!.lastName,
+        visitorByKey[a]!.firstName,
+        visitorByKey[b]!.lastName,
+        visitorByKey[b]!.firstName,
+      ),
+    );
+  for (final key in sortedVisitorKeys) {
+    visitors.add([
+      visitorLodges[key]!.join(', '),
+      ..._visitorRows([visitorByKey[key]!])[1],
+    ]);
+  }
+
+  final dignitaryLodges = <String, List<String>>{};
+  final dignitaryByKey = <String, Dignitary>{};
+  for (final lodge in lodges) {
+    for (final d in lodge.dignitaries) {
+      if (d.obedience.trim() == blueLodgeObedience) continue;
+      final key = nameKey(d.firstName, d.lastName);
+      dignitaryByKey.putIfAbsent(key, () => d);
+      (dignitaryLodges[key] ??= []).add(lodge.lodgeName);
     }
+  }
+  final sortedDignitaryKeys = dignitaryByKey.keys.toList()
+    ..sort(
+      (a, b) => _byName(
+        dignitaryByKey[a]!.lastName,
+        dignitaryByKey[a]!.firstName,
+        dignitaryByKey[b]!.lastName,
+        dignitaryByKey[b]!.firstName,
+      ),
+    );
+  for (final key in sortedDignitaryKeys) {
+    dignitaries.add([
+      dignitaryLodges[key]!.join(', '),
+      ..._dignitaryRows([dignitaryByKey[key]!])[1],
+    ]);
   }
   final inconsistencies = <List<String>>[
     kInconsistencyHeaders,
