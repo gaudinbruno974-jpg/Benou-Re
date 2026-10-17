@@ -349,9 +349,17 @@ List<List<String>> _inconsistencyRows(List<LodgeDirectory> lodges) {
 /// « Incohérences » qui relève (sans rien corriger) les téléphones, casses de
 /// nom et doublons probables à vérifier — voir [_inconsistencyRows].
 /// L'onglet Membres inclut le degré aux Hauts Grades (dernière colonne de
-/// [kMemberHeaders]). Sens unique : ce classeur n'est pas prévu pour être
-/// réimporté.
+/// [kMemberHeaders]). Les onglets Visiteurs/Dignitaires excluent les fiches
+/// dont l'Obédience est « Grande Loge De Bourbon » (= un membre d'une des 4
+/// loges bleues cross-listé chez les 3 autres via la synchro, déjà présent
+/// dans l'onglet Membres — demande explicite de l'utilisateur, sans quoi ce
+/// classeur combiné le listerait en double). Sens unique : ce classeur n'est
+/// pas prévu pour être réimporté.
 List<int> buildMultiLodgeDirectoryWorkbook(List<LodgeDirectory> lodges) {
+  // Même valeur que kBlueLodgeObedience (grande_loge_directory_sync.dart,
+  // qui importe ce fichier — recopiée ici plutôt que de créer une
+  // dépendance circulaire).
+  const blueLodgeObedience = 'Grande Loge De Bourbon';
   final members = <List<String>>[
     ['Loge bleue', ...kMemberHeaders],
   ];
@@ -372,20 +380,24 @@ List<int> buildMultiLodgeDirectoryWorkbook(List<LodgeDirectory> lodges) {
         ..._memberRows([m])[1],
       ]);
     }
-    final sortedVisitors = [...lodge.visitors]
-      ..sort(
-        (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
-      );
+    final sortedVisitors =
+        [
+          ...lodge.visitors,
+        ].where((v) => v.obedience.trim() != blueLodgeObedience).toList()..sort(
+          (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
+        );
     for (final v in sortedVisitors) {
       visitors.add([
         lodge.lodgeName,
         ..._visitorRows([v])[1],
       ]);
     }
-    final sortedDignitaries = [...lodge.dignitaries]
-      ..sort(
-        (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
-      );
+    final sortedDignitaries =
+        [
+          ...lodge.dignitaries,
+        ].where((d) => d.obedience.trim() != blueLodgeObedience).toList()..sort(
+          (a, b) => _byName(a.lastName, a.firstName, b.lastName, b.firstName),
+        );
     for (final d in sortedDignitaries) {
       dignitaries.add([
         lodge.lodgeName,
