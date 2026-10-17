@@ -16,6 +16,7 @@ import '../theme.dart';
 import '../widgets/br_decor.dart';
 import '../widgets/directory_filter.dart';
 import 'grande_loge_hg_directory_import_screen.dart';
+import 'grande_loge_hg_iahmes_member_sync_actions.dart';
 import 'grande_loge_hg_maakherou_member_sync_actions.dart';
 import 'hg_directory_export_actions.dart';
 
@@ -51,6 +52,14 @@ class _GrandeLogeHgMembersScreenState extends State<GrandeLogeHgMembersScreen> {
   // drive_access_sync_screen.dart.
   static const _memberSyncOwnerEmail = 'gaudin.bruno974@gmail.com';
 
+  // Synchro des membres IAH-MES (degré > 3 dans les 4 loges bleues) :
+  // réservée aux 2 comptes qui gèrent déjà l'Accès Drive IAH-MES (voir
+  // kHgDriveRequiredEmails, grande_loge_hg_drive_access_screen.dart).
+  static const _iahMesSyncEmails = {
+    'gaudin.bruno974@gmail.com',
+    'iahmes.sstr@gmail.com',
+  };
+
   @override
   Widget build(BuildContext context) {
     final currentUser = context.watch<AppState>().currentUser;
@@ -58,6 +67,9 @@ class _GrandeLogeHgMembersScreenState extends State<GrandeLogeHgMembersScreen> {
     final showMemberSync =
         body.key == kMaaKherou.key &&
         currentUser?.email == _memberSyncOwnerEmail;
+    final showIahMesSync =
+        body.key == kIahMes.key &&
+        _iahMesSyncEmails.contains(currentUser?.email);
     return Scaffold(
       appBar: AppBar(
         title: Text('Membres — ${body.label}'),
@@ -69,6 +81,14 @@ class _GrandeLogeHgMembersScreenState extends State<GrandeLogeHgMembersScreen> {
                         'Synchroniser les membres (Maîtres des 4 loges bleues)',
                     icon: const Icon(Icons.group_add_outlined),
                     onPressed: () => runMaaKherouMemberSync(context),
+                  ),
+                if (showIahMesSync)
+                  IconButton(
+                    tooltip:
+                        'Synchroniser les membres (degré > 3 des 4 loges '
+                        'bleues)',
+                    icon: const Icon(Icons.group_add_outlined),
+                    onPressed: () => runIahMesMemberSync(context),
                   ),
                 IconButton(
                   tooltip: 'Exporter (Membres/Visiteurs/Dignitaires) en .xlsx',
