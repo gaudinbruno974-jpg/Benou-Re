@@ -119,8 +119,10 @@ Future<MemberSyncReport?> runMemberSync(BuildContext context) async {
         child: Text(
           '${plan.creationsCount} fiche(s) seront ajoutées (chaque membre '
           'devient Visiteur chez les 3 autres loges, le V∴M∴ devient '
-          'Dignitaire), ${plan.fixes.length} fiche(s) auront leur téléphone '
-          'ou nom corrigé.'
+          'Dignitaire ; chaque visiteur/dignitaire externe est aussi créé '
+          'là où il manque), ${plan.fixes.length} fiche(s) auront leur '
+          'téléphone ou nom corrigé (toujours d\'après la fiche de Bénou '
+          'Ré quand elle existe).'
           '${plan.manualReview.isEmpty ? '' : '\n\n${plan.manualReview.length} cas nécessitent une correction manuelle (détail dans le rapport).'}',
           style: const TextStyle(color: BrColors.muted),
         ),

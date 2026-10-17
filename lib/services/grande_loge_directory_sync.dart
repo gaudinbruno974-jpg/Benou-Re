@@ -477,6 +477,142 @@ MemberSyncPlan computeMemberSyncPlan(
     }
   }
 
+  // Visiteurs/Dignitaires externes (pas des membres GLDB) : une même
+  // personne enregistrée dans une loge mais absente d'une autre doit être
+  // créée là où elle manque, dans les deux sens. Pour les corrections
+  // (téléphone/nom différents), seule la fiche de Bénou Ré fait référence :
+  // on pousse ses valeurs vers les 3 autres, jamais l'inverse — demande
+  // explicite de l'utilisateur. Dédoublonne par nom contre ce qui existe
+  // déjà ET contre ce que ce calcul a déjà prévu de créer pour cette loge.
+  final plannedVisitorKeys = <String, Set<String>>{
+    for (final t in targets)
+      t.key: {
+        for (final v
+            in lodges[targets.indexWhere((x) => x.key == t.key)].visitors)
+          _foldName(v.firstName, v.lastName),
+      },
+  };
+  final plannedDignitaryKeys = <String, Set<String>>{
+    for (final t in targets)
+      t.key: {
+        for (final d
+            in lodges[targets.indexWhere((x) => x.key == t.key)].dignitaries)
+          _foldName(d.firstName, d.lastName),
+      },
+  };
+
+  for (var i = 0; i < targets.length; i++) {
+    final source = targets[i];
+    final sourceIsBenoure = source.key == 'benoure';
+
+    for (final v in lodges[i].visitors) {
+      if (v.obedience.trim() == kBlueLodgeObedience) continue;
+      final key = _foldName(v.firstName, v.lastName);
+      for (var j = 0; j < targets.length; j++) {
+        if (j == i) continue;
+        final target = targets[j];
+        final existingVis = lodges[j].visitors.firstWhereOrNull(
+          (e) => _foldName(e.firstName, e.lastName) == key,
+        );
+        final existingDig = lodges[j].dignitaries.firstWhereOrNull(
+          (d) => _foldName(d.firstName, d.lastName) == key,
+        );
+        if (existingVis != null) {
+          if (sourceIsBenoure) {
+            _addFix(
+              fixes,
+              target,
+              'visitors',
+              existingVis.id,
+              v.fullName,
+              existingVis.phone,
+              existingVis.firstName,
+              existingVis.lastName,
+              v.phone,
+              v.firstName,
+              v.lastName,
+            );
+          }
+        } else if (existingDig != null) {
+          manualReview.add(
+            '${v.fullName} est visiteur chez ${source.label} mais figure '
+            'comme dignitaire chez ${target.label} : à vérifier.',
+          );
+        } else if (plannedVisitorKeys[target.key]!.add(key)) {
+          visitorsToCreate[target.key]!.add(
+            Visitor(
+              id: '',
+              civilite: v.civilite,
+              firstName: v.firstName,
+              lastName: v.lastName,
+              grade: v.grade,
+              function: v.function,
+              lodge: v.lodge,
+              orient: v.orient,
+              obedience: v.obedience,
+              email: v.email,
+              phone: v.phone,
+            ),
+          );
+        }
+      }
+    }
+
+    for (final d in lodges[i].dignitaries) {
+      if (d.obedience.trim() == kBlueLodgeObedience) continue;
+      final key = _foldName(d.firstName, d.lastName);
+      for (var j = 0; j < targets.length; j++) {
+        if (j == i) continue;
+        final target = targets[j];
+        final existingDig = lodges[j].dignitaries.firstWhereOrNull(
+          (e) => _foldName(e.firstName, e.lastName) == key,
+        );
+        final existingVis = lodges[j].visitors.firstWhereOrNull(
+          (e) => _foldName(e.firstName, e.lastName) == key,
+        );
+        if (existingDig != null) {
+          if (sourceIsBenoure) {
+            _addFix(
+              fixes,
+              target,
+              'dignitaries',
+              existingDig.id,
+              d.fullName,
+              existingDig.phone,
+              existingDig.firstName,
+              existingDig.lastName,
+              d.phone,
+              d.firstName,
+              d.lastName,
+            );
+          }
+        } else if (existingVis != null) {
+          manualReview.add(
+            '${d.fullName} est dignitaire chez ${source.label} mais figure '
+            'comme visiteur chez ${target.label} : à vérifier.',
+          );
+        } else if (plannedDignitaryKeys[target.key]!.add(key)) {
+          dignitariesToCreate[target.key]!.add(
+            Dignitary(
+              id: '',
+              civilite: d.civilite,
+              firstName: d.firstName,
+              lastName: d.lastName,
+              title: d.title,
+              lodge: d.lodge,
+              orient: d.orient,
+              obedience: d.obedience,
+              email: d.email,
+              phone: d.phone,
+              preferredContact: d.preferredContact,
+              protocolRank: d.protocolRank,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   return MemberSyncPlan(
     visitorsToCreate: visitorsToCreate,
     dignitariesToCreate: dignitariesToCreate,
