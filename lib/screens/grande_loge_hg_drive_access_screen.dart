@@ -31,7 +31,7 @@ const List<String> kHgDriveFolders = [
 
 const Map<String, List<String>> kHgDriveRequiredEmails = {
   'iahmes': ['gaudin.bruno974@gmail.com', 'iahmes.sstr@gmail.com'],
-  'maakherou': ['gaudin.bruno974@gmail.com', 'david.bourban78@gmail.com'],
+  'maakherou': ['gaudin.bruno974@gmail.com', 'maakherougldb@gmail.com'],
 };
 
 class _FolderAccessState {
