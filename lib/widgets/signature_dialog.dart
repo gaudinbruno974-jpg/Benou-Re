@@ -23,20 +23,21 @@ Future<String?> captureSignature(BuildContext context, String name) async {
       ),
       content: SizedBox(
         width: 400,
+        height: 220,
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
           ),
-          // Largeur ET hauteur explicites (pas seulement la hauteur) : sans
-          // ça, le package `signature` passe par un calcul de taille interne
-          // avec une largeur infinie qui désynchronise la zone visuellement
-          // blanche de la zone réellement cliquable (bandes mortes en haut
-          // et en bas du pavé — constaté par l'utilisateur sur Android).
+          // Taille imposée depuis l'extérieur (ce SizedBox), rien passé à
+          // Signature lui-même : lui donner width/height déclenche un calcul
+          // de taille interne au package (Center + LimitedBox) qui peut
+          // désynchroniser la zone visuellement blanche de la zone
+          // réellement cliquable (bandes mortes en haut/bas du pavé,
+          // constaté par l'utilisateur sur Android — un premier correctif
+          // passant width/height à Signature n'avait pas suffi).
           child: Signature(
             controller: controller,
-            width: 400,
-            height: 220,
             backgroundColor: Colors.white,
           ),
         ),
