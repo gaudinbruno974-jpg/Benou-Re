@@ -7,11 +7,24 @@
 // déjà saisies dans le corps lui-même : toute nouvelle valeur tapée devient
 // donc automatiquement une suggestion la prochaine fois, sans mécanisme de
 // sauvegarde séparé.
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../models/dignitary.dart';
 import '../models/hg_body.dart';
+import '../models/member.dart';
+import '../models/visitor.dart';
 import '../widgets/directory_filter.dart' show distinctSuggestions;
 import 'grande_loge_directory_sync.dart'
     show kBlueLodgeDisplayName, kBlueLodgeObedience, kBlueLodgeOrient;
-import 'hg_body_service.dart';
+
+// Lecture forcée depuis le serveur (GetOptions(source: Source.server)) et non
+// via HgBodyService.*Once (snapshots().first) : ce dernier peut résoudre
+// depuis le cache local hors-ligne de Firestore avant que la réponse serveur
+// n'arrive, proposant alors des valeurs fantômes déjà corrigées côté serveur
+// mais encore présentes dans le cache du navigateur (constaté le 2026-10-22 :
+// des variantes d'Orient disparues de la base depuis longtemps réapparaissant
+// comme suggestions).
+const _serverOnly = GetOptions(source: Source.server);
 
 /// Valeur par défaut du champ Loge à la création d'une nouvelle fiche.
 const String kHgDefaultLodgePrefix = 'R∴L∴ ';
@@ -34,9 +47,26 @@ class HgDirectorySuggestions {
 }
 
 Future<HgDirectorySuggestions> loadHgDirectorySuggestions(HgBody body) async {
-  final members = await HgBodyService.instance.membersOnce(body);
-  final visitors = await HgBodyService.instance.visitorsOnce(body);
-  final dignitaries = await HgBodyService.instance.dignitariesOnce(body);
+  final db = FirebaseFirestore.instance;
+  final membersSnap = await db
+      .collection(body.membersCollection)
+      .get(_serverOnly);
+  final visitorsSnap = await db
+      .collection(body.visitorsCollection)
+      .get(_serverOnly);
+  final dignitariesSnap = await db
+      .collection(body.dignitariesCollection)
+      .get(_serverOnly);
+  final members = [
+    for (final doc in membersSnap.docs) Member.fromMap(doc.id, doc.data()),
+  ];
+  final visitors = [
+    for (final doc in visitorsSnap.docs) Visitor.fromMap(doc.id, doc.data()),
+  ];
+  final dignitaries = [
+    for (final doc in dignitariesSnap.docs)
+      Dignitary.fromMap(doc.id, doc.data()),
+  ];
   return HgDirectorySuggestions(
     lodges: distinctSuggestions([
       ...kBlueLodgeDisplayName.values,
