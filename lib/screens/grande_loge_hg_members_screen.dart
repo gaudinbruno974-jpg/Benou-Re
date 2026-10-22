@@ -11,6 +11,7 @@ import '../models/hg_body.dart';
 import '../models/member.dart';
 import '../services/directory_xlsx_service.dart';
 import '../services/hg_body_service.dart';
+import '../services/hg_directory_suggestions.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -345,6 +346,7 @@ class _GrandeLogeHgMemberEditScreenState
   late final TextEditingController _degreeCtrl;
   late String _civilite;
   bool _saving = false;
+  HgDirectorySuggestions _suggestions = HgDirectorySuggestions.empty;
 
   @override
   void initState() {
@@ -356,10 +358,15 @@ class _GrandeLogeHgMemberEditScreenState
     _emailCtrl = TextEditingController(text: m?.email ?? '');
     _phoneCtrl = TextEditingController(text: m?.phone ?? '');
     _obedienceCtrl = TextEditingController(text: m?.obedience ?? '');
-    _motherLodgeCtrl = TextEditingController(text: m?.motherLodge ?? '');
+    _motherLodgeCtrl = TextEditingController(
+      text: m?.motherLodge ?? kHgDefaultLodgePrefix,
+    );
     _orientCtrl = TextEditingController(text: m?.orient ?? '');
     _degreeCtrl = TextEditingController(text: m?.hautsGradesDegree ?? '');
     _civilite = m?.civilite.isNotEmpty == true ? m!.civilite : kFrere;
+    loadHgDirectorySuggestions(widget.body).then((s) {
+      if (mounted) setState(() => _suggestions = s);
+    });
   }
 
   @override
@@ -458,25 +465,20 @@ class _GrandeLogeHgMemberEditScreenState
                   decoration: const InputDecoration(labelText: 'Téléphone'),
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                DirectoryAutocompleteField(
                   controller: _motherLodgeCtrl,
-                  style: const TextStyle(color: BrColors.text),
-                  decoration: const InputDecoration(
-                    labelText: 'Loge mère',
-                    hintText: 'ex : R∴L∴ Bénou Ré',
-                  ),
+                  label: 'Loge mère',
+                  suggestions: _suggestions.lodges,
                 ),
-                const SizedBox(height: 14),
-                TextField(
+                DirectoryAutocompleteField(
                   controller: _obedienceCtrl,
-                  style: const TextStyle(color: BrColors.text),
-                  decoration: const InputDecoration(labelText: 'Obédience'),
+                  label: 'Obédience',
+                  suggestions: _suggestions.obediences,
                 ),
-                const SizedBox(height: 14),
-                TextField(
+                DirectoryAutocompleteField(
                   controller: _orientCtrl,
-                  style: const TextStyle(color: BrColors.text),
-                  decoration: const InputDecoration(labelText: 'Orient'),
+                  label: 'Orient',
+                  suggestions: _suggestions.orients,
                 ),
                 // MAA-Kherou : pas de notion de degré/ladder (toujours au
                 // grade de Maître, demande explicite de l'utilisateur) —

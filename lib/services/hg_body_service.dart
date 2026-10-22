@@ -73,6 +73,8 @@ class HgBodyService {
     });
   }
 
+  Future<List<Visitor>> visitorsOnce(HgBody body) => visitorsStream(body).first;
+
   Future<void> saveVisitor(HgBody body, Visitor visitor) async {
     final data = visitor.toMap()..remove('id');
     if (visitor.id.isEmpty) {
@@ -97,6 +99,9 @@ class HgBodyService {
       return dignitaries;
     });
   }
+
+  Future<List<Dignitary>> dignitariesOnce(HgBody body) =>
+      dignitariesStream(body).first;
 
   Future<void> saveDignitary(HgBody body, Dignitary dignitary) async {
     final data = dignitary.toMap()..remove('id');

@@ -12,6 +12,7 @@ import '../models/member.dart';
 import '../models/session.dart';
 import '../models/visitor.dart';
 import '../services/hg_body_service.dart';
+import '../services/hg_directory_suggestions.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
 import '../widgets/directory_filter.dart';
@@ -49,6 +50,7 @@ class _GrandeLogeHgPresenceScreenState
   late List<String> _dignitaryAgapeIds;
   late Map<String, String> _signatures;
   bool _saving = false;
+  HgDirectorySuggestions _suggestions = HgDirectorySuggestions.empty;
 
   // Recherche + regroupement Tous / Par Loge / Par Obédience, comme les
   // écrans Membres/Visiteurs/Dignitaires (demande explicite de
@@ -75,6 +77,9 @@ class _GrandeLogeHgPresenceScreenState
     _memberSearch.addListener(() => setState(() {}));
     _visitorSearch.addListener(() => setState(() {}));
     _dignitarySearch.addListener(() => setState(() {}));
+    loadHgDirectorySuggestions(widget.body).then((s) {
+      if (mounted) setState(() => _suggestions = s);
+    });
   }
 
   @override
@@ -240,7 +245,7 @@ class _GrandeLogeHgPresenceScreenState
     final first = TextEditingController();
     final last = TextEditingController();
     final title = TextEditingController();
-    final lodge = TextEditingController();
+    final lodge = TextEditingController(text: kHgDefaultLodgePrefix);
     final orient = TextEditingController();
     final obedience = TextEditingController();
     final email = TextEditingController();
@@ -258,9 +263,21 @@ class _GrandeLogeHgPresenceScreenState
               _dialogField(first, 'Prénom'),
               _dialogField(last, 'Nom'),
               if (withTitle) _dialogField(title, 'Titre'),
-              _dialogField(lodge, 'Loge'),
-              _dialogField(orient, 'Orient'),
-              _dialogField(obedience, 'Obédience'),
+              DirectoryAutocompleteField(
+                controller: lodge,
+                label: 'Loge',
+                suggestions: _suggestions.lodges,
+              ),
+              DirectoryAutocompleteField(
+                controller: orient,
+                label: 'Orient',
+                suggestions: _suggestions.orients,
+              ),
+              DirectoryAutocompleteField(
+                controller: obedience,
+                label: 'Obédience',
+                suggestions: _suggestions.obediences,
+              ),
               _dialogField(email, 'Email'),
               _dialogField(phone, 'Téléphone'),
             ],

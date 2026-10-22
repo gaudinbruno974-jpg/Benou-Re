@@ -11,6 +11,7 @@ import '../models/dignitary.dart';
 import '../models/hg_body.dart';
 import '../services/directory_xlsx_service.dart';
 import '../services/hg_body_service.dart';
+import '../services/hg_directory_suggestions.dart';
 import '../state/app_state.dart';
 import '../theme.dart';
 import '../widgets/br_decor.dart';
@@ -280,6 +281,7 @@ class _GrandeLogeHgDignitaryEditScreenState
   late final TextEditingController _degreeCtrl;
   late String _civilite;
   bool _saving = false;
+  HgDirectorySuggestions _suggestions = HgDirectorySuggestions.empty;
 
   @override
   void initState() {
@@ -288,13 +290,16 @@ class _GrandeLogeHgDignitaryEditScreenState
     _firstNameCtrl = TextEditingController(text: d?.firstName ?? '');
     _lastNameCtrl = TextEditingController(text: d?.lastName ?? '');
     _titleCtrl = TextEditingController(text: d?.title ?? '');
-    _lodgeCtrl = TextEditingController(text: d?.lodge ?? '');
+    _lodgeCtrl = TextEditingController(text: d?.lodge ?? kHgDefaultLodgePrefix);
     _orientCtrl = TextEditingController(text: d?.orient ?? '');
     _obedienceCtrl = TextEditingController(text: d?.obedience ?? '');
     _emailCtrl = TextEditingController(text: d?.email ?? '');
     _phoneCtrl = TextEditingController(text: d?.phone ?? '');
     _degreeCtrl = TextEditingController(text: d?.grade ?? '');
     _civilite = d?.civilite.isNotEmpty == true ? d!.civilite : kFrere;
+    loadHgDirectorySuggestions(widget.body).then((s) {
+      if (mounted) setState(() => _suggestions = s);
+    });
   }
 
   @override
@@ -381,24 +386,20 @@ class _GrandeLogeHgDignitaryEditScreenState
                   ),
                 ),
                 const SizedBox(height: 14),
-                TextField(
+                DirectoryAutocompleteField(
                   controller: _lodgeCtrl,
-                  style: const TextStyle(color: BrColors.text),
-                  decoration: const InputDecoration(
-                    labelText: "Loge d'origine",
-                  ),
+                  label: "Loge d'origine",
+                  suggestions: _suggestions.lodges,
                 ),
-                const SizedBox(height: 14),
-                TextField(
+                DirectoryAutocompleteField(
                   controller: _orientCtrl,
-                  style: const TextStyle(color: BrColors.text),
-                  decoration: const InputDecoration(labelText: 'Orient'),
+                  label: 'Orient',
+                  suggestions: _suggestions.orients,
                 ),
-                const SizedBox(height: 14),
-                TextField(
+                DirectoryAutocompleteField(
                   controller: _obedienceCtrl,
-                  style: const TextStyle(color: BrColors.text),
-                  decoration: const InputDecoration(labelText: 'Obédience'),
+                  label: 'Obédience',
+                  suggestions: _suggestions.obediences,
                 ),
                 const SizedBox(height: 14),
                 TextField(
