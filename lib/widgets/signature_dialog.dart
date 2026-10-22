@@ -28,8 +28,14 @@ Future<String?> captureSignature(BuildContext context, String name) async {
             color: Colors.white,
             borderRadius: BorderRadius.circular(8),
           ),
+          // Largeur ET hauteur explicites (pas seulement la hauteur) : sans
+          // ça, le package `signature` passe par un calcul de taille interne
+          // avec une largeur infinie qui désynchronise la zone visuellement
+          // blanche de la zone réellement cliquable (bandes mortes en haut
+          // et en bas du pavé — constaté par l'utilisateur sur Android).
           child: Signature(
             controller: controller,
+            width: 400,
             height: 220,
             backgroundColor: Colors.white,
           ),
