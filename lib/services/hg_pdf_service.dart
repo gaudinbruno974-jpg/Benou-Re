@@ -251,9 +251,19 @@ Future<Uint8List> buildIahMesConvocationPdf(
     session.travail3,
     lecturePlanche,
   ].whereType<String>().where((t) => t.trim().isNotEmpty).toList();
-  final complementary = session.agendaItems
+  final complementaryRaw = session.agendaItems
       .where((a) => a.text.trim().isNotEmpty)
       .map((a) => a.text.trim())
+      .toList();
+  // Les agapes doivent toujours être le tout dernier point (après la
+  // clôture des travaux), quel que soit l'endroit où l'item a été tapé —
+  // demande de la secrétaire de Temple d'Horus, généralisée aux 6 loges
+  // (2026-10-24), texte normalisé sans les détails déjà repris ailleurs.
+  final hasAgapeItem = complementaryRaw.any(
+    (t) => foldLabel(t).contains('agape'),
+  );
+  final complementary = complementaryRaw
+      .where((t) => !foldLabel(t).contains('agape'))
       .toList();
   final cloture = (session.ligneCloture ?? '').trim();
 
@@ -346,6 +356,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
   final maaParticularItems = [
     ...complementary,
     if (!hasQuestionsDiverses) 'Questions diverses',
+    if (hasAgapeItem) 'Agapes Fraternelles',
   ];
   final accueilHeureMaa = _heureMoinsTrenteMinutes(session.dateTime);
 
@@ -659,6 +670,14 @@ Future<Uint8List> buildIahMesConvocationPdf(
           for (int i = 0; i < complementary.length; i++)
             numberedLine(fixedWorks.length + i + 1, complementary[i]),
           if (cloture.isNotEmpty) clotureLine,
+          if (hasAgapeItem)
+            numberedLine(
+              (clotureMatch != null
+                      ? int.parse(clotureMatch.group(1)!)
+                      : fixedWorks.length + complementary.length) +
+                  1,
+              'Agapes Fraternelles',
+            ),
         ],
         if (session.suitAgapes) ...[
           if (body.key == kMaaKherou.key) ...[

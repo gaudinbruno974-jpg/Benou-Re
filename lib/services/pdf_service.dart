@@ -131,13 +131,24 @@ List<String> _collectOrdreDuJour(Session s) {
   ];
   final fallback = <String?>[s.agenda1, s.agenda2, s.agenda3, s.agenda4];
   final source = raw.any((r) => (r ?? '').trim().isNotEmpty) ? raw : fallback;
-  return source
+  final items = source
       .map(
         (item) =>
             (item ?? '').replaceFirst(RegExp(r'^\s*\d+\s*[.)]\s*'), '').trim(),
       )
       .where((item) => item.isNotEmpty)
       .toList();
+  // Les agapes doivent toujours être le tout dernier point (après la
+  // clôture des travaux), quel que soit l'endroit où l'item a été tapé —
+  // demande de la secrétaire de Temple d'Horus, généralisée aux 6 loges
+  // (2026-10-24). Le texte est normalisé : les détails (horaire, type,
+  // médaille...) sont déjà repris séparément dans la phrase dédiée avant
+  // la signature, pas besoin de les répéter ici.
+  if (items.any((i) => foldLabel(i).contains('agape'))) {
+    items.removeWhere((i) => foldLabel(i).contains('agape'));
+    items.add('Agapes Fraternelles');
+  }
+  return items;
 }
 
 // Calendrier égyptien du R∴A∴P∴M∴M∴ (système Robert Ambelain) : Nouvel An
