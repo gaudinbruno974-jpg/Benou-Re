@@ -210,7 +210,7 @@ Future<Uint8List> buildIahMesConvocationPdf(
   );
   final degree = _sessionDegree(session);
   final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
-      ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
+      ? 'Temple Thérèse ELISEMAN, à l\'Orient de Saint-Pierre Condé'
       : session.lieuReunionExtra!.trim();
   final signerNameRaw = (session.vmName ?? '').trim().isEmpty
       ? hgDefaultSignerName(body)
@@ -820,7 +820,7 @@ Future<Uint8List> buildIahMesEmargementPdf(
   final degreeName = hgDegreeNamePhrase(body, degree);
   final sessionNumber = session.numero?.toString() ?? '';
   final location = (session.lieuReunionExtra ?? '').trim().isEmpty
-      ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
+      ? 'Temple Thérèse ELISEMAN, à l\'Orient de Saint-Pierre Condé'
       : session.lieuReunionExtra!.trim();
 
   final memberRows = members
@@ -1068,7 +1068,7 @@ String buildIahMesPlancheTraceeText(
   final degree = int.tryParse(session.degreTravail ?? session.degree) ?? 4;
   final degreePhrase = hgDegreeOrdinalPhrase(body, degree);
   final lieu = (session.lieuReunionExtra ?? '').trim().isEmpty
-      ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre'
+      ? 'Temple Thérèse ELISEMAN, à l\'Orient de Saint-Pierre Condé'
       : session.lieuReunionExtra!.trim();
   final institution = hgInstitutionHeader(body);
 

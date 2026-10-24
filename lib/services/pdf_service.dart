@@ -26,6 +26,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
+import '../config/flavor.dart';
 import '../config/lodge_config.dart';
 import '../models/civilite.dart';
 import '../models/dignitary.dart';
@@ -58,6 +59,12 @@ pw.Widget _copyrightFooter(pw.Context context) => pw.Container(
 const _navy = PdfColor.fromInt(0xFF0C235C);
 const _violet = PdfColor.fromInt(0xFF701A75);
 const _grey = PdfColor.fromInt(0xFFD9D9D9);
+const _red = PdfColor.fromInt(0xFFC00000);
+
+/// Mise en page de convocation propre à Temple d'Horus, demandée par sa
+/// secrétaire (2026-10-24) : les 3 autres loges bleues gardent le modèle
+/// d'origine.
+const _isTempleHorus = currentFlavor == 'templehorus';
 
 // Placement rituel de chaque office dans le Temple.
 const Map<String, String> officePlacement = {
@@ -328,7 +335,11 @@ pw.Widget _lodgeHeader(
     pw.Text(
       'GRANDE LOGE DE BOURBON',
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(font: fonts.bold, fontSize: 16 * scale, color: _navy),
+      style: pw.TextStyle(
+        font: _isTempleHorus ? fonts.base : fonts.bold,
+        fontSize: 16 * scale,
+        color: _isTempleHorus ? null : _navy,
+      ),
     ),
     pw.SizedBox(height: 2 * _mm * scale),
     pw.Text(
@@ -342,13 +353,21 @@ pw.Widget _lodgeHeader(
     pw.Text(
       LodgeConfig.current.shortTitle,
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(font: fonts.bold, fontSize: 15 * scale, color: _navy),
+      style: pw.TextStyle(
+        font: fonts.bold,
+        fontSize: 15 * scale,
+        color: _isTempleHorus ? null : _navy,
+      ),
     ),
     pw.SizedBox(height: 2 * _mm * scale),
     pw.Text(
       'O∴ de ${LodgeConfig.current.orientLong}',
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale, color: _navy),
+      style: pw.TextStyle(
+        font: fonts.bold,
+        fontSize: 11 * scale,
+        color: _isTempleHorus ? null : _navy,
+      ),
     ),
   ];
 
@@ -382,7 +401,7 @@ pw.Widget _lodgeHeader(
         padding: pw.EdgeInsets.only(bottom: 1 * _mm * scale),
         child: pw.Text(
           f,
-          textAlign: pw.TextAlign.center,
+          textAlign: _isTempleHorus ? pw.TextAlign.left : pw.TextAlign.center,
           style: pw.TextStyle(
             font: fonts.base,
             fontSize: 8 * scale,
@@ -484,6 +503,7 @@ List<pw.Widget> _convocationContent({
   required _PdfFonts fonts,
   required List<pw.ImageProvider?> logos,
   required String dateFormatted,
+  required String heureFormatted,
   required String degreLong,
   required String typeTenue,
   required String lieu,
@@ -512,34 +532,107 @@ List<pw.Widget> _convocationContent({
         vertical: 3 * _mm * scale,
         horizontal: 4 * _mm,
       ),
-      child: pw.Text(
-        'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted.toUpperCase()} E∴V∴',
-        textAlign: pw.TextAlign.center,
-        style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale),
-      ),
+      child: _isTempleHorus
+          ? pw.Column(
+              children: [
+                pw.Text(
+                  'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale),
+                ),
+                pw.SizedBox(height: 1.5 * _mm * scale),
+                pw.RichText(
+                  textAlign: pw.TextAlign.center,
+                  text: pw.TextSpan(
+                    children: [
+                      pw.TextSpan(
+                        text: 'DU ',
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 11 * scale,
+                        ),
+                      ),
+                      pw.TextSpan(
+                        text: '${dateFormatted.toUpperCase()} E∴V∴',
+                        style: pw.TextStyle(
+                          font: fonts.bold,
+                          fontSize: 11 * scale,
+                          color: _red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(height: 1.5 * _mm * scale),
+                pw.Text(
+                  heureFormatted,
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 11 * scale,
+                    color: _red,
+                  ),
+                ),
+              ],
+            )
+          : pw.Text(
+              'ORDRE DU JOUR DE LA TENUE RÉGULIÈRE DU ${dateFormatted.toUpperCase()} E∴V∴',
+              textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(font: fonts.bold, fontSize: 11 * scale),
+            ),
     ),
     pw.SizedBox(height: 12 * _mm * scale),
-    pw.Center(
-      child: pw.Text(
-        'A la Gloire Du Grand Architecte De l\'Univers,',
-        style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
-      ),
-    ),
+    _isTempleHorus
+        ? pw.Text(
+            'A la Gloire Du Grand Architecte De l\'Univers,',
+            style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+          )
+        : pw.Center(
+            child: pw.Text(
+              'A la Gloire Du Grand Architecte De l\'Univers,',
+              style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+            ),
+          ),
     pw.SizedBox(height: 6 * _mm * scale),
-    pw.Center(
-      child: pw.Text(
-        'Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,',
-        style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
-      ),
-    ),
+    _isTempleHorus
+        ? pw.Text(
+            'Mes TT∴CC∴SS∴ et TT∴CC∴FF∴, VV∴MM∴,',
+            style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+          )
+        : pw.Center(
+            child: pw.Text(
+              'Mes TT∴CC∴SS∴ et TT∴CC∴FF∴,',
+              style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+            ),
+          ),
     pw.SizedBox(height: 9 * _mm * scale),
-    pw.Text(
-      'La R∴L∴ ${LodgeConfig.current.name} a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${typeTenue.toUpperCase()} au $degreLong qui se déroulera au $lieu :',
+    pw.RichText(
       textAlign: pw.TextAlign.center,
-      style: pw.TextStyle(
-        font: fonts.base,
-        fontSize: 11 * scale,
-        color: _violet,
+      text: pw.TextSpan(
+        style: pw.TextStyle(
+          font: fonts.base,
+          fontSize: 11 * scale,
+          color: _violet,
+        ),
+        children: [
+          const pw.TextSpan(text: 'La R∴L∴ '),
+          pw.TextSpan(
+            text: _isTempleHorus
+                ? LodgeConfig.current.name.toUpperCase()
+                : LodgeConfig.current.name,
+            style: _isTempleHorus
+                ? pw.TextStyle(
+                    font: fonts.bold,
+                    fontSize: 11 * scale,
+                    color: _violet,
+                  )
+                : null,
+          ),
+          pw.TextSpan(
+            text:
+                ' a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${(_isTempleHorus ? 'Régulière' : typeTenue).toUpperCase()} au $degreLong qui se déroulera au $lieu${_isTempleHorus ? '.' : ' :'}',
+          ),
+        ],
       ),
     ),
     pw.SizedBox(height: 6 * _mm * scale),
@@ -582,9 +675,15 @@ List<pw.Widget> _convocationContent({
     if (isApprentiTenue) ...[
       pw.SizedBox(height: 12 * _mm * scale),
       pw.Text(
-        "Je remercie tous les FF∴ et SS∴ apprentis d'arriver à $accueilHeure pour "
-        "aider à la mise en place du Temple sous la houlette du Maître Second "
-        "Surveillant et du Maître Expert.",
+        _isTempleHorus
+            ? "Je remercie tous les FF∴ et SS∴ Apprentis (es) d'arriver à "
+                  "$accueilHeure pour aider à la mise en place du Temple sous "
+                  "la houlette du Maître Second Surveillant et du Maître "
+                  "Expert."
+            : "Je remercie tous les FF∴ et SS∴ apprentis d'arriver à "
+                  "$accueilHeure pour aider à la mise en place du Temple "
+                  "sous la houlette du Maître Second Surveillant et du "
+                  "Maître Expert.",
         textAlign: pw.TextAlign.left,
         style: pw.TextStyle(
           font: fonts.base,
@@ -595,15 +694,17 @@ List<pw.Widget> _convocationContent({
     ],
     pw.SizedBox(height: 6 * _mm * scale),
     pw.Text(
-      "Les Travaux seront suivis d'Agapes fraternelles en Salle Humide$agapeDetails.$medaille",
-      textAlign: pw.TextAlign.center,
+      "${_isTempleHorus ? '1. ' : ''}Les Travaux seront suivis d'Agapes fraternelles en Salle Humide$agapeDetails.$medaille",
+      textAlign: _isTempleHorus ? pw.TextAlign.left : pw.TextAlign.center,
       maxLines: 1,
       style: pw.TextStyle(font: fonts.base, fontSize: 9 * scale, color: _navy),
     ),
     pw.SizedBox(height: 3 * _mm * scale),
     pw.Text(
-      "Merci aux SS∴ et FF∴ De s'annoncer afin d'ajuster au mieux les Agapes.$telSuffix",
-      textAlign: pw.TextAlign.center,
+      _isTempleHorus
+          ? "2. Merci aux SS∴ et FF∴ invités de s'annoncer afin d'ajuster au mieux les Agapes.$telSuffix"
+          : "Merci aux SS∴ et FF∴ De s'annoncer afin d'ajuster au mieux les Agapes.$telSuffix",
+      textAlign: _isTempleHorus ? pw.TextAlign.left : pw.TextAlign.center,
       style: pw.TextStyle(
         font: fonts.base,
         fontSize: 8.5 * scale,
@@ -710,7 +811,14 @@ Future<Uint8List> buildConvocationPdf(
     if (secretaryPhone.isNotEmpty)
       '$secretaryTitle Sec∴ : ${_localPhone(secretaryPhone)}',
   ];
-  final telSuffix = telParts.isEmpty ? '' : ' Tél ${telParts.join(' — ')}';
+  final telSuffix = _isTempleHorus
+      ? (secretaryPhone.isEmpty ? '' : ' Tél : ${_localPhone(secretaryPhone)}')
+      : (telParts.isEmpty ? '' : ' Tél ${telParts.join(' — ')}');
+  final heureDt = DateTime.tryParse(dateSource);
+  final heureFormatted = heureDt == null
+      ? 'xxHxx'
+      : '${heureDt.hour.toString().padLeft(2, '0')}H'
+            '${heureDt.minute.toString().padLeft(2, '0')}';
 
   // Contrainte "une seule page, toujours" : on tente à pleine échelle, puis on
   // réduit progressivement police/interlignage/marges/logos jusqu'à ce que le
@@ -731,6 +839,7 @@ Future<Uint8List> buildConvocationPdf(
           fonts: fonts,
           logos: logos,
           dateFormatted: dateFormatted,
+          heureFormatted: heureFormatted,
           degreLong: degreLong,
           typeTenue: typeTenue,
           lieu: lieu,

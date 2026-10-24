@@ -78,7 +78,9 @@ String _agapeDetails(Session session) {
 
 String _lieu(Session session) {
   final l = (session.lieuReunionExtra ?? session.location).trim();
-  return l.isEmpty ? 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre' : l;
+  return l.isEmpty
+      ? 'Temple Thérèse ELISEMAN, à l\'Orient de Saint-Pierre Condé'
+      : l;
 }
 
 /// Corps commun aux deux textes : annonce de la tenue, lieu/horaires, ordre

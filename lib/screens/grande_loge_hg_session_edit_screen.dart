@@ -196,7 +196,7 @@ class _GrandeLogeHgSessionEditScreenState
     _location = TextEditingController(
       text: s?.location.isNotEmpty == true
           ? s!.location
-          : 'Temple Thérèse Eliseman, à l\'Orient de Saint-Pierre',
+          : 'Temple Thérèse ELISEMAN, à l\'Orient de Saint-Pierre Condé',
     );
     // MAA-Kherou : David Bourban par défaut. IAH-MES : nom d'exemple
     // inchangé (demande explicite de l'utilisateur, 2026-10-10).
