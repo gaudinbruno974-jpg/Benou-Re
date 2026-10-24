@@ -399,15 +399,33 @@ pw.Widget _lodgeHeader(
     for (final f in _filiations)
       pw.Padding(
         padding: pw.EdgeInsets.only(bottom: 1 * _mm * scale),
-        child: pw.Text(
-          f,
-          textAlign: _isTempleHorus ? pw.TextAlign.left : pw.TextAlign.center,
-          style: pw.TextStyle(
-            font: fonts.base,
-            fontSize: 8 * scale,
-            color: const PdfColor.fromInt(0xFF505050),
-          ),
-        ),
+        // SizedBox en pleine largeur pour Temple d'Horus : sans lui, le
+        // Text se réduit à la largeur de son propre contenu (le Column
+        // parent centre alors chaque ligne comme un bloc, indépendamment
+        // de son textAlign) et "gauche" n'a rien contre quoi s'aligner —
+        // même bug que la phrase "La R∴L∴ ..." plus haut.
+        child: _isTempleHorus
+            ? pw.SizedBox(
+                width: double.infinity,
+                child: pw.Text(
+                  f,
+                  textAlign: pw.TextAlign.left,
+                  style: pw.TextStyle(
+                    font: fonts.base,
+                    fontSize: 8 * scale,
+                    color: const PdfColor.fromInt(0xFF505050),
+                  ),
+                ),
+              )
+            : pw.Text(
+                f,
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  font: fonts.base,
+                  fontSize: 8 * scale,
+                  color: const PdfColor.fromInt(0xFF505050),
+                ),
+              ),
       ),
   ];
 
