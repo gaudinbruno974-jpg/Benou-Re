@@ -585,7 +585,11 @@ List<pw.Widget> _convocationContent({
     _isTempleHorus
         ? pw.Text(
             'A la Gloire Du Grand Architecte De l\'Univers,',
-            style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 11 * scale,
+              color: _violet,
+            ),
           )
         : pw.Center(
             child: pw.Text(
@@ -597,7 +601,11 @@ List<pw.Widget> _convocationContent({
     _isTempleHorus
         ? pw.Text(
             'Mes TT∴CC∴SS∴ et TT∴CC∴FF∴, VV∴MM∴,',
-            style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
+            style: pw.TextStyle(
+              font: fonts.bold,
+              fontSize: 11 * scale,
+              color: _violet,
+            ),
           )
         : pw.Center(
             child: pw.Text(
@@ -610,7 +618,7 @@ List<pw.Widget> _convocationContent({
       textAlign: pw.TextAlign.center,
       text: pw.TextSpan(
         style: pw.TextStyle(
-          font: fonts.base,
+          font: _isTempleHorus ? fonts.bold : fonts.base,
           fontSize: 11 * scale,
           color: _violet,
         ),
@@ -620,13 +628,6 @@ List<pw.Widget> _convocationContent({
             text: _isTempleHorus
                 ? LodgeConfig.current.name.toUpperCase()
                 : LodgeConfig.current.name,
-            style: _isTempleHorus
-                ? pw.TextStyle(
-                    font: fonts.bold,
-                    fontSize: 11 * scale,
-                    color: _violet,
-                  )
-                : null,
           ),
           pw.TextSpan(
             text:
