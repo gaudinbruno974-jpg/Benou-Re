@@ -395,39 +395,33 @@ pw.Widget _lodgeHeader(
     ],
   );
 
-  final filiationsBlock = [
+  final filiationLines = [
     for (final f in _filiations)
       pw.Padding(
         padding: pw.EdgeInsets.only(bottom: 1 * _mm * scale),
-        // SizedBox en pleine largeur pour Temple d'Horus : sans lui, le
-        // Text se réduit à la largeur de son propre contenu (le Column
-        // parent centre alors chaque ligne comme un bloc, indépendamment
-        // de son textAlign) et "gauche" n'a rien contre quoi s'aligner —
-        // même bug que la phrase "La R∴L∴ ..." plus haut.
-        child: _isTempleHorus
-            ? pw.SizedBox(
-                width: double.infinity,
-                child: pw.Text(
-                  f,
-                  textAlign: pw.TextAlign.left,
-                  style: pw.TextStyle(
-                    font: fonts.base,
-                    fontSize: 8 * scale,
-                    color: const PdfColor.fromInt(0xFF505050),
-                  ),
-                ),
-              )
-            : pw.Text(
-                f,
-                textAlign: pw.TextAlign.center,
-                style: pw.TextStyle(
-                  font: fonts.base,
-                  fontSize: 8 * scale,
-                  color: const PdfColor.fromInt(0xFF505050),
-                ),
-              ),
+        child: pw.Text(
+          f,
+          textAlign: _isTempleHorus ? pw.TextAlign.left : pw.TextAlign.center,
+          style: pw.TextStyle(
+            font: fonts.base,
+            fontSize: 8 * scale,
+            color: const PdfColor.fromInt(0xFF505050),
+          ),
+        ),
       ),
   ];
+  // Pour Temple d'Horus : les 3 lignes alignées entre elles sur leur bord
+  // gauche (crossAxisAlignment.start les fait toutes démarrer au bord
+  // gauche de CE Column, qui se réduit à la largeur de la ligne la plus
+  // longue), et ce bloc ainsi formé reste centré au milieu de la page
+  // (hérité du crossAxisAlignment.center par défaut du Column parent, qui
+  // centre ce bloc comme il centre gldbTitle/ritesRow).
+  final filiationsBlock = _isTempleHorus
+      ? pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: filiationLines,
+        )
+      : pw.Column(children: filiationLines);
 
   if (stacked) {
     // Les deux logos empilés dans une colonne fixe à gauche (GLDB puis
@@ -454,7 +448,7 @@ pw.Widget _lodgeHeader(
                   pw.SizedBox(height: 8 * _mm * scale),
                   ritesRow,
                   pw.SizedBox(height: 10 * _mm * scale),
-                  ...filiationsBlock,
+                  filiationsBlock,
                 ],
               ),
             ),
@@ -480,7 +474,7 @@ pw.Widget _lodgeHeader(
       pw.SizedBox(height: 8 * _mm * scale),
       ritesRow,
       pw.SizedBox(height: 10 * _mm * scale),
-      ...filiationsBlock,
+      filiationsBlock,
       pw.SizedBox(height: 7 * _mm * scale),
       pw.Column(children: lodgeTitle),
       pw.SizedBox(height: 12 * _mm * scale),
