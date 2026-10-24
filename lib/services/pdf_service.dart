@@ -139,13 +139,20 @@ List<String> _collectOrdreDuJour(Session s) {
       .where((item) => item.isNotEmpty)
       .toList();
   // Les agapes doivent toujours être le tout dernier point (après la
-  // clôture des travaux), quel que soit l'endroit où l'item a été tapé —
-  // demande de la secrétaire de Temple d'Horus, généralisée aux 6 loges
-  // (2026-10-24). Le texte est normalisé : les détails (horaire, type,
+  // clôture des travaux) — demande de la secrétaire de Temple d'Horus,
+  // généralisée aux 6 loges (2026-10-24). On l'ajoute dès que la tenue a
+  // des agapes prévues (s.suitAgapes, coché sur la tenue), même si
+  // personne ne l'a tapé dans l'ordre du jour ; si un item le mentionne
+  // quand même (ex. "Agapes fraternelles" tapé manuellement), il est
+  // retiré de sa position d'origine et remplacé par le même texte
+  // normalisé en dernière position — les détails (horaire, type,
   // médaille...) sont déjà repris séparément dans la phrase dédiée avant
   // la signature, pas besoin de les répéter ici.
-  if (items.any((i) => foldLabel(i).contains('agape'))) {
+  final hasAgapeItem = items.any((i) => foldLabel(i).contains('agape'));
+  if (hasAgapeItem) {
     items.removeWhere((i) => foldLabel(i).contains('agape'));
+  }
+  if (hasAgapeItem || s.suitAgapes) {
     items.add('Agapes Fraternelles');
   }
   return items;

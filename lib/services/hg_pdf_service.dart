@@ -256,12 +256,14 @@ Future<Uint8List> buildIahMesConvocationPdf(
       .map((a) => a.text.trim())
       .toList();
   // Les agapes doivent toujours être le tout dernier point (après la
-  // clôture des travaux), quel que soit l'endroit où l'item a été tapé —
-  // demande de la secrétaire de Temple d'Horus, généralisée aux 6 loges
-  // (2026-10-24), texte normalisé sans les détails déjà repris ailleurs.
-  final hasAgapeItem = complementaryRaw.any(
-    (t) => foldLabel(t).contains('agape'),
-  );
+  // clôture des travaux) — demande de la secrétaire de Temple d'Horus,
+  // généralisée aux 6 loges/corps (2026-10-24). Ajouté dès que la tenue a
+  // des agapes prévues (session.suitAgapes), même si personne ne l'a tapé
+  // dans l'ordre du jour ; texte normalisé sans les détails déjà repris
+  // ailleurs si un item le mentionnait quand même.
+  final hasAgapeItem =
+      session.suitAgapes ||
+      complementaryRaw.any((t) => foldLabel(t).contains('agape'));
   final complementary = complementaryRaw
       .where((t) => !foldLabel(t).contains('agape'))
       .toList();
