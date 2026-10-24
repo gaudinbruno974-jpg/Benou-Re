@@ -587,7 +587,7 @@ List<pw.Widget> _convocationContent({
             'A la Gloire Du Grand Architecte De l\'Univers,',
             style: pw.TextStyle(
               font: fonts.bold,
-              fontSize: 11 * scale,
+              fontSize: 13 * scale,
               color: _violet,
             ),
           )
@@ -597,13 +597,13 @@ List<pw.Widget> _convocationContent({
               style: pw.TextStyle(font: fonts.base, fontSize: 11 * scale),
             ),
           ),
-    pw.SizedBox(height: 6 * _mm * scale),
+    pw.SizedBox(height: _isTempleHorus ? 1.5 * _mm * scale : 6 * _mm * scale),
     _isTempleHorus
         ? pw.Text(
             'Mes TT∴CC∴SS∴ et TT∴CC∴FF∴, VV∴MM∴,',
             style: pw.TextStyle(
               font: fonts.bold,
-              fontSize: 11 * scale,
+              fontSize: 13 * scale,
               color: _violet,
             ),
           )
@@ -614,26 +614,29 @@ List<pw.Widget> _convocationContent({
             ),
           ),
     pw.SizedBox(height: 9 * _mm * scale),
-    pw.RichText(
-      textAlign: pw.TextAlign.center,
-      text: pw.TextSpan(
-        style: pw.TextStyle(
-          font: _isTempleHorus ? fonts.bold : fonts.base,
-          fontSize: 11 * scale,
-          color: _violet,
+    pw.SizedBox(
+      width: double.infinity,
+      child: pw.RichText(
+        textAlign: _isTempleHorus ? pw.TextAlign.left : pw.TextAlign.center,
+        text: pw.TextSpan(
+          style: pw.TextStyle(
+            font: _isTempleHorus ? fonts.bold : fonts.base,
+            fontSize: _isTempleHorus ? 13 * scale : 11 * scale,
+            color: _violet,
+          ),
+          children: [
+            const pw.TextSpan(text: 'La R∴L∴ '),
+            pw.TextSpan(
+              text: _isTempleHorus
+                  ? LodgeConfig.current.name.toUpperCase()
+                  : LodgeConfig.current.name,
+            ),
+            pw.TextSpan(
+              text:
+                  ' a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${(_isTempleHorus ? 'Régulière' : typeTenue).toUpperCase()} au $degreLong qui se déroulera au $lieu${_isTempleHorus ? '.' : ' :'}',
+            ),
+          ],
         ),
-        children: [
-          const pw.TextSpan(text: 'La R∴L∴ '),
-          pw.TextSpan(
-            text: _isTempleHorus
-                ? LodgeConfig.current.name.toUpperCase()
-                : LodgeConfig.current.name,
-          ),
-          pw.TextSpan(
-            text:
-                ' a la grande joie de vous convier fraternellement à participer aux Travaux de sa $chrono° TENUE ${(_isTempleHorus ? 'Régulière' : typeTenue).toUpperCase()} au $degreLong qui se déroulera au $lieu${_isTempleHorus ? '.' : ' :'}',
-          ),
-        ],
       ),
     ),
     pw.SizedBox(height: 6 * _mm * scale),
