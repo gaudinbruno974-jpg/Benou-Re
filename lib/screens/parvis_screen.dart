@@ -4,6 +4,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 
 import '../config/lodge_config.dart';
+import '../models/civilite.dart';
 import '../models/member.dart';
 import '../services/update_service.dart';
 import '../state/app_state.dart';
@@ -343,7 +344,8 @@ class _ParvisScreenBody extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Salutations Fraternelles, mon T. C. F. ${user.firstName}',
+                          'Salutations Fraternelles, ${user.civilite == kSoeur ? 'ma' : 'mon'} '
+                          'T∴C∴${civiliteAbbrev(user.civilite)} ${user.firstName}',
                           style: const TextStyle(
                             color: BrColors.text,
                             fontSize: 18,
