@@ -30,7 +30,7 @@ import '../services/pdf_service.dart';
 import '../utils/name_mask.dart';
 
 const _sessionTypes = [
-  'Ordinaire',
+  'Régulière',
   'Extraordinaire',
   'Banquet',
   'Tenue blanche',
@@ -178,7 +178,7 @@ class _SessionEditScreenState extends State<SessionEditScreen> {
       if (items.isEmpty) _OrdreRow(controller: TextEditingController()),
     ];
 
-    _type = _ensure(s?.typeTenue ?? s?.type, 'Ordinaire');
+    _type = _ensure(s?.typeTenue ?? s?.type, 'Régulière');
     _degree = _ensure(normalizeGrade(s?.degreTravail ?? s?.degree), 'Apprenti');
     _date = s?.dateTime;
     _heureReprise = _date != null && (_date!.hour != 0 || _date!.minute != 0)

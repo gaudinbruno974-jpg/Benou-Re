@@ -799,7 +799,7 @@ Future<Uint8List> buildConvocationPdf(
   final isApprentiTenue = Session.degreeRank(session.degreeLabel) == 1;
   final typeTenue =
       session.typeTenue ??
-      (session.type.isNotEmpty ? session.type : 'Ordinaire');
+      (session.type.isNotEmpty ? session.type : 'Régulière');
   final lieu =
       session.lieuReunionExtra ??
       (session.location.isNotEmpty
@@ -922,7 +922,7 @@ Future<Uint8List> buildEmargementPdf(
   );
 
   final signatures = session.signatures;
-  final type = session.type.isNotEmpty ? session.type : 'Ordinaire';
+  final type = session.type.isNotEmpty ? session.type : 'Régulière';
   final degree = session.degree.isNotEmpty ? session.degree : 'Apprenti';
   final sessionNumber = session.numero?.toString() ?? '';
   final location = session.location.isNotEmpty
